@@ -1,0 +1,26 @@
+[project]
+name = "PyMicroscope"
+dynamic = ["version"]
+description = "A simple microscope application"
+authors = [
+    { name = "Daniel C. Côté", email = "dccote@cervo.ulaval.ca" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pyro5",
+]
+
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "setuptools-scm>=7.0"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pymicroscope"]
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+write_to = "pymicroscope/_version.py"
