@@ -22,7 +22,7 @@ import threading
 
 import envtest  # setup environment for testing
 from envtest import CaptureStdout, CaptureStdError
-from src.utils import LoggableProcess, CallableProcess
+from pymicroscope.utils import LoggableProcess, CallableProcess
 
 
 class TestLoggableProcess(LoggableProcess):  # pylint: disable=too-few-public-methods

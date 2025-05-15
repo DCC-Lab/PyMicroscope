@@ -16,7 +16,7 @@ from multiprocessing import Value
 from queue import Empty
 
 import envtest  # setup environment for testing
-from src.utils import TerminableProcess, CallableProcess, Reply
+from pymicroscope.utils import TerminableProcess, CallableProcess, Reply
 
 
 class TestProcess(CallableProcess):

@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 from unittest.mock import patch
 
-from src.utils.terminable import TerminableProcess
+from pymicroscope.utils import TerminableProcess
 
 
 class TestProcess(TerminableProcess):
@@ -283,7 +283,7 @@ class SelfTerminatingBySettingExitGroupLeaderProcess(TerminableProcess):
         self.log.debug("Run: Exiting process")
 
 
-from src.utils.terminable import (
+from pymicroscope.utils.terminable import (
     TerminableProcess,
     run_loop,
     # setup_loop,

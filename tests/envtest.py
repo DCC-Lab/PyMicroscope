@@ -38,10 +38,10 @@ import time
 from queue import Full, Empty, Queue
 import psutil
 
-path = os.path.join(os.path.dirname(__file__), "..")
+path = os.path.join(os.path.dirname(__file__), "../src")
 sys.path.append(path)
 
-from src.utils import configured_log
+from pymicroscope.utils import configured_log
 
 
 TEST_LOG_LEVEL = logging.INFO
