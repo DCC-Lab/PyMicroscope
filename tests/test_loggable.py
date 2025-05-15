@@ -70,7 +70,7 @@ class TestLoggableCallableProcess(
         while True:
             if time.time() < start_time + 2:
                 time.sleep(0.01)
-            self.check_command_queue()
+            self.handle_remote_call_events()
 
         super().deinstall_signal_handlers()
 

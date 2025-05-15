@@ -68,12 +68,12 @@ class TestProcess(CallableProcess):
                 if self._no_check:
                     continue
 
-                self.check_command_queue()
+                self.handle_remote_call_events()
 
                 time.sleep(self.delay_after_check)
 
             self._exit_now_signal_flag = True
-            self.check_command_queue()
+            self.handle_remote_call_events()
 
     def increase_call_count(self):
         with self.call_count.get_lock():
@@ -441,7 +441,7 @@ class CallableTestCase(envtest.CoreTestCase):  # pylint: disable=too-many-public
         will set is_accepting_commands to False, and further calls to
         call_method_remotely will raise an exception for the caller
 
-        We then call check_command_queue() (inside the run loo) one last time,
+        We then call handle_remote_call_events() (inside the run loo) one last time,
         because it always empties the queue.
 
         If it takes too long, then terminate_synchronously() will actually kill it.
@@ -502,13 +502,13 @@ class CallableTestCase(envtest.CoreTestCase):  # pylint: disable=too-many-public
 
     def test140_loop_timeout_for_spinning(self):
         """
-         The loop_timeout is the check_command_queue timeout within the
+         The loop_timeout is the handle_remote_call_events timeout within the
          loop.  There are two important situations that are completely different
          and deserve two very different timeouts. A callableProcess may have two
          different pruposes:
 
          1. It is accepting to be called remotely BUT DOES OTHER things in between.
-            This situation requires that check_command_queue returns quickly if it is empty.
+            This situation requires that handle_remote_call_events returns quickly if it is empty.
             A timeout of 1s would really slow down the loop for its other tasks.
 
             This is the case for "A Process" that does many things, including executing commands
@@ -537,7 +537,7 @@ class CallableTestCase(envtest.CoreTestCase):  # pylint: disable=too-many-public
                 elapsed_time < 2.0, f"Took {elapsed_time}s instead of less than 1.0s"
             )
 
-        # A Process doing other things: once it enters the check_command_queue
+        # A Process doing other things: once it enters the handle_remote_call_events
         # method, it will get() and empty the queue esentially and be very quick
         # even if the loop is in fact a bit slow (delay_after_check=0.2)
         with TestProcess(

@@ -11,7 +11,7 @@ import numpy as np
 
 from Pyro5.nameserver import start_ns
 from Pyro5.api import expose, Daemon, locate_ns, Proxy
-from src.utils.pyroprocess import PyroProcess
+from pymicroscope.utils.pyroprocess import PyroProcess
 
 
 class PyroProcessTestCase(envtest.CoreTestCase):
