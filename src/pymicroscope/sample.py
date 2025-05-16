@@ -3,4 +3,8 @@ import hardwarelibrary.motion.sutterdevice as sutter
 
 
 class Sample:
-    pass
+    def initialize(self):
+        pass
+
+    def get_position(self):
+        return (0, 0, 0)
