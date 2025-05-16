@@ -12,10 +12,19 @@ from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop
 
 
-class ImageProviderClient(Protocol):
+class ImageProviderClient:
     """
     Protocol for receiving images from an ImageProvider.
     """
+
+    def __init__(self, callback=None, *args, **kwargs) -> None:
+        """
+        Initialize the image provider client
+
+        """
+        super().__init__(*args, **kwargs)
+        self.callback = None
+        self.images = []
 
     def new_image_captured(self, image: np.ndarray) -> None:
         """
@@ -24,7 +33,12 @@ class ImageProviderClient(Protocol):
         Args:
             image (np.ndarray): Captured image data.
         """
-        ...
+
+        if self.callback is not None:
+            self.callback(image)
+        else:
+            self.images.append(image)
+            self.images = self.images[-10:]
 
 
 class ImageProvider(ABC):
@@ -198,6 +212,36 @@ class ImageProvider(ABC):
 
 
 @expose
+class RemoteImageProviderClient(PyroProcess, ImageProviderClient):
+    """
+    Protocol for receiving images from an ImageProvider.
+    """
+
+    def __init__(self, callback=None, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize the image provider client
+
+        """
+        super().__init__(*args, **kwargs)
+        self.callback = callback
+        self.images = []
+
+    def new_image_captured(self, image: np.ndarray) -> None:
+        """
+        Called when a new image is captured.
+
+        Args:
+            image (np.ndarray): Captured image data.
+        """
+
+        if self.callback is not None:
+            self.callback(image)
+        else:
+            self.images.append(image)
+            self.images = self.images[-10:]
+
+
+@expose
 class RemoteImageProvider(ImageProvider, PyroProcess):
     """
     Image provider that exposes its interface over Pyro5.
@@ -303,7 +347,7 @@ class DebugRemoteImageProvider(RemoteImageProvider):
             (256, 256, 3)
         """
 
-        img = self.generate_moving_bars(self.size[0], self.size[1])
+        img = self.generate_random_noise(self.size[0], self.size[1], self.channels)
 
         frame_duration = 1 / self.frame_rate
 
@@ -318,10 +362,8 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         return img
 
     @staticmethod
-    def generate_random_noise(height, width, channel):
-        return np.random.randint(
-            0, 256, (self.size[0], self.size[1], self.channels), dtype=np.uint8
-        )
+    def generate_random_noise(height, width, channels):
+        return np.random.randint(0, 256, (height, width, channels), dtype=np.uint8)
 
     @staticmethod
     def generate_moving_bars(height=240, width=320, step=1):

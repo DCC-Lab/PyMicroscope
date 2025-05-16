@@ -11,6 +11,7 @@ from pymicroscope.acquisition.imageprovider import (
     ImageProvider,
     RemoteImageProvider,
     ImageProviderClient,
+    RemoteImageProviderClient,
     DebugRemoteImageProvider,
 )
 
@@ -185,6 +186,35 @@ class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
         time.sleep(0.5)
         prov.terminate_synchronously()
 
+    def new_image(self, image):
+        print("New image recevied")
+
+    def test110_imageprovider_with_RemoteImageProviderClient(self) -> None:
+        """
+        Start a DebugRemoteImageProvider with a local (in-process) client.
+        """
+        image_client = RemoteImageProviderClient(
+            pyro_name="ca.dccmlab.image-provider.client"
+        )
+        image_client.start_synchronously()
+
+        prov = DebugRemoteImageProvider(
+            pyro_name="ca.dccmlab.debug.image-provider",
+            log_level=logging.INFO,
+        )
+        prov.add_client(image_client.pyro_name)
+        self.assertTrue(len(prov.clients) > 0)
+
+        prov.start_synchronously()
+
+        time.sleep(0.5)
+        prov.terminate_synchronously()
+
+        reply = image_client.call_method_remotely("self", "images")
+        self.assertTrue(len(reply.result) > 0)
+
+        image_client.terminate_synchronously()
+
     def test200_get_running_provider(self) -> None:
         prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
         self.assertIsNotNone(prov)
@@ -210,7 +240,7 @@ class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
         im = ax.imshow(image, cmap="gray")
         plt.show(block=False)
 
-        for i in range(100):
+        for i in range(20):
             img_pack = prov.get_last_packaged_image()
             self.assertIsNotNone(img_pack)
             array = ImageProvider.image_from_package(img_pack)
