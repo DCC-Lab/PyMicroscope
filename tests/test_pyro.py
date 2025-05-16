@@ -33,6 +33,15 @@ class PyroProcessTestCase(envtest.CoreTestCase):
         """
         self.assertIsNotNone(PyroProcess("test-object"))
 
+    def test003_startstop_pyroprocess(self):
+        """
+        Can I init my object?
+        """
+        proc = PyroProcess("test-object")
+        proc.start_synchronously()
+        time.sleep(2)
+        proc.terminate_synchronously()
+
     def test005_start_local_nameserver(self):
         """ """
         PyroProcess.start_nameserver()
@@ -54,6 +63,7 @@ class PyroProcessTestCase(envtest.CoreTestCase):
             uri = PyroProcess.locate_ns().lookup("test-object")
             with Proxy(uri) as pyro_proxy:
                 self.assertEqual(pyro_proxy.echo("Test-echo"), "Test-echo")
+            time.sleep(1)
 
     def test035_get_local_ip(self):
         """

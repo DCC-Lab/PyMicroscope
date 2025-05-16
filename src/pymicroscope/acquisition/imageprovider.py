@@ -17,13 +17,12 @@ class ImageProviderClient:
     Protocol for receiving images from an ImageProvider.
     """
 
-    def __init__(self, callback=None, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         """
         Initialize the image provider client
 
         """
         super().__init__(*args, **kwargs)
-        self.callback = None
         self.images = []
 
     def new_image_captured(self, image: np.ndarray) -> None:

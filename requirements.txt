@@ -4,8 +4,7 @@
 #
 #    pip-compile pyproject.toml
 #
-pyro5==5.15
-    # via PyMicroscope (pyproject.toml)
-serpent==1.41
-    # via pyro5
-psutil==7.0.0
+pyro5
+serpent
+psutil
+numpy

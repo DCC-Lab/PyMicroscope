@@ -1,0 +1,13 @@
+[run]
+branch = True
+parallel = True
+concurrency = multiprocessing
+
+[report]
+omit =
+    */tests/*
+    */site-packages/*
+    *__init__.py
+
+[html]
+directory = htmlcov
