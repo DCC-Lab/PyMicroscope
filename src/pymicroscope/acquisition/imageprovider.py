@@ -1,63 +1,110 @@
 from abc import ABC, abstractmethod
 import time
+from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
 
 import numpy as np
 
-from Pyro5.api import expose, Daemon, locate_ns, Proxy
+from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
 from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop
 
 
-@expose
-class ImageProvider(ABC, PyroProcess):
+class ImageProviderDelegate(Protocol):
+    """
+    Protocol for receiving images from an ImageProvider.
+    """
+
+    def new_image_captured(self, image: np.ndarray) -> None:
+        """
+        Called when a new image is captured.
+
+        Args:
+            image (np.ndarray): Captured image data.
+        """
+        ...
+
+
+class ImageProvider(ABC):
     """
     Abstract base class defining the interface for image providers.
-    Subclasses must implement `capture_image`.
+
+    Provides a configurable image capture process with delegate support.
     """
 
-    def __init__(self, pyro_name=None, delegate=None, properties=None, *args, **kwargs):
-        super().__init__(pyro_name=pyro_name, *args, **kwargs)
-        self._delegate_by_name = None
+    def __init__(
+        self,
+        delegate: Optional[ImageProviderDelegate] = None,
+        properties: Optional[dict[str, Any]] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
+        """
+        Initialize the image provider with optional delegate and properties.
 
-        self.properties = {"size": (480, 640), "frame_rate": 10, "channels": 3}
-        if properties is not None:
+        Args:
+            delegate: Object implementing ImageProviderDelegate.
+            properties: Dictionary of configuration settings.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
+        super().__init__(*args, **kwargs)
+        self.properties: dict[str, Any] = {
+            "size": (480, 640),
+            "frame_rate": 10,
+            "channels": 3,
+        }
+        if properties:
             self.properties.update(properties)
 
-        self.is_running = False
-        self._start_time = None
-        self._last_image = None
+        self.is_running: bool = False
+        self._start_time: Optional[float] = None
+        self._last_image: Optional[float] = None
+        self._delegate: Optional[ImageProviderDelegate] = delegate
 
     @property
-    def delegate_by_name(self):
-        return self._delegate_by_name
+    def delegate(self) -> Optional[ImageProviderDelegate]:
+        """Return the current delegate, if any."""
+        return self._delegate
 
-    @delegate_by_name.setter
-    def delegate_by_name(self, name):
-        self._delegate_by_name = name
+    def set_delegate(self, obj: ImageProviderDelegate) -> None:
+        """Set the delegate that will receive captured images."""
+        self._delegate = obj
 
     @property
-    def size(self) -> tuple:
+    def size(self) -> Tuple[int, int]:
+        """Return the current image size (height, width)."""
         return self.properties["size"]
 
-    def set_size(self, value) -> None:
+    def set_size(self, value: Tuple[int, int]) -> None:
+        """Set the image size (height, width)."""
         self.properties["size"] = value
 
     @property
     def frame_rate(self) -> float:
+        """Return the frame rate in Hz."""
         return self.properties["frame_rate"]
 
-    def set_frame_rate(self, value) -> float:
+    def set_frame_rate(self, value: float) -> None:
+        """Set the frame rate in Hz."""
         self.properties["frame_rate"] = value
 
     @property
     def channels(self) -> int:
+        """Return the number of image channels (e.g., 3 for RGB)."""
         return self.properties["channels"]
 
-    def set_channels(self, value) -> None:
+    def set_channels(self, value: int) -> None:
+        """Set the number of image channels."""
         self.properties["channels"] = value
 
-    def capture_packaged_image(self):
+    def capture_packaged_image(self) -> dict[str, Any]:
+        """
+        Capture an image and package it with metadata for transmission.
+
+        Returns:
+            A dictionary with 'data', 'shape', and 'dtype' keys.
+        """
         image_array = self.capture_image()
         return {
             "data": image_array.tobytes(),
@@ -67,24 +114,122 @@ class ImageProvider(ABC, PyroProcess):
 
     @abstractmethod
     def capture_image(self) -> np.ndarray:
-        """Capture an image and return it as a NumPy array."""
+        """
+        Capture an image and return it as a NumPy array.
+
+        Must be implemented by subclasses.
+        """
         pass
 
     def start_capture(self) -> None:
+        """Mark the beginning of an image capture session."""
         self.is_running = True
         self._start_time = time.time()
 
     def stop_capture(self) -> None:
+        """Stop the image capture session."""
         self.is_running = False
         self._start_time = None
 
-    def set_configuration(self, properties) -> None:
+    def set_configuration(self, properties: dict[str, Any]) -> None:
+        """
+        Update provider configuration.
+
+        Args:
+            properties: Dictionary of property updates.
+        """
         self.properties.update(properties)
 
-    def get_configuration(self) -> dict:
+    def get_configuration(self) -> dict[str, Any]:
+        """
+        Get current provider configuration.
+
+        Returns:
+            Dictionary of configuration values.
+        """
         return self.properties
 
-    def run(self):
+    def run(self) -> None:
+        """
+        Main capture loop for local use (no Pyro registration).
+
+        Subclasses may override this.
+        """
+        with self.syncing_context() as must_terminate_now:
+            self.start_capture()
+
+            while not must_terminate_now:
+                self.handle_remote_call_events()
+                self.handle_pyro_events(daemon)
+
+                img_tuple = self.capture_packaged_image()
+                if self.delegate is not None:
+                    self.delegate.new_image_captured(img_tuple)
+
+            self.stop_capture()
+
+
+@expose
+class RemoteImageProvider(ImageProvider, PyroProcess):
+    """
+    Image provider that exposes its interface over Pyro5.
+    """
+
+    def __init__(self, pyro_name: Optional[str], *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize and register a remote image provider.
+
+        Args:
+            pyro_name: Name used to register with Pyro name server.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
+        super().__init__(pyro_name=pyro_name, *args, **kwargs)
+        self._delegate_by_name: Optional[Union[str, URI]] = None
+
+    @property
+    def delegate(self) -> Optional[ImageProviderDelegate]:
+        """
+        Dynamically resolve delegate from name or URI if needed.
+
+        Returns:
+            The delegate object or proxy, if available.
+        """
+        if self._delegate_by_name is not None and self._delegate is None:
+            if isinstance(self._delegate_by_name, URI):
+                return PyroProcess.by_uri(self._delegate_by_name)
+            elif isinstance(self._delegate_by_name, str):
+                return PyroProcess.by_name(self._delegate_by_name)
+        return self._delegate
+
+    def set_delegate(self, obj_or_name: Union[ImageProviderDelegate, str, URI]) -> None:
+        """
+        Set the delegate as an object, Pyro name, or URI.  If it is a name or a URI
+        we defer until the runloop to actually instantiate the object (i.e. it needs
+        to be instantiated on the right thread)
+
+        Args:
+            obj_or_name: Can be a delegate object, a Pyro name, or a Pyro URI.
+        """
+        if isinstance(obj_or_name, (str, URI)):
+            self._delegate_by_name = obj_or_name
+            self._delegate = None
+        else:
+            super().set_delegate(obj_or_name)
+
+    def set_frame_rate(self, value: float) -> None:
+        """
+        Set the frame rate of the image provider.
+
+        Args:
+            value: Frame rate in Hz.
+        """
+        super().set_frame_rate(value)
+
+    def run(self) -> None:
+        """
+        Main run loop with Pyro daemon registration and event handling.
+        """
         with Daemon(host=self.get_local_ip()) as daemon:
             with self.syncing_context() as must_terminate_now:
                 uri = daemon.register(self)
@@ -97,11 +242,8 @@ class ImageProvider(ABC, PyroProcess):
                     self.handle_pyro_events(daemon)
 
                     img_tuple = self.capture_packaged_image()
-                    if self.delegate_by_name is not None:
-                        delegate = PyroProcess.by_name(self.delegate_by_name)
-
-                        delegate.new_image_captured(img_tuple)
+                    if self.delegate is not None:
+                        self.delegate.new_image_captured(img_tuple)
 
                 self.stop_capture()
-
                 self.locate_ns().remove(self.pyro_name)
