@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import time
+import math
 from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
 from multiprocessing import RLock
 import numpy as np
@@ -11,7 +12,7 @@ from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop
 
 
-class ImageProviderDelegate(Protocol):
+class ImageProviderClient(Protocol):
     """
     Protocol for receiving images from an ImageProvider.
     """
@@ -30,21 +31,17 @@ class ImageProvider(ABC):
     """
     Abstract base class defining the interface for image providers.
 
-    Provides a configurable image capture process with delegate support.
+    Provides a configurable image capture process with client support.
     """
 
     def __init__(
-        self,
-        delegate: Optional[ImageProviderDelegate] = None,
-        properties: Optional[dict[str, Any]] = None,
-        *args: Any,
-        **kwargs: Any
+        self, properties: Optional[dict[str, Any]] = None, *args: Any, **kwargs: Any
     ) -> None:
         """
-        Initialize the image provider with optional delegate and properties.
+        Initialize the image provider with optional client and properties.
 
         Args:
-            delegate: Object implementing ImageProviderDelegate.
+            client: Object implementing ImageProviderClient.
             properties: Dictionary of configuration settings.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
@@ -63,16 +60,20 @@ class ImageProvider(ABC):
         self._last_image: Optional[float] = None
         self.last_image_package: Optional[dict[str, Any]] = None
 
-        self._delegate: Optional[ImageProviderDelegate] = delegate
+        self._clients: list[ImageProviderClient] = []
 
     @property
-    def delegate(self) -> Optional[ImageProviderDelegate]:
-        """Return the current delegate, if any."""
-        return self._delegate
+    def clients(self) -> list[ImageProviderClient]:
+        """Return the current client, if any."""
+        return self._clients
 
-    def set_delegate(self, obj: ImageProviderDelegate) -> None:
-        """Set the delegate that will receive captured images."""
-        self._delegate = obj
+    def add_client(self, obj: ImageProviderClient) -> None:
+        """Set the client that will receive captured images."""
+        self._clients.append(obj)
+
+    def remove_client(self, obj: ImageProviderClient) -> None:
+        """Set the client that will receive captured images."""
+        self._clients.remove(obj)
 
     @property
     def size(self) -> Tuple[int, int]:
@@ -189,8 +190,8 @@ class ImageProvider(ABC):
                     self.handle_pyro_events(daemon)
 
                     img_tuple = self.capture_packaged_image()
-                    if self.delegate is not None:
-                        self.delegate.new_image_captured(img_tuple)
+                    for client in self.clients:
+                        client.new_image_captured(img_tuple)
                 except Exception as err:
                     self.log.error("Error in ImageProvider run loop : {err}")
             self.stop_capture()
@@ -212,40 +213,34 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
             **kwargs: Additional keyword arguments.
         """
         super().__init__(pyro_name=pyro_name, *args, **kwargs)
-        self._delegate_by_name: Optional[Union[str, URI]] = None
         self.lock = RLock()
 
-    @property
-    def delegate(self) -> Optional[ImageProviderDelegate]:
+    def client_to_proxy(self, obj_or_name) -> Optional[ImageProviderClient]:
         """
-        Dynamically resolve delegate from name or URI if needed.
+        Dynamically resolve client from name or URI if needed.
 
         Returns:
-            The delegate object or proxy, if available.
+            The client object or proxy, if available.
         """
         with self.lock:
-            if self._delegate_by_name is not None and self._delegate is None:
-                if isinstance(self._delegate_by_name, URI):
-                    return PyroProcess.by_uri(self._delegate_by_name)
-                elif isinstance(self._delegate_by_name, str):
-                    return PyroProcess.by_name(self._delegate_by_name)
-            return self._delegate
+            if isinstance(obj_or_name, URI):
+                return PyroProcess.by_uri(obj_or_name)
+            elif isinstance(obj_or_name, str):
+                return PyroProcess.by_name(obj_or_name)
 
-    def set_delegate(self, obj_or_name: Union[ImageProviderDelegate, str, URI]) -> None:
+            return obj_or_name
+
+    def add_client(self, obj_or_name: Union[ImageProviderClient, str, URI]) -> None:
         """
-        Set the delegate as an object, Pyro name, or URI.  If it is a name or a URI
+        Add client as an object, Pyro name, or URI.  If it is a name or a URI
         we defer until the runloop to actually instantiate the object (i.e. it needs
         to be instantiated on the right thread)
 
         Args:
-            obj_or_name: Can be a delegate object, a Pyro name, or a Pyro URI.
+            obj_or_name: Can be a client object, a Pyro name, or a Pyro URI.
         """
         with self.lock:
-            if isinstance(obj_or_name, (str, URI)):
-                self._delegate_by_name = obj_or_name
-                self._delegate = None
-            else:
-                super().set_delegate(obj_or_name)
+            super().add_client(obj_or_name)
 
     def set_frame_rate(self, value: float) -> None:
         """
@@ -275,8 +270,9 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
 
                     img_tuple = self.capture_packaged_image()
                     with self.lock:
-                        if self.delegate is not None:
-                            self.delegate.new_image_captured(img_tuple)
+                        for client in self.clients:
+                            proxy = self.client_to_proxy(client)
+                            proxy.new_image_captured(img_tuple)
 
                 self.stop_capture()
 
@@ -349,8 +345,13 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         pattern = np.zeros((height, pattern_width, 3), dtype=np.uint8)
 
         for i in range(pattern_width // bar_width):
-            color = bar_colors[(i + int(time.time())) % len(bar_colors)]
-            pattern[:, i * bar_width : (i + 1) * bar_width, :] = color
+            color = bar_colors[i % len(bar_colors)]
+            fractional, integer = math.modf(time.time())
+            if integer % 2 == 0:
+                i += fractional
+            else:
+                i -= fractional - 1
+            pattern[:, int(i * bar_width) : int((i + 1) * bar_width), :] = color
 
         return pattern
 

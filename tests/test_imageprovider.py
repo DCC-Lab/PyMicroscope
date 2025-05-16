@@ -10,7 +10,7 @@ from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.acquisition.imageprovider import (
     ImageProvider,
     RemoteImageProvider,
-    ImageProviderDelegate,
+    ImageProviderClient,
     DebugRemoteImageProvider,
 )
 
@@ -19,16 +19,16 @@ from Pyro5.api import expose
 
 
 @expose
-class TestDelegate(PyroProcess, ImageProviderDelegate):
+class TestClient(PyroProcess, ImageProviderClient):
     """
-    A test delegate that stores the last captured image tuple.
+    A test client that stores the last captured image tuple.
     """
 
     def __init__(
-        self, pyro_name: str = "test-delegate", *args: Any, **kwargs: Any
+        self, pyro_name: str = "test-client", *args: Any, **kwargs: Any
     ) -> None:
         """
-        Initialize the test delegate process.
+        Initialize the test client process.
 
         Args:
             pyro_name (str): The Pyro name to register under.
@@ -50,7 +50,7 @@ class TestDelegate(PyroProcess, ImageProviderDelegate):
 
 class ImageProviderTestCase(envtest.CoreTestCase):
     """
-    Unit tests for the image provider system including delegate registration,
+    Unit tests for the image provider system including client registration,
     process lifecycle, and Pyro name resolution.
     """
 
@@ -78,45 +78,43 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         time.sleep(0.2)
         prov.terminate_synchronously()
 
-    def test030_create_delegate(self) -> None:
+    def test030_create_client(self) -> None:
         """
-        Verify that a TestDelegate can be created, registered, and terminated.
+        Verify that a TestClient can be created, registered, and terminated.
         """
-        image_delegate = TestDelegate()
-        image_delegate.start_synchronously()
-        self.assertIsNotNone(PyroProcess.by_name(image_delegate.pyro_name))
-        image_delegate.terminate_synchronously()
+        image_client = TestClient()
+        image_client.start_synchronously()
+        self.assertIsNotNone(PyroProcess.by_name(image_client.pyro_name))
+        image_client.terminate_synchronously()
 
-    def test040_init_running_debug_provider_with_delegate(self) -> None:
+    def test040_init_running_debug_provider_with_client(self) -> None:
         """
-        Start a DebugRemoteImageProvider with a delegate and verify delegate communication.
+        Start a DebugRemoteImageProvider with a client and verify client communication.
         """
-        image_delegate = TestDelegate(log_level=logging.INFO)
-        image_delegate.start_synchronously()
-        delegate_proxy = PyroProcess.by_name(image_delegate.pyro_name)
+        image_client = TestClient(log_level=logging.INFO)
+        image_client.start_synchronously()
+        client_proxy = PyroProcess.by_name(image_client.pyro_name)
 
         prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
-            delegate=delegate_proxy,
             log_level=logging.INFO,
         )
         prov.start_synchronously()
+        prov.add_client(client_proxy)
         provider_proxy = PyroProcess.by_name(prov.pyro_name)
 
         time.sleep(0.5)
         provider_proxy.set_frame_rate(100)
         time.sleep(0.5)
         prov.terminate_synchronously()
-        image_delegate.terminate_synchronously()
+        image_client.terminate_synchronously()
 
-    def test050_set_delegate_by_name(self) -> None:
+    def test050_set_client_by_name(self) -> None:
         """
-        Start a DebugRemoteImageProvider and assign its delegate after startup.
+        Start a DebugRemoteImageProvider and assign its client after startup.
         """
-        image_delegate = TestDelegate(
-            pyro_name="test-delegate", log_level=logging.DEBUG
-        )
-        image_delegate.start_synchronously()
+        image_client = TestClient(pyro_name="test-client", log_level=logging.DEBUG)
+        image_client.start_synchronously()
 
         prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
@@ -126,21 +124,19 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         provider_proxy = PyroProcess.by_name(prov.pyro_name)
 
         time.sleep(0.5)
-        provider_proxy.set_delegate("test-delegate")
+        provider_proxy.add_client("test-client")
         time.sleep(0.5)
         prov.terminate_synchronously()
-        image_delegate.terminate_synchronously()
+        image_client.terminate_synchronously()
 
-    def test050_set_delegate_by_uri(self) -> None:
+    def test050_set_client_by_uri(self) -> None:
         """
-        Start a DebugRemoteImageProvider and assign its delegate after startup.
+        Start a DebugRemoteImageProvider and assign its client after startup.
         """
-        image_delegate = TestDelegate(
-            pyro_name="test-delegate", log_level=logging.DEBUG
-        )
-        image_delegate.start_synchronously()
+        image_client = TestClient(pyro_name="test-client", log_level=logging.DEBUG)
+        image_client.start_synchronously()
         ns = PyroProcess.locate_ns()
-        delegate_uri = ns.lookup(image_delegate.pyro_name)
+        client_uri = ns.lookup(image_client.pyro_name)
 
         prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
@@ -150,10 +146,10 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         provider_proxy = PyroProcess.by_name(prov.pyro_name)
 
         time.sleep(0.5)
-        provider_proxy.set_delegate(delegate_uri)
+        provider_proxy.add_client(client_uri)
         time.sleep(0.5)
         prov.terminate_synchronously()
-        image_delegate.terminate_synchronously()
+        image_client.terminate_synchronously()
 
 
 class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
@@ -174,15 +170,14 @@ class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
 
         super().tearDown()
 
-    def test100_imageprovider_with_local_delegate(self) -> None:
+    def test100_imageprovider_with_local_client(self) -> None:
         """
-        Start a DebugRemoteImageProvider with a local (in-process) delegate.
+        Start a DebugRemoteImageProvider with a local (in-process) client.
         """
-        image_delegate = TestDelegate(log_level=logging.INFO)
+        image_client = TestClient(log_level=logging.INFO)
 
         prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
-            delegate=image_delegate,
             log_level=logging.INFO,
         )
         prov.start_synchronously()
@@ -194,10 +189,9 @@ class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
         prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
         self.assertIsNotNone(prov)
 
-    def test210_get_running_provider_set_delegate(self) -> None:
+    def test210_get_running_provider_set_client(self) -> None:
         prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
         self.assertIsNotNone(prov)
-        prov.set_delegate(None)
         prov.set_frame_rate(5)
 
     def test210_get_running_provider_get_last_image(self) -> None:
