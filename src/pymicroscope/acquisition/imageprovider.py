@@ -247,3 +247,44 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
 
                 self.stop_capture()
                 self.locate_ns().remove(self.pyro_name)
+
+
+class DebugRemoteImageProvider(RemoteImageProvider):
+    """
+    An image provider that generates synthetic 8-bit images for testing.
+    """
+
+    def capture_image(self) -> np.ndarray:
+        """
+        Generate an 8-bit random image of shape (size[0], size[1], channels),
+        simulating frame rate delay between frames.
+
+        Returns:
+            np.ndarray: Random image as a uint8 array.
+
+        Example:
+            >>> img = provider.capture_image()
+            >>> img.shape
+            (256, 256, 3)
+        """
+        img = np.random.randint(
+            0, 256, (self.size[0], self.size[1], self.channels), dtype=np.uint8
+        )
+
+        frame_duration = 1 / self.frame_rate
+
+        while (
+            self._last_image is not None
+            and time.time() < self._last_image + frame_duration
+        ):
+            time.sleep(0.001)
+
+        self._last_image = time.time()
+        self.log.debug("Image captured at %f", time.time() - self._start_time)
+        return img
+
+
+if __name__ == "__main__":
+    provider = DebugRemoteImageProvider("ca.dccmlab.imageprovider.debug")
+    provider.start()
+    provider.join()

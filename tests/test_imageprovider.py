@@ -10,45 +10,11 @@ from pymicroscope.acquisition.imageprovider import (
     ImageProvider,
     RemoteImageProvider,
     ImageProviderDelegate,
+    DebugRemoteImageProvider,
 )
 
 from Pyro5.nameserver import start_ns
 from Pyro5.api import expose
-
-
-class DebugImageProvider(RemoteImageProvider):
-    """
-    An image provider that generates synthetic 8-bit images for testing.
-    """
-
-    def capture_image(self) -> np.ndarray:
-        """
-        Generate an 8-bit random image of shape (size[0], size[1], channels),
-        simulating frame rate delay between frames.
-
-        Returns:
-            np.ndarray: Random image as a uint8 array.
-
-        Example:
-            >>> img = provider.capture_image()
-            >>> img.shape
-            (256, 256, 3)
-        """
-        img = np.random.randint(
-            0, 256, (self.size[0], self.size[1], self.channels), dtype=np.uint8
-        )
-
-        frame_duration = 1 / self.frame_rate
-
-        while (
-            self._last_image is not None
-            and time.time() < self._last_image + frame_duration
-        ):
-            time.sleep(0.001)
-
-        self._last_image = time.time()
-        self.log.debug("Image captured at %f", time.time() - self._start_time)
-        return img
 
 
 @expose
@@ -96,17 +62,17 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
     def test010_init_debugprovider(self) -> None:
         """
-        Verify that the DebugImageProvider can be instantiated.
+        Verify that the DebugRemoteImageProvider can be instantiated.
         """
         self.assertIsNotNone(
-            DebugImageProvider(pyro_name="ca.dccmlab.debug.image-provider")
+            DebugRemoteImageProvider(pyro_name="ca.dccmlab.debug.image-provider")
         )
 
     def test020_init_running_debug_provider(self) -> None:
         """
         Start and stop the debug provider to verify lifecycle.
         """
-        prov = DebugImageProvider(pyro_name="ca.dccmlab.debug.image-provider")
+        prov = DebugRemoteImageProvider(pyro_name="ca.dccmlab.debug.image-provider")
         prov.start_synchronously()
         time.sleep(0.2)
         prov.terminate_synchronously()
@@ -122,13 +88,13 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
     def test040_init_running_debug_provider_with_delegate(self) -> None:
         """
-        Start a DebugImageProvider with a delegate and verify delegate communication.
+        Start a DebugRemoteImageProvider with a delegate and verify delegate communication.
         """
         image_delegate = TestDelegate(log_level=logging.INFO)
         image_delegate.start_synchronously()
         delegate_proxy = PyroProcess.by_name(image_delegate.pyro_name)
 
-        prov = DebugImageProvider(
+        prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
             delegate=delegate_proxy,
             log_level=logging.INFO,
@@ -144,14 +110,14 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
     def test050_set_delegate_by_name(self) -> None:
         """
-        Start a DebugImageProvider and assign its delegate after startup.
+        Start a DebugRemoteImageProvider and assign its delegate after startup.
         """
         image_delegate = TestDelegate(
             pyro_name="test-delegate", log_level=logging.DEBUG
         )
         image_delegate.start_synchronously()
 
-        prov = DebugImageProvider(
+        prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
             log_level=logging.DEBUG,
         )
@@ -166,7 +132,7 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
     def test050_set_delegate_by_uri(self) -> None:
         """
-        Start a DebugImageProvider and assign its delegate after startup.
+        Start a DebugRemoteImageProvider and assign its delegate after startup.
         """
         image_delegate = TestDelegate(
             pyro_name="test-delegate", log_level=logging.DEBUG
@@ -175,7 +141,7 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         ns = PyroProcess.locate_ns()
         delegate_uri = ns.lookup(image_delegate.pyro_name)
 
-        prov = DebugImageProvider(
+        prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
             log_level=logging.DEBUG,
         )
@@ -190,11 +156,11 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
     def test100_imageprovider_with_local_delegate(self) -> None:
         """
-        Start a DebugImageProvider with a local (in-process) delegate.
+        Start a DebugRemoteImageProvider with a local (in-process) delegate.
         """
         image_delegate = TestDelegate(log_level=logging.INFO)
 
-        prov = DebugImageProvider(
+        prov = DebugRemoteImageProvider(
             pyro_name="ca.dccmlab.debug.image-provider",
             delegate=image_delegate,
             log_level=logging.INFO,
