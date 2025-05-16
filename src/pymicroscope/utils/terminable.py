@@ -70,7 +70,8 @@ import functools
 
 import psutil
 
-from src.utils import LoggableProcess
+
+from pymicroscope.utils import LoggableProcess
 
 
 def deprecated(reason: str = ""):
@@ -594,13 +595,14 @@ class TerminableProcess(LoggableProcess):
 
         return self._exit_now_signal_flag
 
+
 def run_loop(func):
     """
     A decorator for TerminableProcess.run methods that simplifies the common pattern
     of using syncing_context with a while loop checking must_terminate_now.
-    
+
     Instead of:
-    
+
     def run(self):
         with self.syncing_context() as must_terminate_now:
             try:
@@ -612,41 +614,42 @@ def run_loop(func):
                         self.log.error(f"Error: {err}")
             finally:
                 # cleanup code
-    
+
     You can now write:
-    
+
     @run_loop
     def run(self):
         # This is the main loop body
         self.log.debug("Starting loop iteration")
         # actual work here
-            
+
     def setup(self):
         # Optional setup method
         # Runs once before the loop starts
         self.initialize_resources()
-        
+
     def cleanup(self):
         # Optional cleanup method
         # Runs once after the loop ends
         self.release_resources()
     """
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         # Set _has_entered_run_loop immediately for proper process lifecycle
         # This is critical for start_synchronously() to work correctly
         self._has_entered_run_loop.set()
-        
+
         with self.syncing_context() as must_terminate_now:
             try:
                 # Run setup method if it exists
-                if hasattr(self, 'setup') and callable(self.setup):
+                if hasattr(self, "setup") and callable(self.setup):
                     try:
                         self.log.debug("Running setup")
                         self.setup()  # This should set setup_executed flag in test classes
                     except Exception as err:
                         self.log.error(f"Error in setup: {err}")
-                
+
                 # Main loop - this will call the decorated run method
                 while not must_terminate_now:
                     try:
@@ -658,13 +661,13 @@ def run_loop(func):
                         # Continue to next iteration rather than breaking the loop
             finally:
                 # Run cleanup method if it exists
-                if hasattr(self, 'cleanup') and callable(self.cleanup):
+                if hasattr(self, "cleanup") and callable(self.cleanup):
                     try:
                         self.log.debug("Running cleanup")
                         self.cleanup()  # This should set cleanup_executed flag in test classes
                     except Exception as err:
                         self.log.error(f"Error in cleanup: {err}")
-                        
+
                 self.log.debug(f"{self.__class__.__name__} terminated")
-    
+
     return wrapper
