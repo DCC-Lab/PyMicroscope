@@ -154,6 +154,10 @@ class PyroProcess(UnifiedProcess):
         except:
             return None
 
+    @classmethod
+    def by_uri(cls, uri):
+        return Proxy(uri)
+
 
 if __name__ == "__main__":
     PyroProcess("test-object-main").start()
