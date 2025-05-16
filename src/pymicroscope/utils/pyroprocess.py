@@ -158,7 +158,6 @@ class PyroProcess(UnifiedProcess):
     def by_uri(cls, uri):
         return Proxy(uri)
 
-
 if __name__ == "__main__":
     PyroProcess("test-object-main").start()
     time.sleep(100)

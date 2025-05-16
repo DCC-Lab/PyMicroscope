@@ -8,3 +8,4 @@ pyro5==5.15
     # via PyMicroscope (pyproject.toml)
 serpent==1.41
     # via pyro5
+psutil==7.0.0

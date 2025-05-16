@@ -21,9 +21,6 @@ from pymicroscope.utils.pyroprocess import (
 )
 
 
-# class RemoteImageProviderView(PyroProcess, VideoView):
-
-
 class MicroscopeApp(App):
     def __init__(self):
         App.__init__(self)
