@@ -8,7 +8,7 @@ from Pyro5.api import expose, Daemon, locate_ns, Proxy
 from Pyro5.errors import NamingError
 import psutil
 
-from src.utils import UnifiedProcess
+from pymicroscope.utils import UnifiedProcess
 
 
 class PyroProcess(UnifiedProcess):
@@ -154,6 +154,9 @@ class PyroProcess(UnifiedProcess):
         except:
             return None
 
+    @classmethod
+    def by_uri(cls, uri):
+        return Proxy(uri)
 
 if __name__ == "__main__":
     PyroProcess("test-object-main").start()

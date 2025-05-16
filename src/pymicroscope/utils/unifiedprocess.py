@@ -9,7 +9,7 @@ from multiprocessing import (
 import warnings
 from multiprocessing.queues import Queue as MPQueue
 from queue import Empty
-from src.utils import LoggableProcess, TerminableProcess, CallableProcess
+from pymicroscope.utils import LoggableProcess, TerminableProcess, CallableProcess
 
 
 class UnifiedProcess(CallableProcess):

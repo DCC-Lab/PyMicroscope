@@ -18,7 +18,7 @@ Example:
         def run(self):
             self.install_signal_handlers()
             while not self.must_terminate_now:
-                self.check_command_queue()
+                self.handle_remote_call_events()
                 self.log.info("Working...")
 
         def ping(self):

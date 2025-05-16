@@ -175,3 +175,4 @@ cython_debug/
 
 .DS_Store
 pymicroscope/_version.py
+src/pymicroscope/_version.py
