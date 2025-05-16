@@ -1,6 +1,7 @@
 import time
 import logging
 from typing import Optional, Tuple, Any
+import base64
 
 import numpy as np
 
@@ -154,6 +155,25 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         prov.terminate_synchronously()
         image_delegate.terminate_synchronously()
 
+
+class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
+    def setUp(self):
+        super().setUp()
+
+        if PyroProcess.locate_ns() is None:
+            PyroProcess.start_nameserver()
+
+        self.provider = DebugRemoteImageProvider(
+            log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+        )
+        self.provider.start_synchronously()
+
+    def tearDown(self):
+        if self.provider is not None:
+            self.provider.terminate_synchronously()
+
+        super().tearDown()
+
     def test100_imageprovider_with_local_delegate(self) -> None:
         """
         Start a DebugRemoteImageProvider with a local (in-process) delegate.
@@ -169,6 +189,43 @@ class ImageProviderTestCase(envtest.CoreTestCase):
 
         time.sleep(0.5)
         prov.terminate_synchronously()
+
+    def test200_get_running_provider(self) -> None:
+        prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
+        self.assertIsNotNone(prov)
+
+    def test210_get_running_provider_set_delegate(self) -> None:
+        prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
+        self.assertIsNotNone(prov)
+        prov.set_delegate(None)
+        prov.set_frame_rate(5)
+
+    def test210_get_running_provider_get_last_image(self) -> None:
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import time
+
+        prov = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
+        self.assertIsNotNone(prov)
+        prov.set_frame_rate(100)
+
+        plt.ion()  # Turn on interactive mode
+
+        fig, ax = plt.subplots()
+        image = np.random.rand(480, 640, 3)
+        im = ax.imshow(image, cmap="gray")
+        plt.show(block=False)
+
+        for i in range(100):
+            img_pack = prov.get_last_packaged_image()
+            self.assertIsNotNone(img_pack)
+            array = ImageProvider.image_from_package(img_pack)
+            im.set_data(array)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+        plt.ioff()
+        plt.close(fig)
 
 
 if __name__ == "__main__":

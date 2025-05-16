@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 import time
 from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
-
+from multiprocessing import RLock
 import numpy as np
+import base64
 
 from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
@@ -48,7 +49,7 @@ class ImageProvider(ABC):
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(log_name="imageprovider", *args, **kwargs)
         self.properties: dict[str, Any] = {
             "size": (480, 640),
             "frame_rate": 10,
@@ -60,6 +61,8 @@ class ImageProvider(ABC):
         self.is_running: bool = False
         self._start_time: Optional[float] = None
         self._last_image: Optional[float] = None
+        self.last_image_package: Optional[dict[str, Any]] = None
+
         self._delegate: Optional[ImageProviderDelegate] = delegate
 
     @property
@@ -98,6 +101,30 @@ class ImageProvider(ABC):
         """Set the number of image channels."""
         self.properties["channels"] = value
 
+    def get_last_image(self) -> np.array:
+        data = self.last_image_package["data"]
+        dtype = self.last_image_package["dtype"]
+        shape = self.last_image_package["shape"]
+        return np.frombuffer(data, dtype=dtype).reshape(shape)
+
+    @staticmethod
+    def image_from_package(package: dict[str, Any]) -> Any:
+        data = base64.b64decode(package["data"])
+        dtype = package["dtype"]
+        shape = package["shape"]
+        return np.frombuffer(data, dtype=dtype).reshape(shape)
+
+    @staticmethod
+    def image_to_package(image):
+        return {
+            "data": base64.b64encode(image.tobytes()).decode("ascii"),
+            "shape": image.shape,
+            "dtype": str(image.dtype),
+        }
+
+    def get_last_packaged_image(self) -> dict[str, Any]:
+        return self.last_image_package
+
     def capture_packaged_image(self) -> dict[str, Any]:
         """
         Capture an image and package it with metadata for transmission.
@@ -106,11 +133,9 @@ class ImageProvider(ABC):
             A dictionary with 'data', 'shape', and 'dtype' keys.
         """
         image_array = self.capture_image()
-        return {
-            "data": image_array.tobytes(),
-            "shape": image_array.shape,
-            "dtype": str(image_array.dtype),
-        }
+        self.last_image_package = ImageProvider.image_to_package(image_array)
+
+        return self.last_image_package
 
     @abstractmethod
     def capture_image(self) -> np.ndarray:
@@ -159,13 +184,15 @@ class ImageProvider(ABC):
             self.start_capture()
 
             while not must_terminate_now:
-                self.handle_remote_call_events()
-                self.handle_pyro_events(daemon)
+                try:
+                    self.handle_remote_call_events()
+                    self.handle_pyro_events(daemon)
 
-                img_tuple = self.capture_packaged_image()
-                if self.delegate is not None:
-                    self.delegate.new_image_captured(img_tuple)
-
+                    img_tuple = self.capture_packaged_image()
+                    if self.delegate is not None:
+                        self.delegate.new_image_captured(img_tuple)
+                except Exception as err:
+                    self.log.error("Error in ImageProvider run loop : {err}")
             self.stop_capture()
 
 
@@ -186,6 +213,7 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
         """
         super().__init__(pyro_name=pyro_name, *args, **kwargs)
         self._delegate_by_name: Optional[Union[str, URI]] = None
+        self.lock = RLock()
 
     @property
     def delegate(self) -> Optional[ImageProviderDelegate]:
@@ -195,12 +223,13 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
         Returns:
             The delegate object or proxy, if available.
         """
-        if self._delegate_by_name is not None and self._delegate is None:
-            if isinstance(self._delegate_by_name, URI):
-                return PyroProcess.by_uri(self._delegate_by_name)
-            elif isinstance(self._delegate_by_name, str):
-                return PyroProcess.by_name(self._delegate_by_name)
-        return self._delegate
+        with self.lock:
+            if self._delegate_by_name is not None and self._delegate is None:
+                if isinstance(self._delegate_by_name, URI):
+                    return PyroProcess.by_uri(self._delegate_by_name)
+                elif isinstance(self._delegate_by_name, str):
+                    return PyroProcess.by_name(self._delegate_by_name)
+            return self._delegate
 
     def set_delegate(self, obj_or_name: Union[ImageProviderDelegate, str, URI]) -> None:
         """
@@ -211,11 +240,12 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
         Args:
             obj_or_name: Can be a delegate object, a Pyro name, or a Pyro URI.
         """
-        if isinstance(obj_or_name, (str, URI)):
-            self._delegate_by_name = obj_or_name
-            self._delegate = None
-        else:
-            super().set_delegate(obj_or_name)
+        with self.lock:
+            if isinstance(obj_or_name, (str, URI)):
+                self._delegate_by_name = obj_or_name
+                self._delegate = None
+            else:
+                super().set_delegate(obj_or_name)
 
     def set_frame_rate(self, value: float) -> None:
         """
@@ -233,7 +263,9 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
         with Daemon(host=self.get_local_ip()) as daemon:
             with self.syncing_context() as must_terminate_now:
                 uri = daemon.register(self)
-                self.locate_ns().register(self.pyro_name, uri)
+                ns = self.locate_ns()
+                if ns is not None:
+                    ns.register(self.pyro_name, uri)
 
                 self.start_capture()
 
@@ -242,11 +274,18 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
                     self.handle_pyro_events(daemon)
 
                     img_tuple = self.capture_packaged_image()
-                    if self.delegate is not None:
-                        self.delegate.new_image_captured(img_tuple)
+                    with self.lock:
+                        if self.delegate is not None:
+                            self.delegate.new_image_captured(img_tuple)
 
                 self.stop_capture()
-                self.locate_ns().remove(self.pyro_name)
+
+                ns = self.locate_ns()
+                if ns is not None:
+                    ns.remove(self.pyro_name)
+
+    def get_last_packaged_image(self) -> dict[str, Any]:
+        return super().get_last_packaged_image()
 
 
 class DebugRemoteImageProvider(RemoteImageProvider):
@@ -267,9 +306,8 @@ class DebugRemoteImageProvider(RemoteImageProvider):
             >>> img.shape
             (256, 256, 3)
         """
-        img = np.random.randint(
-            0, 256, (self.size[0], self.size[1], self.channels), dtype=np.uint8
-        )
+
+        img = self.generate_moving_bars(self.size[0], self.size[1])
 
         frame_duration = 1 / self.frame_rate
 
@@ -283,8 +321,71 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         self.log.debug("Image captured at %f", time.time() - self._start_time)
         return img
 
+    @staticmethod
+    def generate_random_noise(height, width, channel):
+        return np.random.randint(
+            0, 256, (self.size[0], self.size[1], self.channels), dtype=np.uint8
+        )
+
+    @staticmethod
+    def generate_moving_bars(height=240, width=320, step=1):
+        """Return a larger RGB pattern that can be scrolled horizontally."""
+        bar_colors = np.array(
+            [
+                [255, 0, 0],  # Red
+                [0, 255, 0],  # Green
+                [0, 0, 255],  # Blue
+                [255, 255, 0],  # Yellow
+                [0, 255, 255],  # Cyan
+                [255, 0, 255],  # Magenta
+                [255, 255, 255],  # White
+                [0, 0, 0],  # Black
+            ],
+            dtype=np.uint8,
+        )
+
+        bar_width = width // 4
+        pattern_width = width * 2
+        pattern = np.zeros((height, pattern_width, 3), dtype=np.uint8)
+
+        for i in range(pattern_width // bar_width):
+            color = bar_colors[(i + int(time.time())) % len(bar_colors)]
+            pattern[:, i * bar_width : (i + 1) * bar_width, :] = color
+
+        return pattern
+
+    @staticmethod
+    def generate_color_bars(height, width):
+        # Define the 7 SMPTE color bars in RGB
+        colors = [
+            [192, 192, 192],  # White
+            [192, 192, 0],  # Yellow
+            [0, 192, 192],  # Cyan
+            [0, 192, 0],  # Green
+            [192, 0, 192],  # Magenta
+            [192, 0, 0],  # Red
+            [0, 0, 192],  # Blue
+        ]
+        colors = np.array(colors, dtype=np.uint8)
+
+        # Compute width of each bar
+        bar_width = width // len(colors)
+
+        # Initialize image
+        img = np.zeros((height, width, 3), dtype=np.uint8)
+
+        # Fill bars
+        for i, color in enumerate(colors):
+            img[:, i * bar_width : (i + 1) * bar_width, :] = color
+
+        return img
+
 
 if __name__ == "__main__":
-    provider = DebugRemoteImageProvider("ca.dccmlab.imageprovider.debug")
+    import logging
+
+    provider = DebugRemoteImageProvider(
+        log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    )
     provider.start()
     provider.join()
