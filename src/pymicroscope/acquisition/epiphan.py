@@ -7,6 +7,7 @@ from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.acquisition.imageprovider import (
     ImageProvider,
 )
+from pymicroscope.acquisition.libepiphan.v2u_defs import *
 
 V2U_TRUE = 1
 
@@ -14,13 +15,13 @@ V2U_TRUE = 1
 class EpiphanImageProvider(ImageProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.lib = None
+        self.fg = None
+
+    def setup_library(self):
         basedir = os.path.dirname(__file__)
         libpath = os.path.join(basedir, "libepiphan/libfrmgrab.dylib")
         self.lib = ctypes.CDLL(libpath)
-        self.fg = None
-
-    def setup(self):
-        self.lib.FrmGrab_Init()
 
         FrmGrabLocalPtr = ctypes.c_void_p
 
@@ -30,19 +31,24 @@ class EpiphanImageProvider(ImageProvider):
         ]
         self.lib.FrmGrabLocal_OpenAll.restype = ctypes.c_int
 
-        self.lib.FrmGrabLocal_Open.restype = ctypes.c_void_p
+        self.lib.FrmGrabLocal_Open.restype = FrmGrabLocalPtr
 
-        self.lib.FrmGrab_Start.argtypes = [ctypes.c_void_p]
+        self.lib.FrmGrab_Start.argtypes = [FrmGrabLocalPtr]
         self.lib.FrmGrab_Start.restype = ctypes.c_uint32
 
-        self.lib.FrmGrab_Stop.argtypes = [ctypes.c_void_p]
+        self.lib.FrmGrab_Stop.argtypes = [FrmGrabLocalPtr]
         self.lib.FrmGrab_Stop.restype = None
 
-        self.lib.FrmGrab_Close.argtypes = [ctypes.c_void_p]
+        self.lib.FrmGrab_Close.argtypes = [FrmGrabLocalPtr]
         self.lib.FrmGrab_Close.restype = None
 
+        self.lib.FrmGrab_Init()
+
+    def setup(self):
         self.fg = self.lib.FrmGrabLocal_Open("local".encode("utf-8"))
-        print(type(self.fg), self.fg)
+
+    def capture_image(self) -> np.ndarray:
+        pass
 
     def start(self):
         if self.lib.FrmGrab_Start(self.fg) == V2U_TRUE:
@@ -54,8 +60,9 @@ class EpiphanImageProvider(ImageProvider):
         self.lib.FrmGrab_Stop(self.fg)
         print("Stopped")
 
-    def cleanup(self):
-        self.lib.FrmGrab_Close(self.fg)
+    def cleanup_library(self):
+        if self.fg is not None:
+            self.lib.FrmGrab_Close(self.fg)
 
         self.lib.FrmGrab_Deinit()
 
