@@ -111,6 +111,12 @@ from ctypes import (
 )
 
 FrmGrabLocalPtr = ctypes.c_void_p
+FrmGrabAuthProc = ctypes.CFUNCTYPE(
+    ctypes.c_int,  # return type: V2U_BOOL
+    ctypes.c_char_p,  # user
+    ctypes.c_char_p,  # pass
+    ctypes.c_void_p,  # param
+)
 
 
 class V2USize(Structure):
@@ -323,7 +329,7 @@ class EpiphanLibraryWrapper:
         cls.lib = ctypes.CDLL(libpath)
 
         try:
-            FrmGrabLocalPtr = ctypes.c_void_p
+            FrmGrabberPtr = ctypes.c_void_p
 
             # Init/Deinit
             cls.lib.FrmGrab_Init.argtypes = []
