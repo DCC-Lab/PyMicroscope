@@ -3,23 +3,26 @@ import ctypes
 import time
 from ctypes import byref, POINTER, cast
 
+import numpy as np
+
 from pymicroscope.utils.pyroprocess import PyroProcess
 
 from pymicroscope.acquisition.imageprovider import (
     ImageProvider,
 )
-from pymicroscope.acquisition.libepiphan.epiphanlibwrapper import *
+from pymicroscope.acquisition.epiphan import EpiphanFrameGrabber
 
 
 class EpiphanImageProvider(ImageProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fg = None
+        self.fg: EpiphanFrameGrabber = EpiphanFrameGrabber()
 
     def setup(self):
-        self.fg = EpiphanFrameGrabber()
+        self.fg.initialize_device()
 
     def cleanup(self):
+        self.fg.shutdown_device()
         del self.fg
 
     def start(self):

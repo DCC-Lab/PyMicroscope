@@ -1,7 +1,14 @@
-# v2u_defs_constants.py
+"""
+This is a standalone file to import and use the Epiphan acquisition card.  It
+must not depend on anything outside of its directory.
 
-from ctypes import Structure, c_uint16, c_uint32
 
+
+"""
+
+from ctypes import Structure, c_uint16, c_uint32, byref, POINTER, c_char_p
+import ctypes
+import os
 
 V2U_TRUE = 1
 V2U_FALSE = 0
@@ -102,6 +109,8 @@ from ctypes import (
     c_char,
     POINTER,
 )
+
+FrmGrabLocalPtr = ctypes.c_void_p
 
 
 class V2USize(Structure):
@@ -211,10 +220,10 @@ class V2UAdjRange(Structure):
 
 class EpiphanLibraryWrapper:
     lib = None
+    is_functional = False
 
     @classmethod
     def list_grabbers(cls):
-        FrmGrabLocalPtr = ctypes.c_void_p
         MAX_GRABS = 4
 
         # Allocate array of FrmGrabLocal* (c_void_p) initialized to NULL
@@ -304,198 +313,215 @@ class EpiphanLibraryWrapper:
 
     @classmethod
     def setup_library(cls, libpath=None):
-        if libath is None:
+        if cls.lib is not None:
+            return
+
+        if libpath is None:
             basedir = os.path.dirname(__file__)
             libpath = os.path.join(basedir, "libfrmgrab.dylib")
 
         cls.lib = ctypes.CDLL(libpath)
 
-        FrmGrabLocalPtr = ctypes.c_void_p
+        try:
+            FrmGrabLocalPtr = ctypes.c_void_p
 
-        # Init/Deinit
-        cls.lib.FrmGrab_Init.argtypes = []
-        cls.lib.FrmGrab_Init.restype = None
+            # Init/Deinit
+            cls.lib.FrmGrab_Init.argtypes = []
+            cls.lib.FrmGrab_Init.restype = None
 
-        cls.lib.FrmGrab_Deinit.argtypes = []
-        cls.lib.FrmGrab_Deinit.restype = None
+            cls.lib.FrmGrab_Deinit.argtypes = []
+            cls.lib.FrmGrab_Deinit.restype = None
 
-        cls.lib.FrmGrabNet_Init.argtypes = []
-        cls.lib.FrmGrabNet_Init.restype = None
+            cls.lib.FrmGrabNet_Init.argtypes = []
+            cls.lib.FrmGrabNet_Init.restype = None
 
-        cls.lib.FrmGrabNet_Deinit.argtypes = []
-        cls.lib.FrmGrabNet_Deinit.restype = None
+            cls.lib.FrmGrabNet_Deinit.argtypes = []
+            cls.lib.FrmGrabNet_Deinit.restype = None
 
-        # Local grabber access
-        cls.lib.FrmGrabLocal_Open.argtypes = []
-        cls.lib.FrmGrabLocal_Open.restype = FrmGrabberPtr
+            # Local grabber access
+            cls.lib.FrmGrabLocal_Open.argtypes = []
+            cls.lib.FrmGrabLocal_Open.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabLocal_OpenSN.argtypes = [c_char_p]
-        cls.lib.FrmGrabLocal_OpenSN.restype = FrmGrabberPtr
+            cls.lib.FrmGrabLocal_OpenSN.argtypes = [c_char_p]
+            cls.lib.FrmGrabLocal_OpenSN.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabLocal_Count.argtypes = []
-        cls.lib.FrmGrabLocal_Count.restype = c_int
+            cls.lib.FrmGrabLocal_Count.argtypes = []
+            cls.lib.FrmGrabLocal_Count.restype = c_int
 
-        cls.lib.FrmGrabLocal_OpenAll.argtypes = [POINTER(FrmGrabberPtr), c_int]
-        cls.lib.FrmGrabLocal_OpenAll.restype = c_int
+            cls.lib.FrmGrabLocal_OpenAll.argtypes = [POINTER(FrmGrabberPtr), c_int]
+            cls.lib.FrmGrabLocal_OpenAll.restype = c_int
 
-        # Network
-        cls.lib.FrmGrabNet_Open.argtypes = []
-        cls.lib.FrmGrabNet_Open.restype = FrmGrabberPtr
+            # Network
+            cls.lib.FrmGrabNet_Open.argtypes = []
+            cls.lib.FrmGrabNet_Open.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabNet_OpenSN.argtypes = [c_char_p]
-        cls.lib.FrmGrabNet_OpenSN.restype = FrmGrabberPtr
+            cls.lib.FrmGrabNet_OpenSN.argtypes = [c_char_p]
+            cls.lib.FrmGrabNet_OpenSN.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabNet_OpenLocation.argtypes = [c_char_p]
-        cls.lib.FrmGrabNet_OpenLocation.restype = FrmGrabberPtr
+            cls.lib.FrmGrabNet_OpenLocation.argtypes = [c_char_p]
+            cls.lib.FrmGrabNet_OpenLocation.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabNet_OpenAddress.argtypes = [c_uint32, c_uint16]
-        cls.lib.FrmGrabNet_OpenAddress.restype = FrmGrabberPtr
+            cls.lib.FrmGrabNet_OpenAddress.argtypes = [c_uint32, c_uint16]
+            cls.lib.FrmGrabNet_OpenAddress.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabNet_OpenAddress2.argtypes = [
-            c_uint32,
-            c_uint16,
-            FrmGrabAuthProc,
-            c_void_p,
-            POINTER(c_int),
-        ]
-        cls.lib.FrmGrabNet_OpenAddress2.restype = FrmGrabberPtr
+            cls.lib.FrmGrabNet_OpenAddress2.argtypes = [
+                c_uint32,
+                c_uint16,
+                FrmGrabAuthProc,
+                c_void_p,
+                POINTER(c_int),
+            ]
+            cls.lib.FrmGrabNet_OpenAddress2.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrabNet_IsProtected.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrabNet_IsProtected.restype = c_int
+            cls.lib.FrmGrabNet_IsProtected.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrabNet_IsProtected.restype = c_int
 
-        cls.lib.FrmGrabNet_Auth.argtypes = [FrmGrabberPtr, FrmGrabAuthProc, c_void_p]
-        cls.lib.FrmGrabNet_Auth.restype = c_int
+            cls.lib.FrmGrabNet_Auth.argtypes = [
+                FrmGrabberPtr,
+                FrmGrabAuthProc,
+                c_void_p,
+            ]
+            cls.lib.FrmGrabNet_Auth.restype = c_int
 
-        cls.lib.FrmGrabNet_Auth2.argtypes = [FrmGrabberPtr, c_char_p, c_char_p]
-        cls.lib.FrmGrabNet_Auth2.restype = c_int
+            cls.lib.FrmGrabNet_Auth2.argtypes = [FrmGrabberPtr, c_char_p, c_char_p]
+            cls.lib.FrmGrabNet_Auth2.restype = c_int
 
-        cls.lib.FrmGrabNet_GetStat.argtypes = [FrmGrabberPtr, POINTER(FrmGrabNetStat)]
-        cls.lib.FrmGrabNet_GetStat.restype = c_int
+            cls.lib.FrmGrabNet_GetStat.argtypes = [
+                FrmGrabberPtr,
+                POINTER(FrmGrabNetStat),
+            ]
+            cls.lib.FrmGrabNet_GetStat.restype = c_int
 
-        cls.lib.FrmGrabNet_GetRemoteAddr.argtypes = [
-            FrmGrabberPtr,
-            c_void_p,
-        ]  # struct sockaddr_in
-        cls.lib.FrmGrabNet_GetRemoteAddr.restype = c_int
+            cls.lib.FrmGrabNet_GetRemoteAddr.argtypes = [
+                FrmGrabberPtr,
+                c_void_p,
+            ]  # struct sockaddr_in
+            cls.lib.FrmGrabNet_GetRemoteAddr.restype = c_int
 
-        cls.lib.FrmGrabNet_IsAlive.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrabNet_IsAlive.restype = c_int
+            cls.lib.FrmGrabNet_IsAlive.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrabNet_IsAlive.restype = c_int
 
-        cls.lib.FrmGrabNet_SetAutoReconnect.argtypes = [FrmGrabberPtr, c_int]
-        cls.lib.FrmGrabNet_SetAutoReconnect.restype = c_int
+            cls.lib.FrmGrabNet_SetAutoReconnect.argtypes = [FrmGrabberPtr, c_int]
+            cls.lib.FrmGrabNet_SetAutoReconnect.restype = c_int
 
-        # Generic Open/Dup/Close
-        cls.lib.FrmGrab_Open.argtypes = [c_char_p]
-        cls.lib.FrmGrab_Open.restype = FrmGrabberPtr
+            # Generic Open/Dup/Close
+            cls.lib.FrmGrab_Open.argtypes = [c_char_p]
+            cls.lib.FrmGrab_Open.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrab_Dup.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_Dup.restype = FrmGrabberPtr
+            cls.lib.FrmGrab_Dup.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_Dup.restype = FrmGrabberPtr
 
-        cls.lib.FrmGrab_Close.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_Close.restype = None
+            cls.lib.FrmGrab_Close.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_Close.restype = None
 
-        cls.lib.FrmGrab_GetSN.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetSN.restype = c_char_p
+            cls.lib.FrmGrab_GetSN.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetSN.restype = c_char_p
 
-        cls.lib.FrmGrab_GetProductId.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetProductId.restype = c_int
+            cls.lib.FrmGrab_GetProductId.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetProductId.restype = c_int
 
-        cls.lib.FrmGrab_GetProductName.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetProductName.restype = c_char_p
+            cls.lib.FrmGrab_GetProductName.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetProductName.restype = c_char_p
 
-        cls.lib.FrmGrab_GetLocation.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetLocation.restype = c_char_p
+            cls.lib.FrmGrab_GetLocation.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetLocation.restype = c_char_p
 
-        cls.lib.FrmGrab_GetCaps.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetCaps.restype = c_uint32
+            cls.lib.FrmGrab_GetCaps.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetCaps.restype = c_uint32
 
-        # Video mode / params / properties
-        cls.lib.FrmGrab_GetVideoMode.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_GetVideoMode.restype = None
+            # Video mode / params / properties
+            cls.lib.FrmGrab_GetVideoMode.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_GetVideoMode.restype = None
 
-        cls.lib.FrmGrab_DetectVideoMode.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_DetectVideoMode.restype = c_int
+            cls.lib.FrmGrab_DetectVideoMode.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_DetectVideoMode.restype = c_int
 
-        cls.lib.FrmGrab_GetGrabParams.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_GetGrabParams.restype = c_int
+            cls.lib.FrmGrab_GetGrabParams.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_GetGrabParams.restype = c_int
 
-        cls.lib.FrmGrab_GetGrabParams2.argtypes = [FrmGrabberPtr, c_void_p, c_void_p]
-        cls.lib.FrmGrab_GetGrabParams2.restype = c_int
+            cls.lib.FrmGrab_GetGrabParams2.argtypes = [
+                FrmGrabberPtr,
+                c_void_p,
+                c_void_p,
+            ]
+            cls.lib.FrmGrab_GetGrabParams2.restype = c_int
 
-        cls.lib.FrmGrab_SetGrabParams.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_SetGrabParams.restype = c_int
+            cls.lib.FrmGrab_SetGrabParams.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_SetGrabParams.restype = c_int
 
-        cls.lib.FrmGrab_GetProperty.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_GetProperty.restype = c_int
+            cls.lib.FrmGrab_GetProperty.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_GetProperty.restype = c_int
 
-        cls.lib.FrmGrab_SetProperty.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_SetProperty.restype = c_int
+            cls.lib.FrmGrab_SetProperty.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_SetProperty.restype = c_int
 
-        # VGA Modes
-        cls.lib.FrmGrab_GetVGAModes.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_GetVGAModes.restype = c_void_p  # Use actual struct if defined
+            # VGA Modes
+            cls.lib.FrmGrab_GetVGAModes.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_GetVGAModes.restype = (
+                c_void_p  # Use actual struct if defined
+            )
 
-        cls.lib.FrmGrab_SetVGAModes.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_SetVGAModes.restype = c_int
+            cls.lib.FrmGrab_SetVGAModes.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_SetVGAModes.restype = c_int
 
-        # PS2
-        cls.lib.FrmGrab_SendPS2.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_SendPS2.restype = c_int
+            # PS2
+            cls.lib.FrmGrab_SendPS2.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_SendPS2.restype = c_int
 
-        # Streaming
-        cls.lib.FrmGrab_SetMaxFps.argtypes = [FrmGrabberPtr, c_double]
-        cls.lib.FrmGrab_SetMaxFps.restype = c_int
+            # Streaming
+            cls.lib.FrmGrab_SetMaxFps.argtypes = [FrmGrabberPtr, c_double]
+            cls.lib.FrmGrab_SetMaxFps.restype = c_int
 
-        cls.lib.FrmGrab_Start.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_Start.restype = c_int
+            cls.lib.FrmGrab_Start.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_Start.restype = c_int
 
-        cls.lib.FrmGrab_Stop.argtypes = [FrmGrabberPtr]
-        cls.lib.FrmGrab_Stop.restype = None
+            cls.lib.FrmGrab_Stop.argtypes = [FrmGrabberPtr]
+            cls.lib.FrmGrab_Stop.restype = None
 
-        # Frame
-        cls.lib.FrmGrab_Frame.argtypes = [FrmGrabberPtr, c_uint32, c_void_p]
-        cls.lib.FrmGrab_Frame.restype = c_void_p
+            # Frame
+            cls.lib.FrmGrab_Frame.argtypes = [FrmGrabberPtr, c_uint32, c_void_p]
+            cls.lib.FrmGrab_Frame.restype = c_void_p
 
-        cls.lib.FrmGrab_Release.argtypes = [FrmGrabberPtr, c_void_p]
-        cls.lib.FrmGrab_Release.restype = None
+            cls.lib.FrmGrab_Release.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_Release.restype = None
 
-        # Memory cleanup
-        cls.lib.FrmGrab_Free.argtypes = [c_void_p]
-        cls.lib.FrmGrab_Free.restype = None
+            # Memory cleanup
+            cls.lib.FrmGrab_Free.argtypes = [c_void_p]
+            cls.lib.FrmGrab_Free.restype = None
 
-        cls.lib.FrmGrab_SetAlloc.argtypes = [
-            FrmGrabberPtr,
-            POINTER(FrmGrabMemCB),
-            c_void_p,
-        ]
-        cls.lib.FrmGrab_SetAlloc.restype = None
+            cls.lib.FrmGrab_SetAlloc.argtypes = [
+                FrmGrabberPtr,
+                POINTER(FrmGrabMemCB),
+                c_void_p,
+            ]
+            cls.lib.FrmGrab_SetAlloc.restype = None
 
-        cls.lib.FrmGrab_Init()
+            cls.lib.FrmGrab_Init()
+            cls.is_functional = True  # IF we made it, then it works
+
+        except AttributeError as err:
+            raise RuntimeError(
+                "Epiphan library is not accessible, possibly wrong architecture"
+            ) from err
 
     @classmethod
     def cleanup_library(cls):
-        cls.lib.FrmGrab_Deinit()
-
-
-import ctypes
-from ctypes import byref, POINTER, c_char_p
-from v2u_defs_constants import *
+        if cls.is_functional:
+            cls.lib.FrmGrab_Deinit()
 
 
 class EpiphanFrameGrabber:
-    def __init__(self, device_index=0):
+    def __init__(self):
         EpiphanLibraryWrapper.setup_library()
-        self.device = self._open_device(device_index)
+        self.device: FrmGrabLocalPtr = None
+
+    def initialize_device(self):
+        self.device = EpiphanLibraryWrapper.lib.FrmGrabLocal_Open()
         if not self.device:
             raise RuntimeError("No frame grabber found at index", device_index)
 
-    def _open_device(self, index):
-        MAX_DEVICES = 8
-        grabbers = (ctypes.c_void_p * MAX_DEVICES)()
-        count = EpiphanLibraryWrapper.lib.FrmGrabLocal_OpenAll(grabbers, MAX_DEVICES)
-        if index >= count:
-            return None
-        return grabbers[index]
+    def shutdown_device(self):
+        EpiphanLibraryWrapper.lib.FrmGrab_Close(self.device)
 
     def get_serial_number(self) -> str:
         sn = EpiphanLibraryWrapper.lib.FrmGrab_GetSN(self.device)
@@ -542,9 +568,6 @@ class EpiphanFrameGrabber:
         if self.device:
             EpiphanLibraryWrapper.lib.FrmGrab_Close(self.device)
             self.device = None
-
-    def __del__(self):
-        self.close()
 
     def grab_frame(
         self, format=V2U_GRABFRAME_FORMAT_RGB24, crop: V2URect | None = None
