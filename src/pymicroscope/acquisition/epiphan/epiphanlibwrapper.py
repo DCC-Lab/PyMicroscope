@@ -272,82 +272,6 @@ class EpiphanLibraryWrapper:
             print(g)
 
     @classmethod
-    def frame_grabber_set_video_mode(cls, fg) -> str | None:
-        """
-        Sets the VGA video mode from configuration. Returns None on success,
-        or a string describing the error on failure.
-        """
-
-        if not fg:
-            return "No frame grabbers found"
-
-        p = V2U_Property()
-        p.key = V2UKey_VGAMode
-        mode = p.value.vgamode.vesa_mode
-
-        modes_ptr = cls.lib.FrmGrab_GetVGAModes(fg)
-        if not modes_ptr:
-            return "Error getting VGA modes"
-
-        try:
-            modes = modes_ptr.contents
-            std_modes = cast(modes.stdModes, POINTER(V2UVideoModeDescr))
-
-            for i in range(modes.numStdModes):
-                std_mode = std_modes[i]
-                if std_mode.Type & VIDEOMODE_TYPE_ENABLED:
-                    p.value.vgamode.idx = i + V2U_CUSTOM_VIDEOMODE_COUNT
-
-                    mode.VerFrequency = std_mode.VerFrequency
-                    mode.HorAddrTime = std_mode.HorAddrTime
-                    mode.HorFrontPorch = std_mode.HorFrontPorch
-                    mode.HorSyncTime = std_mode.HorSyncTime
-                    mode.HorBackPorch = std_mode.HorBackPorch
-                    mode.VerAddrTime = std_mode.VerAddrTime
-                    mode.VerFrontPorch = std_mode.VerFrontPorch
-                    mode.VerSyncTime = std_mode.VerSyncTime
-                    mode.VerBackPorch = std_mode.VerBackPorch
-
-                    # Disable mode
-                    mode.Type = std_mode.Type & ~VIDEOMODE_TYPE_ENABLED
-
-                    if not cls.lib.FrmGrab_SetProperty(fg, byref(p)):
-                        return f"Failed to set VGA standard mode {p.value.vgamode.idx}"
-
-        finally:
-            cls.lib.FrmGrab_Free(modes_ptr)
-
-        # Now set the custom VGA mode
-        p.value.vgamode.idx = 0
-        vga_mode = self.get_selected_vga_mode()  # Should return a dict
-
-        mode.HorAddrTime = int(vga_mode["hRes"])
-        mode.HorFrontPorch = int(vga_mode["hFrontPorch"])
-        mode.HorSyncTime = int(vga_mode["hSync"])
-        mode.HorBackPorch = int(vga_mode["hBackPorch"])
-        mode.VerAddrTime = int(vga_mode["vRes"])
-        mode.VerFrontPorch = int(vga_mode["vFrontPorch"])
-        mode.VerSyncTime = int(vga_mode["vSync"])
-        mode.VerBackPorch = int(vga_mode["vBackPorch"])
-        mode.VerFrequency = int(vga_mode["vFreq"])
-
-        mode.Type = VIDEOMODE_TYPE_VALID | VIDEOMODE_TYPE_ENABLED
-        if vga_mode.get("hPositiveSync"):
-            mode.Type |= VIDEOMODE_TYPE_HSYNCPOSITIVE
-        if vga_mode.get("vPositiveSync"):
-            mode.Type |= VIDEOMODE_TYPE_VSYNCPOSITIVE
-
-        if not cls.lib.FrmGrab_SetProperty(fg, byref(p)):
-            return "Set VGA mode failed"
-
-        # Confirm mode change
-        tmp_vm = V2U_VideoMode()
-        if cls.lib.FrmGrab_DetectVideoMode(fg, byref(tmp_vm)) != V2U_TRUE:
-            return "No video mode detected"
-
-        return None  # Success
-
-    @classmethod
     def setup_library(cls, libpath=None):
         if cls.lib is not None:
             return
@@ -619,3 +543,78 @@ class EpiphanFrameGrabber:
             return frame_ptr
         finally:
             EpiphanLibraryWrapper.lib.FrmGrab_Release(self.device, frame_ptr)
+
+    def frame_grabber_set_video_mode(self) -> str | None:
+        """
+        Sets the VGA video mode from configuration. Returns None on success,
+        or a string describing the error on failure.
+        """
+
+        if not self.device:
+            return "No frame grabbers found"
+
+        p = V2U_Property()
+        p.key = V2UKey_VGAMode
+        mode = p.value.vgamode.vesa_mode
+
+        modes_ptr = self.lib.FrmGrab_GetVGAModes(self.device)
+        if not modes_ptr:
+            return "Error getting VGA modes"
+
+        try:
+            modes = modes_ptr.contents
+            std_modes = cast(modes.stdModes, POINTER(V2UVideoModeDescr))
+
+            for i in range(modes.numStdModes):
+                std_mode = std_modes[i]
+                if std_mode.Type & VIDEOMODE_TYPE_ENABLED:
+                    p.value.vgamode.idx = i + V2U_CUSTOM_VIDEOMODE_COUNT
+
+                    mode.VerFrequency = std_mode.VerFrequency
+                    mode.HorAddrTime = std_mode.HorAddrTime
+                    mode.HorFrontPorch = std_mode.HorFrontPorch
+                    mode.HorSyncTime = std_mode.HorSyncTime
+                    mode.HorBackPorch = std_mode.HorBackPorch
+                    mode.VerAddrTime = std_mode.VerAddrTime
+                    mode.VerFrontPorch = std_mode.VerFrontPorch
+                    mode.VerSyncTime = std_mode.VerSyncTime
+                    mode.VerBackPorch = std_mode.VerBackPorch
+
+                    # Disable mode
+                    mode.Type = std_mode.Type & ~VIDEOMODE_TYPE_ENABLED
+
+                    if not self.lib.FrmGrab_SetProperty(self.device, byref(p)):
+                        return f"Failed to set VGA standard mode {p.value.vgamode.idx}"
+
+        finally:
+            self.lib.FrmGrab_Free(modes_ptr)
+
+        # Now set the custom VGA mode
+        p.value.vgamode.idx = 0
+        vga_mode = self.get_selected_vga_mode()  # Should return a dict
+
+        mode.HorAddrTime = int(vga_mode["hRes"])
+        mode.HorFrontPorch = int(vga_mode["hFrontPorch"])
+        mode.HorSyncTime = int(vga_mode["hSync"])
+        mode.HorBackPorch = int(vga_mode["hBackPorch"])
+        mode.VerAddrTime = int(vga_mode["vRes"])
+        mode.VerFrontPorch = int(vga_mode["vFrontPorch"])
+        mode.VerSyncTime = int(vga_mode["vSync"])
+        mode.VerBackPorch = int(vga_mode["vBackPorch"])
+        mode.VerFrequency = int(vga_mode["vFreq"])
+
+        mode.Type = VIDEOMODE_TYPE_VALID | VIDEOMODE_TYPE_ENABLED
+        if vga_mode.get("hPositiveSync"):
+            mode.Type |= VIDEOMODE_TYPE_HSYNCPOSITIVE
+        if vga_mode.get("vPositiveSync"):
+            mode.Type |= VIDEOMODE_TYPE_VSYNCPOSITIVE
+
+        if not self.lib.FrmGrab_SetProperty(self.device, byref(p)):
+            return "Set VGA mode failed"
+
+        # Confirm mode change
+        tmp_vm = V2U_VideoMode()
+        if self.lib.FrmGrab_DetectVideoMode(self.device, byref(tmp_vm)) != V2U_TRUE:
+            return "No video mode detected"
+
+        return None  # Success

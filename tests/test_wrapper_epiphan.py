@@ -3,20 +3,6 @@ from pymicroscope.acquisition.epiphan import *
 
 
 class EpiphanWrapperTestCase(envtest.CoreTestCase):
-    def test000_init_library(self) -> None:
-        try:
-            EpiphanLibraryWrapper.setup_library()
-            self.assertIsNotNone(EpiphanLibraryWrapper.lib)
-        finally:
-            EpiphanLibraryWrapper.cleanup_library()
-
-    def test010_library_has_fct_definitions(self) -> None:
-        try:
-            EpiphanLibraryWrapper.setup_library()
-            self.assertIsNotNone(EpiphanLibraryWrapper.lib.FrmGrab_Init)
-        finally:
-            EpiphanLibraryWrapper.cleanup_library()
-
     def setUp(self):
         super().setUp()
         try:
@@ -31,6 +17,14 @@ class EpiphanWrapperTestCase(envtest.CoreTestCase):
             EpiphanLibraryWrapper.cleanup_library()
         except Exception as err:
             pass
+
+    def test000_init_library(self) -> None:
+        self.assertIsNotNone(EpiphanLibraryWrapper.lib)
+
+    def test020_can_open_grabber(self) -> None:
+        self.assertIsNotNone(
+            EpiphanLibraryWrapper.lib.FrmGrab_Open("local".encode("utf-8"))
+        )
 
 
 if __name__ == "__main__":
