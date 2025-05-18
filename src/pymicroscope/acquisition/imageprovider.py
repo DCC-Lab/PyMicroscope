@@ -6,13 +6,41 @@ from multiprocessing import RLock
 import numpy as np
 import base64
 
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+
 from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
 from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop
 
 
-class ImageProviderClient:
+def show_provider(pyro_name, duration=10):
+    provider = ImageProvider.by_name(pyro_name)
+
+    plt.ion()  # Turn on interactive mode
+
+    fig, ax = plt.subplots()
+    image = np.random.rand(480, 640, 3)
+    im = ax.imshow(image, cmap="gray")
+    plt.show(block=False)
+
+    start_time = time.time()
+
+    while time.time() < start_time + duration:
+        img_pack = provider.get_last_packaged_image()
+        array = ImageProvider.image_from_package(img_pack)
+        im.set_data(array)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+    plt.ioff()
+    plt.close(fig)
+
+
+@expose
+class ImageProviderClient(PyroProcess):
     """
     Protocol for receiving images from an ImageProvider.
     """
@@ -32,15 +60,12 @@ class ImageProviderClient:
         Args:
             image (np.ndarray): Captured image data.
         """
-
-        if self.callback is not None:
-            self.callback(image)
-        else:
-            self.images.append(image)
-            self.images = self.images[-10:]
+        self.images.append(image)
+        self.images = self.images[-10:]
 
 
-class ImageProvider(ABC):
+@expose
+class ImageProvider(PyroProcess):
     """
     Abstract base class defining the interface for image providers.
 
@@ -74,19 +99,23 @@ class ImageProvider(ABC):
         self.last_image_package: Optional[dict[str, Any]] = None
 
         self._clients: list[ImageProviderClient] = []
+        self.lock = RLock()
 
     @property
     def clients(self) -> list[ImageProviderClient]:
         """Return the current client, if any."""
-        return self._clients
+        with self.lock:
+            return self._clients
 
     def add_client(self, obj: ImageProviderClient) -> None:
         """Set the client that will receive captured images."""
-        self._clients.append(obj)
+        with self.lock:
+            self._clients.append(obj)
 
     def remove_client(self, obj: ImageProviderClient) -> None:
         """Set the client that will receive captured images."""
-        self._clients.remove(obj)
+        with self.lock:
+            self._clients.remove(obj)
 
     @property
     def size(self) -> Tuple[int, int]:
@@ -188,76 +217,6 @@ class ImageProvider(ABC):
         """
         return self.properties
 
-    def run(self) -> None:
-        """
-        Main capture loop for local use (no Pyro registration).
-
-        Subclasses may override this.
-        """
-        with self.syncing_context() as must_terminate_now:
-            self.start_capture()
-
-            while not must_terminate_now:
-                try:
-                    self.handle_remote_call_events()
-                    self.handle_pyro_events(daemon)
-
-                    img_tuple = self.capture_packaged_image()
-                    for client in self.clients:
-                        client.new_image_captured(img_tuple)
-                except Exception as err:
-                    self.log.error("Error in ImageProvider run loop : {err}")
-            self.stop_capture()
-
-
-@expose
-class RemoteImageProviderClient(PyroProcess, ImageProviderClient):
-    """
-    Protocol for receiving images from an ImageProvider.
-    """
-
-    def __init__(self, callback=None, *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize the image provider client
-
-        """
-        super().__init__(*args, **kwargs)
-        self.callback = callback
-        self.images = []
-
-    def new_image_captured(self, image: np.ndarray) -> None:
-        """
-        Called when a new image is captured.
-
-        Args:
-            image (np.ndarray): Captured image data.
-        """
-
-        if self.callback is not None:
-            self.callback(image)
-        else:
-            self.images.append(image)
-            self.images = self.images[-10:]
-
-
-@expose
-class RemoteImageProvider(ImageProvider, PyroProcess):
-    """
-    Image provider that exposes its interface over Pyro5.
-    """
-
-    def __init__(self, pyro_name: Optional[str], *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize and register a remote image provider.
-
-        Args:
-            pyro_name: Name used to register with Pyro name server.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-        """
-        super().__init__(pyro_name=pyro_name, *args, **kwargs)
-        self.lock = RLock()
-
     def client_to_proxy(self, obj_or_name) -> Optional[ImageProviderClient]:
         """
         Dynamically resolve client from name or URI if needed.
@@ -272,27 +231,6 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
                 return PyroProcess.by_name(obj_or_name)
 
             return obj_or_name
-
-    def add_client(self, obj_or_name: Union[ImageProviderClient, str, URI]) -> None:
-        """
-        Add client as an object, Pyro name, or URI.  If it is a name or a URI
-        we defer until the runloop to actually instantiate the object (i.e. it needs
-        to be instantiated on the right thread)
-
-        Args:
-            obj_or_name: Can be a client object, a Pyro name, or a Pyro URI.
-        """
-        with self.lock:
-            super().add_client(obj_or_name)
-
-    def set_frame_rate(self, value: float) -> None:
-        """
-        Set the frame rate of the image provider.
-
-        Args:
-            value: Frame rate in Hz.
-        """
-        super().set_frame_rate(value)
 
     def run(self) -> None:
         """
@@ -315,7 +253,13 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
                     with self.lock:
                         for client in self.clients:
                             proxy = self.client_to_proxy(client)
-                            proxy.new_image_captured(img_tuple)
+                            if proxy is not None:
+                                try:
+                                    proxy.new_image_captured(img_tuple)
+                                except Exception as err:
+                                    self.log.error(
+                                        f"Calling ImageProvider client: {err}"
+                                    )
 
                 self.stop_capture()
 
@@ -323,11 +267,8 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
                 if ns is not None:
                     ns.remove(self.pyro_name)
 
-    def get_last_packaged_image(self) -> dict[str, Any]:
-        return super().get_last_packaged_image()
 
-
-class DebugRemoteImageProvider(RemoteImageProvider):
+class DebugImageProvider(ImageProvider):
     """
     An image provider that generates synthetic 8-bit images for testing.
     """
@@ -426,7 +367,7 @@ class DebugRemoteImageProvider(RemoteImageProvider):
 if __name__ == "__main__":
     import logging
 
-    provider = DebugRemoteImageProvider(
+    provider = DebugImageProvider(
         log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
     )
     provider.start()
