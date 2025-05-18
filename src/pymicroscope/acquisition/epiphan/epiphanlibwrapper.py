@@ -6,7 +6,7 @@ must not depend on anything outside of its directory.
 
 """
 
-from ctypes import Structure, c_uint16, c_uint32, byref, POINTER, c_char_p
+from ctypes import Structure, c_uint16, c_uint32, byref, POINTER, c_char_p, c_int
 import ctypes
 import os
 
@@ -323,7 +323,7 @@ class EpiphanLibraryWrapper:
         cls.lib = ctypes.CDLL(libpath)
 
         try:
-            FrmGrabLocalPtr = ctypes.c_void_p
+            FrmGrabberPtr = ctypes.c_void_p
 
             # Init/Deinit
             cls.lib.FrmGrab_Init.argtypes = []
@@ -346,7 +346,7 @@ class EpiphanLibraryWrapper:
             cls.lib.FrmGrabLocal_OpenSN.restype = FrmGrabberPtr
 
             cls.lib.FrmGrabLocal_Count.argtypes = []
-            cls.lib.FrmGrabLocal_Count.restype = c_int
+            cls.lib.FrmGrabLocal_Count.restype = ctypes.c_int
 
             cls.lib.FrmGrabLocal_OpenAll.argtypes = [POINTER(FrmGrabberPtr), c_int]
             cls.lib.FrmGrabLocal_OpenAll.restype = c_int
