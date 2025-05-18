@@ -6,7 +6,18 @@ must not depend on anything outside of its directory.
 
 """
 
-from ctypes import Structure, c_uint16, c_uint32, byref, POINTER, c_char_p, c_int
+from ctypes import (
+    Structure,
+    c_uint16,
+    c_uint32,
+    byref,
+    POINTER,
+    CFUNCTYPE,
+    c_char_p,
+    c_int,
+    c_double,
+    c_void_p,
+)
 import ctypes
 import os
 
@@ -117,6 +128,25 @@ FrmGrabAuthProc = ctypes.CFUNCTYPE(
     ctypes.c_char_p,  # pass
     ctypes.c_void_p,  # param
 )
+
+# Define function pointer types
+FrmGrabMemAlloc = CFUNCTYPE(c_void_p, c_void_p, c_uint32)
+FrmGrabMemFree = CFUNCTYPE(None, c_void_p, c_void_p)
+
+
+# Define the structure
+class FrmGrabMemCB(Structure):
+    _fields_ = [
+        ("alloc", FrmGrabMemAlloc),
+        ("free", FrmGrabMemFree),
+    ]
+
+
+class FrmGrabNetStat(Structure):
+    _fields_ = [
+        ("bytesSent", c_uint64),
+        ("bytesReceived", c_uint64),
+    ]
 
 
 class V2USize(Structure):
