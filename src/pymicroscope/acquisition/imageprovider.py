@@ -6,7 +6,6 @@ from multiprocessing import RLock
 import numpy as np
 import base64
 
-import matplotlib.pyplot as plt
 import numpy as np
 import time
 
@@ -17,6 +16,8 @@ from pymicroscope.utils.terminable import run_loop
 
 
 def show_provider(pyro_name, duration=10):
+    import matplotlib.pyplot as plt
+
     provider = ImageProvider.by_name(pyro_name)
 
     plt.ion()  # Turn on interactive mode
