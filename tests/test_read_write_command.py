@@ -6,7 +6,7 @@ import time
 # Attendre un peu pour que le dispositif envoie des données
 time.sleep(2)
 
-info = serial.Serial('/dev/cu.wlan-debug', 9600, timeout=4) # /dev/cu.Bluetooth-Incoming-Port ou /dev/cu.wlan-debug
+info = serial.Serial('/dev/cu.wlan-debug', baudrate=19200, timeout=3, ) # /dev/cu.Bluetooth-Incoming-Port ou /dev/cu.wlan-debug
 
 # Initialiser un tableau de bytes pour stocker les données
 data = bytearray()
