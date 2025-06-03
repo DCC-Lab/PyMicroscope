@@ -20,7 +20,6 @@ class TestReadWrite(unittest.TestCase):
 
         #ftdi_ports = []
         for port_info in ports_list:
-            #if False:
             print(f"Device:{port_info.device} vid:{port_info.vid} pid:{port_info.pid}")
 
         self.assertTrue(len(ports_list) > 0)
@@ -57,8 +56,7 @@ class TestReadWrite(unittest.TestCase):
         for port_info in possible_ports:
             try:
                 port = serial.Serial(port_info.device, baudrate=19200, timeout=0.5)
-                usable_ports.append(port_info.device)
-            
+                usable_ports.append(port_info.device)            
             except:
                 pass            
 
@@ -130,7 +128,10 @@ class TestReadWrite(unittest.TestCase):
     
 
     def test050_many_commands(self):
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        try :
+            port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        except serial.SerialException as err:
+            self.fail(f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer.")
 
         all_commands = { "READ_FIRMWARE_VERSION" : {"command_bytes":[0x7f], "bytes_returned":3},
                          "READ_CID" : {"command_bytes":[0x6c], "bytes_returned":2},
