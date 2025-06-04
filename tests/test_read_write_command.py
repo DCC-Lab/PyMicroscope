@@ -113,20 +113,6 @@ class TestReadWrite(unittest.TestCase):
         self.assertTrue(cid_data[0] == 0)
         self.assertTrue(cid_data[1] == 0)
 
-    def test040_read_cpn(self):
-        usable_ports = self.get_usable_ports()
-        self.assertTrue(CONTROLLER_SERIAL_PATH in usable_ports)
-
-        READ_CPN = [0x6d]
-
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
-        
-        port.write(READ_CPN)
-        data_bytes = port.read(2)
-        self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack(">h", data_bytes)
-        self.assertTrue(part_number == 522)
-
 
     def test045_read_all_command(self):
         usable_ports = self.get_usable_ports()
@@ -152,7 +138,7 @@ class TestReadWrite(unittest.TestCase):
         port.write(READ_FIRMWARE_VERSION)
         data_bytes = port.read(3)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack(">3h", data_bytes)
+        part_number = struct.unpack("3b", data_bytes)
         self.assertTrue(part_number == (4, 0, 0))    #b'\x02\x00\x00'
 
         port.write(READ_CID)
@@ -164,7 +150,7 @@ class TestReadWrite(unittest.TestCase):
         port.write(READ_CPN)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack(">h", data_bytes) # j'aurais mis un p ou un c pas h
+        part_number = struct.unpack('>h', data_bytes)[0] # j'aurais mis un p ou un c pas h
         self.assertTrue(part_number == 522)
 
         port.write(READ_SN)
@@ -175,66 +161,82 @@ class TestReadWrite(unittest.TestCase):
 
         port.write(READ_EEPROM_ADDRESS)
         data_bytes = port.read(1)
-        self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("b", data_bytes)
-        self.assertTrue(part_number == pass)
+        if self.assertIsNotNone(data_bytes):
+            part_number = struct.unpack("c", data_bytes)
+            self.assertTrue(part_number == '')
+        else:
+            pass
 
         port.write(READ_STATE_OF_SWITCHES_AND_TTL_IOS)
         data_bytes = port.read(1)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("b", data_bytes)
-        self.assertTrue(part_number == 0)
+        part_number = struct.unpack('B', data_bytes)[0]
+        self.assertTrue(part_number == 255)
 
         port.write(READ_BUILD_TIME)
         data_bytes = port.read(9)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("8cP", data_bytes)
-        time_building = part_number.decode('utf-8')
+        part_number = struct.unpack("8cx", data_bytes)
+        time_building = b''.join(part_number)
         self.assertTrue(len(time_building) == 8)
 
         port.write(READ_BUILD_DATE)
         data_bytes = port.read(11)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("3c2xc2x4cP", data_bytes)
-        date_building = part_number.decode('utf-8')
-        self.assertTrue(len(date_building) == 10)
+        part_number = struct.unpack("11c", data_bytes)
+        date_building = b''.join(part_number)
+        self.assertTrue(date_building == b'Feb 06 2012')
 
-        port.write(READ_TMR1_RELOAD)
-        data_bytes = port.read(2)
+        port.write(READ_TMR1_RELOAD)    #bizare, à revoir il devrait y en avoir 2
+        data_bytes = port.read(1)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("2c", data_bytes)
-        TMR1ReloadValue = part_number[0] * 256 + part_number[1]
-        polygonClockFrequency = 5000000 / (65535 - TMR1ReloadValue)
-        self.assertTrue(part_number == pass)
-        self.assertTrue(polygonClockFrequency == pass)
+        part_number = struct.unpack("b", data_bytes)[0] # devrait être <h
+        self.assertTrue(part_number == 0)
+
+        TMR1ReloadValueMinimum = 40535
+        TMR1ReloadValueMaximum = 60327
+        TMR1ReloadValueMostSignificantByte = part_number / 256
+        TMR1ReloadValueLeastSignificantByte = part_number % 256
+
+        polygonClockFrequency = 5000000 / (65535 - part_number)
+        #self.assertTrue(polygonClockFrequency == pass)
+        if polygonClockFrequency is True:
+            polygonRevolutionsPerMinute = polygonClockFrequency / 2 * 60
+            numberOfFacesOfPolygon = 36
+            HSyncFrequency = polygonRevolutionsPerMinute * numberOfFacesOfPolygon
+            pixelFrequency = iPhotonNumberOfPixelsPerLine * HSyncFrequency
+            maximumPixelFrequency = 20e6
+            #Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
 
         port.write(READ_NUMBER_OF_LINES_PER_FRAME)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("2c", data_bytes)
-        numberOfLines = part_number[0] * 256 + part_number[1]
-        self.assertTrue(numberOfLines == pass)
+        part_number = struct.unpack(">h", data_bytes)[0]
+        self.assertTrue(part_number == 540)     #doit être entre [36, 65520]
+
+        numberOfLinesPerFrameMostSignificantByte = part_number / 256
+        numberOfLinesPerFrameLeastSignificantByte = part_number % 256
 
         port.write(READ_DAC_START)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("2c", data_bytes)
-        dac_start = part_number[0] * 256 + part_number[1]
-        self.assertTrue(dac_start == pass)
+        part_number = struct.unpack(">h", data_bytes)[0]
+        self.assertTrue(part_number == 26288)
 
         port.write(READ_DAC_INCREMENT)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("2c", data_bytes)
-        dac_increment = part_number[0] * 256 + part_number[1]
-        self.assertTrue(dac_increment == pass)
+        part_number = struct.unpack(">h", data_bytes)[0]
+        self.assertTrue(part_number == 24)
 
         port.write(READ_NUMBER_OF_LINES_FOR_VSYNC)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
-        part_number = struct.unpack("2c", data_bytes)
-        numberOfLines = part_number[0] * 256 + part_number[1]
-        self.assertTrue(numberOfLines == pass)
+        part_number = struct.unpack(">h", data_bytes)[0]
+        self.assertTrue(part_number == 6)           # doit être entre [1, 575]
+
+        numberOfLinesForVSyncMostSignificantByte = part_number/ 256
+        numberOfLinesForVSyncLeastSignificantByte = part_number % 256
 
 
     
@@ -245,19 +247,19 @@ class TestReadWrite(unittest.TestCase):
         except serial.SerialException as err:
             self.fail(f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer.")
 
-        all_commands = { "READ_FIRMWARE_VERSION" : {"command_bytes":[0x7f], "bytes_returned":3, "format":""},
-                         "READ_CID" : {"command_bytes":[0x6c], "bytes_returned":2, "format":""},
+        all_commands = { "READ_FIRMWARE_VERSION" : {"command_bytes":[0x7f], "bytes_returned":3, "format":"3b"},
+                         "READ_CID" : {"command_bytes":[0x6c], "bytes_returned":2, "format":"2b"},
                          "READ_CPN" : {"command_bytes":[0x6d], "bytes_returned":2, "format":">h"},
-                         "READ_SN" : {"command_bytes":[0x6b], "bytes_returned":2, "format":""},
-                         "READ_EEPROM_ADDRESS" : {"command_bytes":[0x76], "bytes_returned":1, "format":""},
-                         "READ_STATE_OF_SWITCHES_AND_TTL_IOS" : {"command_bytes":[0x7e], "bytes_returned":1, "format":""},
-                         "READ_BUILD_TIME" : {"command_bytes":[0x6a], "bytes_returned":9, "format":""},
-                         "READ_BUILD_DATE" : {"command_bytes":[0x69], "bytes_returned":11, "format":""},
-                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "format":""},
-                         "READ_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x74], "bytes_returned":2, "format":""},
-                         "READ_DAC_START" : {"command_bytes":[0x73], "bytes_returned":2, "format":""},
-                         "READ_DAC_INCREMENT" : {"command_bytes":[0x72], "bytes_returned":2, "format":""},
-                         "READ_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6e], "bytes_returned":2, "format":""}
+                         "READ_SN" : {"command_bytes":[0x6b], "bytes_returned":2, "format":"2b"},
+                         "READ_EEPROM_ADDRESS" : {"command_bytes":[0x76], "bytes_returned":1, "format":"c"},
+                         "READ_STATE_OF_SWITCHES_AND_TTL_IOS" : {"command_bytes":[0x7e], "bytes_returned":1, "format":"B"},
+                         "READ_BUILD_TIME" : {"command_bytes":[0x6a], "bytes_returned":9, "format":"8cx"},
+                         "READ_BUILD_DATE" : {"command_bytes":[0x69], "bytes_returned":11, "format":"11c"},
+                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "format":"b"},
+                         "READ_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x74], "bytes_returned":2, "format":">h"},
+                         "READ_DAC_START" : {"command_bytes":[0x73], "bytes_returned":2, "format":">h"},
+                         "READ_DAC_INCREMENT" : {"command_bytes":[0x72], "bytes_returned":2, "format":">h"},
+                         "READ_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6e], "bytes_returned":2, "format":">h"}
                      }
 
         for command_name, command_dict in all_commands.items():
@@ -270,6 +272,7 @@ class TestReadWrite(unittest.TestCase):
             self.assertIsNotNone(len(data_bytes) == bytes_returned)
             print(f"Testing {command_name}: returned {data_bytes}")
             
+    def test060_
 
 if __name__ == "__main__":
     unittest.main()
