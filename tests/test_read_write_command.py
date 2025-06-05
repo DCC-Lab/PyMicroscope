@@ -195,29 +195,15 @@ class TestReadWrite(unittest.TestCase):
         print(part_number)
         self.assertTrue(part_number == 0)
 
-        TMR1ReloadValueMinimum = 40535
-        TMR1ReloadValueMaximum = 60327
-        TMR1ReloadValueMostSignificantByte = part_number / 256
-        TMR1ReloadValueLeastSignificantByte = part_number % 256
-
-        polygonClockFrequency = 5000000 / (65535 - part_number)
-        #self.assertTrue(polygonClockFrequency == pass)
-        if polygonClockFrequency is True:
-            polygonRevolutionsPerMinute = polygonClockFrequency / 2 * 60
-            numberOfFacesOfPolygon = 36
-            HSyncFrequency = polygonRevolutionsPerMinute * numberOfFacesOfPolygon
-            pixelFrequency = iPhotonNumberOfPixelsPerLine * HSyncFrequency
-            maximumPixelFrequency = 20e6
-            #Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
-
         port.write(READ_NUMBER_OF_LINES_PER_FRAME)
         data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
         part_number = struct.unpack(">h", data_bytes)[0]
         self.assertTrue(part_number == 540)     #doit être entre [36, 65520]
 
-        numberOfLinesPerFrameMostSignificantByte = part_number / 256
-        numberOfLinesPerFrameLeastSignificantByte = part_number % 256
+        # To review the necessity of calculate it 
+        #numberOfLinesPerFrameMostSignificantByte = part_number / 256
+        #numberOfLinesPerFrameLeastSignificantByte = part_number % 256
 
         port.write(READ_DAC_START)
         data_bytes = port.read(2)
@@ -237,8 +223,9 @@ class TestReadWrite(unittest.TestCase):
         part_number = struct.unpack(">h", data_bytes)[0]
         self.assertTrue(part_number == 6)           # doit être entre [1, 575]
 
-        numberOfLinesForVSyncMostSignificantByte = part_number/ 256
-        numberOfLinesForVSyncLeastSignificantByte = part_number % 256
+        # To review the necessity of calculate it
+        #numberOfLinesForVSyncMostSignificantByte = part_number/ 256
+        #numberOfLinesForVSyncLeastSignificantByte = part_number % 256
 
 
     
@@ -257,7 +244,7 @@ class TestReadWrite(unittest.TestCase):
                          "READ_STATE_OF_SWITCHES_AND_TTL_IOS" : {"command_bytes":[0x7e], "bytes_returned":1, "bytes_format":"B"},
                          "READ_BUILD_TIME" : {"command_bytes":[0x6a], "bytes_returned":9, "bytes_format":"8cx"},
                          "READ_BUILD_DATE" : {"command_bytes":[0x69], "bytes_returned":11, "bytes_format":"11c"},
-                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "bytes_format":">h, the documentation give those results but the printing is not the same"},
                          "READ_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x74], "bytes_returned":2, "bytes_format":">h"},
                          "READ_DAC_START" : {"command_bytes":[0x73], "bytes_returned":2, "bytes_format":">h"},
                          "READ_DAC_INCREMENT" : {"command_bytes":[0x72], "bytes_returned":2, "bytes_format":">h"},
@@ -273,8 +260,69 @@ class TestReadWrite(unittest.TestCase):
             data_bytes = port.read(bytes_returned)
             self.assertIsNotNone(data_bytes)
             self.assertIsNotNone(len(data_bytes) == bytes_returned)
-            print(f"Testing {command_name}: returned {data_bytes} with the format {bytes_format}")
+            result = struct.unpack(bytes_format, data_bytes)[0]     #pas encore essayé
+            print(f"Testing {command_name}: returned {data_bytes} with the format {bytes_format}. The result is {result}")
             
+    def test_060_polygonClockFrequency(self):
+
+        READ_TMR1_RELOAD = [0x75]
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+
+        port.write(READ_TMR1_RELOAD)    #bizare, à revoir il devrait y en avoir 2
+        data_bytes = port.read(1)
+        self.assertIsNotNone(data_bytes)
+        part_number = struct.unpack("b", data_bytes)[0] # devrait être <h
+        self.assertTrue(part_number == 0)
+
+        TMR1ReloadValueMinimum = 40535
+        TMR1ReloadValueMaximum = 60327
+        TMR1ReloadValueMostSignificantByte = part_number / 256
+        TMR1ReloadValueLeastSignificantByte = part_number % 256
+
+        polygonClockFrequency = 5000000 / (65535 - part_number)
+        #self.assertTrue(polygonClockFrequency == pass)
+        if polygonClockFrequency is True:
+
+            iPhotonNumberOfPixelsPerLine = None # we don't know his value with the mathlab code
+            numberOfFacesOfPolygon = 36
+            maximumPixelFrequency = 20e6
+
+            polygonRevolutionsPerMinute = polygonClockFrequency / 2 * 60
+            HSyncFrequency = polygonRevolutionsPerMinute * numberOfFacesOfPolygon
+            pixelFrequency = iPhotonNumberOfPixelsPerLine * HSyncFrequency
+            
+            #Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
+
+
+    def test_070_begining_writing(self):
+
+        usable_ports = self.get_usable_ports()
+        self.assertTrue(CONTROLLER_SERIAL_PATH in usable_ports)
+
+        '''Write commande to implement'''
+        WRITE_DAC_START = [0x7b]
+        WRITE_DAC_INCREAMENT = [0x7a]
+        WRITE_SETTINGS_TO_PRESET_BANK = [0x78]
+        WRITE_NUMBER_OF_LINES_FOR_VSYNC = [0x6f]
+        WRITE_TMR1_RELOAD = [0x7d]
+        WRITE_NUMBER_OF_LINES_PER_FRAME = [0x7c]
+
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+
+    def test_080_other_fonction_identity(self):
+
+        usable_ports = self.get_usable_ports()
+        self.assertTrue(CONTROLLER_SERIAL_PATH in usable_ports)
+
+        'other commande from mathlab'
+        SWITCH_TO_BOOTLOADER_MODE = [0x79]
+        LOAD_SETTINGS_FROM_PRESET_BANK = [0x77]
+        DISABLE_POLYGON_CLOCK = [0x71]
+        ENABLE_POLYGON_CLOCK = [0x70]
+
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+
+
 
 if __name__ == "__main__":
     unittest.main()
