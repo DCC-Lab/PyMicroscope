@@ -190,7 +190,9 @@ class TestReadWrite(unittest.TestCase):
         port.write(READ_TMR1_RELOAD)    #bizare, à revoir il devrait y en avoir 2
         data_bytes = port.read(1)
         self.assertIsNotNone(data_bytes)
+        print(data_bytes)
         part_number = struct.unpack("b", data_bytes)[0] # devrait être <h
+        print(part_number)
         self.assertTrue(part_number == 0)
 
         TMR1ReloadValueMinimum = 40535
@@ -247,32 +249,32 @@ class TestReadWrite(unittest.TestCase):
         except serial.SerialException as err:
             self.fail(f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer.")
 
-        all_commands = { "READ_FIRMWARE_VERSION" : {"command_bytes":[0x7f], "bytes_returned":3, "format":"3b"},
-                         "READ_CID" : {"command_bytes":[0x6c], "bytes_returned":2, "format":"2b"},
-                         "READ_CPN" : {"command_bytes":[0x6d], "bytes_returned":2, "format":">h"},
-                         "READ_SN" : {"command_bytes":[0x6b], "bytes_returned":2, "format":"2b"},
-                         "READ_EEPROM_ADDRESS" : {"command_bytes":[0x76], "bytes_returned":1, "format":"c"},
-                         "READ_STATE_OF_SWITCHES_AND_TTL_IOS" : {"command_bytes":[0x7e], "bytes_returned":1, "format":"B"},
-                         "READ_BUILD_TIME" : {"command_bytes":[0x6a], "bytes_returned":9, "format":"8cx"},
-                         "READ_BUILD_DATE" : {"command_bytes":[0x69], "bytes_returned":11, "format":"11c"},
-                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "format":"b"},
-                         "READ_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x74], "bytes_returned":2, "format":">h"},
-                         "READ_DAC_START" : {"command_bytes":[0x73], "bytes_returned":2, "format":">h"},
-                         "READ_DAC_INCREMENT" : {"command_bytes":[0x72], "bytes_returned":2, "format":">h"},
-                         "READ_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6e], "bytes_returned":2, "format":">h"}
+        all_commands = { "READ_FIRMWARE_VERSION" : {"command_bytes":[0x7f], "bytes_returned":3, "bytes_format":"3b"},
+                         "READ_CID" : {"command_bytes":[0x6c], "bytes_returned":2, "bytes_format":"2b"},
+                         "READ_CPN" : {"command_bytes":[0x6d], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_SN" : {"command_bytes":[0x6b], "bytes_returned":2, "bytes_format":"2b"},
+                         "READ_EEPROM_ADDRESS" : {"command_bytes":[0x76], "bytes_returned":1, "bytes_format":"c"},
+                         "READ_STATE_OF_SWITCHES_AND_TTL_IOS" : {"command_bytes":[0x7e], "bytes_returned":1, "bytes_format":"B"},
+                         "READ_BUILD_TIME" : {"command_bytes":[0x6a], "bytes_returned":9, "bytes_format":"8cx"},
+                         "READ_BUILD_DATE" : {"command_bytes":[0x69], "bytes_returned":11, "bytes_format":"11c"},
+                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x74], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_DAC_START" : {"command_bytes":[0x73], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_DAC_INCREMENT" : {"command_bytes":[0x72], "bytes_returned":2, "bytes_format":">h"},
+                         "READ_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6e], "bytes_returned":2, "bytes_format":">h"}
                      }
 
         for command_name, command_dict in all_commands.items():
             command_bytes = command_dict['command_bytes']
             bytes_returned = command_dict['bytes_returned']
+            bytes_format = command_dict["bytes_format"]
 
             port.write(command_bytes)
             data_bytes = port.read(bytes_returned)
             self.assertIsNotNone(data_bytes)
             self.assertIsNotNone(len(data_bytes) == bytes_returned)
-            print(f"Testing {command_name}: returned {data_bytes}")
+            print(f"Testing {command_name}: returned {data_bytes} with the format {bytes_format}")
             
-    def test060_
 
 if __name__ == "__main__":
     unittest.main()
