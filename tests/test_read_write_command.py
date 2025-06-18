@@ -88,7 +88,7 @@ class TestReadWrite(unittest.TestCase):
 
         READ_FIRMWARE_VERSION_BYTES = [0x7f]
 
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         
         port.write(READ_FIRMWARE_VERSION_BYTES)
 
@@ -105,7 +105,7 @@ class TestReadWrite(unittest.TestCase):
 
         READ_CID = [0x6c]
 
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         
         port.write(READ_CID)
         cid_data = port.read(2)
@@ -132,7 +132,7 @@ class TestReadWrite(unittest.TestCase):
         READ_DAC_INCREMENT = [0x72]
         READ_NUMBER_OF_LINES_FOR_VSYNC = [0x6e]
 
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         
 
         port.write(READ_FIRMWARE_VERSION)
@@ -188,12 +188,12 @@ class TestReadWrite(unittest.TestCase):
         self.assertTrue(date_building == b'Feb 06 2012')
 
         port.write(READ_TMR1_RELOAD)    #bizare, à revoir il devrait y en avoir 2
-        data_bytes = port.read(1)
+        data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
         print(data_bytes)
-        part_number = struct.unpack("b", data_bytes)[0] # devrait être <h
-        print(part_number)
+        part_number = struct.unpack(">h", data_bytes)[0] # devrait être >h
         self.assertTrue(part_number == 0)
+        print(part_number)
 
         port.write(READ_NUMBER_OF_LINES_PER_FRAME)
         data_bytes = port.read(2)
@@ -227,12 +227,13 @@ class TestReadWrite(unittest.TestCase):
         #numberOfLinesForVSyncMostSignificantByte = part_number/ 256
         #numberOfLinesForVSyncLeastSignificantByte = part_number % 256
 
+        port.close()
 
     
 
     def test050_many_commands(self):
         try :
-            port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+            port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         except serial.SerialException as err:
             self.fail(f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer.")
 
@@ -260,17 +261,31 @@ class TestReadWrite(unittest.TestCase):
             data_bytes = port.read(bytes_returned)
             self.assertIsNotNone(data_bytes)
             self.assertIsNotNone(len(data_bytes) == bytes_returned)
-            result = struct.unpack(bytes_format, data_bytes)[0]     #pas encore essayé
-            print(f"Testing {command_name}: returned {data_bytes} with the format {bytes_format}. The result is {result}")
+
+            #result = struct.unpack(bytes_format, data_bytes)[0]     #pas encore essayé
+            print(f"Testing {command_name}: returned {data_bytes} with the format {bytes_format}. The result is result")
             
+        port.close()
+
+    def test_050_globale_initiation_commande(self):
+        
+        globalTMR1ReloadValue = 60327   # correspond a b'\EB\A7'
+        globalNumberOfLinesPerFrame = 512 + 64
+        globalDACIncrement = 32
+        globalDACStart =(65535 / 2) - ((globalNumberOfLinesPerFrame / 2) * globalDACIncrement)
+        globalNumberOfLinesForVSync = 6
+
+
     def test_060_polygonClockFrequency(self):
 
         READ_TMR1_RELOAD = [0x75]
-        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=0.5)
+        globalTMR1ReloadValue = 60327
+        port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
 
         port.write(READ_TMR1_RELOAD)    #bizare, à revoir il devrait y en avoir 2
-        data_bytes = port.read(1)
+        data_bytes = port.read(2)
         self.assertIsNotNone(data_bytes)
+        self.assertEqual(len(data_bytes), 2)
         part_number = struct.unpack("b", data_bytes)[0] # devrait être <h
         self.assertTrue(part_number == 0)
 
