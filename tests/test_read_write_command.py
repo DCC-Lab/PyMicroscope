@@ -434,41 +434,41 @@ class TestReadWrite(unittest.TestCase):
             "WRITE_DAC_START": {
                 "command_bytes": [0x7B],
                 "bytes_format": ">h",
-                "hexadec": galvanometerStartValue,
+                "parameter": galvanometerStartValue,
             },
             "WRITE_DAC_INCREMENT": {
                 "command_bytes": [0x7A],
                 "bytes_format": ">h",
-                "hexadec": galvanometerIncrement,
+                "parameter": galvanometerIncrement,
             },
-            #                         "WRITE_SETTINGS_TO_PRESET_BANK" : {"command_bytes":[0x78], "bytes_format":"b", "hexadec":bank},
+            #                         "WRITE_SETTINGS_TO_PRESET_BANK" : {"command_bytes":[0x78], "bytes_format":"b", "parameter":bank},
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_bytes": [0x6F],
                 "bytes_format": "b",
-                "hexadec": numberOfLinesForVSync,
+                "parameter": numberOfLinesForVSync,
             },
-            # "WRITE_TMR1_RELOAD" : {"command_bytes":[0x7d], "bytes_format":">h", "hexadec":TMR1ReloadValue},
+            # "WRITE_TMR1_RELOAD" : {"command_bytes":[0x7d], "bytes_format":">h", "parameter":TMR1ReloadValue},
             "WRITE_NUMBER_OF_LINES_PER_FRAME": {
                 "command_bytes": [0x7C],
                 "bytes_format": ">h",
-                "hexadec": numberOfLinesPerFrame,
+                "parameter": numberOfLinesPerFrame,
             },
-            #                         "SWITCH_TO_BOOTLOADER_MODE" : {"command_bytes":[0x79], "bytes_format":None, "hexadec":None},
-            #                         "LOAD_SETTINGS_FROM_PRESET_BANK" : {"command_bytes":[0x77], "bytes_format":"b", "hexadec":bank},
-            #                         "DISABLE_POLYGON_CLOCK" : {"command_bytes":[0x71], "bytes_format":"b", "hexadec":1},
-            #                         "ENABLE_POLYGON_CLOCK" : {"command_bytes":[0x70], "bytes_format":"b", "hexadec":0}
+            # "SWITCH_TO_BOOTLOADER_MODE" : {"command_bytes":[0x79], "bytes_format":None, "parameter":None},
+            # "LOAD_SETTINGS_FROM_PRESET_BANK" : {"command_bytes":[0x77], "bytes_format":"b", "parameter":bank},
+            # "DISABLE_POLYGON_CLOCK" : {"command_bytes":[0x71], "bytes_format":"b", "parameter":1},
+            # "ENABLE_POLYGON_CLOCK" : {"command_bytes":[0x70], "bytes_format":"b", "parameter":0}
         }
 
         for command_name, command_dict in all_commands.items():
             command_bytes = command_dict["command_bytes"]
             bytes_format = command_dict["bytes_format"]
-            hexadec = command_dict["hexadec"]
-            print(f"{command_name} command bytes:{command_bytes}, value:{hexadec}")
+            parameter = command_dict["parameter"]
+            print(f"{command_name} command bytes:{command_bytes}, value:{parameter}")
 
-            if hexadec is None:
+            if parameter is None:
                 part_number = None
             else:
-                part_number = struct.pack(bytes_format, hexadec)
+                part_number = struct.pack(bytes_format, parameter)
                 self.assertIsNotNone(part_number)
                 command_bytes = part_number
                 port.write(command_bytes)  # a revenir
