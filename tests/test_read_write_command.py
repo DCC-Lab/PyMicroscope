@@ -378,48 +378,39 @@ class TestReadWrite(unittest.TestCase):
 
 
 
-        all_commands = { "WRITE_DAC_START" : {"command_bytes":[0x7b], "hexadec":galvanometerStartValue},
-                         "WRITE_DAC_INCREMENT" : {"command_bytes":[0x7a], "hexadec":galvanometerIncrement},
-                         "WRITE_SETTINGS_TO_PRESET_BANK" : {"command_bytes":[0x78], "hexadec":bank},
-                         "WRITE_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6f], "hexadec":numberOfLinesForVSync},
-                         "WRITE_TMR1_RELOAD" : {"command_bytes":[0x7d], "hexadec":TMR1ReloadValue},
-                         "WRITE_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x7c], "hexadec":numberOfLinesPerFrame},
+        all_commands = { "WRITE_DAC_START" : {"command_bytes":[0x7b], "bytes_format":">h", "hexadec":galvanometerStartValue},
+                         "WRITE_DAC_INCREMENT" : {"command_bytes":[0x7a], "bytes_format":">h", "hexadec":galvanometerIncrement},
+                         "WRITE_SETTINGS_TO_PRESET_BANK" : {"command_bytes":[0x78], "bytes_format":"b", "hexadec":bank},
+                         "WRITE_NUMBER_OF_LINES_FOR_VSYNC" : {"command_bytes":[0x6f], "bytes_format":"b", "hexadec":numberOfLinesForVSync},
+                         #"WRITE_TMR1_RELOAD" : {"command_bytes":[0x7d], "bytes_format":">h", "hexadec":TMR1ReloadValue},
+                         "WRITE_NUMBER_OF_LINES_PER_FRAME" : {"command_bytes":[0x7c], "bytes_format":">h", "hexadec":numberOfLinesPerFrame},
 
-                         "SWITCH_TO_BOOTLOADER_MODE" : {"command_bytes":[0x79], "hexadec":None},
-                         "LOAD_SETTINGS_FROM_PRESET_BANK" : {"command_bytes":[0x77], "hexadec":bank},
-                         "DISABLE_POLYGON_CLOCK" : {"command_bytes":[0x71], "hexadec":1},
-                         "ENABLE_POLYGON_CLOCK" : {"command_bytes":[0x70], "hexadec":0}
+                         "SWITCH_TO_BOOTLOADER_MODE" : {"command_bytes":[0x79], "bytes_format":None, "hexadec":None},
+                         "LOAD_SETTINGS_FROM_PRESET_BANK" : {"command_bytes":[0x77], "bytes_format":"b", "hexadec":bank},
+                         "DISABLE_POLYGON_CLOCK" : {"command_bytes":[0x71], "bytes_format":"b", "hexadec":1},
+                         "ENABLE_POLYGON_CLOCK" : {"command_bytes":[0x70], "bytes_format":"b", "hexadec":0}
                      }
         
         for command_name, command_dict in all_commands.items():
             command_bytes = command_dict['command_bytes']
+            bytes_format = command_dict['bytes_format']
             hexadec = command_dict['hexadec']
+            print(f"{command_name} command bytes:{command_bytes}, value:{hexadec}")
 
-            data_bytes = port.read(2)
             if hexadec is None:
-                pass
+                part_number = None
             else:
-                 part_number = struct.pack(">h", hexadec)
+                 part_number = struct.pack(bytes_format, hexadec)
                  self.assertIsNotNone(part_number)
-                 print(f"Testing {command_name}: returned {part_number} ")
+                 command_bytes = part_number
+                 port.write(command_bytes)  # a revenir
+                 data_bytes = port.read()
+                 self.assertIsNotNone(data_bytes)
+                 print(data_bytes)
 
 
-
-
-            '''not usefull now'''
-            self.assertTrue(len(data_bytes) == 0)
-            if len(data_bytes) != 0:
-                bytes_returned = len(data_bytes)
-                port.write(command_bytes)
-                data_bytes = port.read(bytes_returned)
-                self.assertIsNotNone(data_bytes)
-
-                print(f"Testing {command_name}: returned {data_bytes} ")
-
-                print('lol')
-            else:
-                print(f"Testing {command_name}: returned {data_bytes}")
-        
+                 print(f"Testing {command_name}: returned {' '.join(f'0x{b:02X}' for b in part_number)} ")
+            
         print("\n They are all supposed to return 0 bites")
 
         '''Write commande to implement'''
