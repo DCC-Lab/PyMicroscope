@@ -269,7 +269,7 @@ class TestReadWrite(unittest.TestCase):
 
         port.close()
 
-    def test050_many_commands(self):
+    def test050_read_commands(self):
         try:
             port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         except serial.SerialException as err:
@@ -401,7 +401,7 @@ class TestReadWrite(unittest.TestCase):
 
             # Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
 
-    def test_070_begining_writing_and_other_fonction_identity(self):
+    def test_070_write_commands(self):
         try:
             port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
         except serial.SerialException as err:
