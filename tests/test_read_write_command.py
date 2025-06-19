@@ -11,6 +11,99 @@ CONTROLLER_SERIAL_PATH = "/dev/cu.usbserial-A907SJ89"
 
 
 class TestReadWrite(unittest.TestCase):
+    def setUp(self):
+        self.read_commands = {
+            "READ_FIRMWARE_VERSION": {
+                "command_bytes": [0x7F],
+                "bytes_returned": 3,
+                "bytes_format": "3b",
+            },
+            "READ_CID": {
+                "command_bytes": [0x6C],
+                "bytes_returned": 2,
+                "bytes_format": "2b",
+            },
+            "READ_CPN": {
+                "command_bytes": [0x6D],
+                "bytes_returned": 2,
+                "bytes_format": ">h",
+            },
+            "READ_SN": {
+                "command_bytes": [0x6B],
+                "bytes_returned": 2,
+                "bytes_format": "2b",
+            },
+            "READ_STATE_OF_SWITCHES_AND_TTL_IOS": {
+                "command_bytes": [0x7E],
+                "bytes_returned": 1,
+                "bytes_format": "B",
+            },
+            "READ_BUILD_TIME": {
+                "command_bytes": [0x6A],
+                "bytes_returned": 9,
+                "bytes_format": "8cx",
+            },
+            "READ_BUILD_DATE": {
+                "command_bytes": [0x69],
+                "bytes_returned": 11,
+                "bytes_format": "11c",
+            },
+            "READ_NUMBER_OF_LINES_PER_FRAME": {
+                "command_bytes": [0x74],
+                "bytes_returned": 2,
+                "bytes_format": ">h",
+            },
+            "READ_DAC_START": {
+                "command_bytes": [0x73],
+                "bytes_returned": 2,
+                "bytes_format": ">h",
+            },
+            "READ_DAC_INCREMENT": {
+                "command_bytes": [0x72],
+                "bytes_returned": 2,
+                "bytes_format": ">h",
+            },
+            "READ_NUMBER_OF_LINES_FOR_VSYNC": {
+                "command_bytes": [0x6E],
+                "bytes_returned": 2,
+                "bytes_format": ">h",
+            },
+        }
+
+        self.default_write_parameters = {
+            "WRITE_DAC_START": 19200,
+            "WRITE_DAC_INCREMENT": 32,
+            "WRITE_NUMBER_OF_LINES_FOR_VSYNC": 6,
+            "WRITE_NUMBER_OF_LINES_PER_FRAME": 576,
+        }
+
+        self.write_commands = {
+            "WRITE_DAC_START": {
+                "command_code": 0x7B,
+                "bytes_format": ">bh",
+                "parameter": self.default_write_parameters["WRITE_DAC_START"],
+            },
+            "WRITE_DAC_INCREMENT": {
+                "command_code": 0x7A,
+                "bytes_format": ">bh",
+                "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
+            },
+            "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
+                "command_code": 0x6F,
+                "bytes_format": ">bb",
+                "parameter": self.default_write_parameters[
+                    "WRITE_NUMBER_OF_LINES_FOR_VSYNC"
+                ],
+            },
+            "WRITE_NUMBER_OF_LINES_PER_FRAME": {
+                "command_code": 0x7C,
+                "bytes_format": ">bh",
+                "parameter": self.default_write_parameters[
+                    "WRITE_NUMBER_OF_LINES_PER_FRAME"
+                ],
+            },
+        }
+
     def test000_init(self):
         self.assertTrue(True)
 
@@ -277,67 +370,7 @@ class TestReadWrite(unittest.TestCase):
                 f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer."
             )
 
-        all_commands = {
-            "READ_FIRMWARE_VERSION": {
-                "command_bytes": [0x7F],
-                "bytes_returned": 3,
-                "bytes_format": "3b",
-            },
-            "READ_CID": {
-                "command_bytes": [0x6C],
-                "bytes_returned": 2,
-                "bytes_format": "2b",
-            },
-            "READ_CPN": {
-                "command_bytes": [0x6D],
-                "bytes_returned": 2,
-                "bytes_format": ">h",
-            },
-            "READ_SN": {
-                "command_bytes": [0x6B],
-                "bytes_returned": 2,
-                "bytes_format": "2b",
-            },
-            #                         "READ_EEPROM_ADDRESS" : {"command_bytes":[0x76], "bytes_returned":1, "bytes_format":"c"},
-            "READ_STATE_OF_SWITCHES_AND_TTL_IOS": {
-                "command_bytes": [0x7E],
-                "bytes_returned": 1,
-                "bytes_format": "B",
-            },
-            "READ_BUILD_TIME": {
-                "command_bytes": [0x6A],
-                "bytes_returned": 9,
-                "bytes_format": "8cx",
-            },
-            "READ_BUILD_DATE": {
-                "command_bytes": [0x69],
-                "bytes_returned": 11,
-                "bytes_format": "11c",
-            },
-            #                         "READ_TMR1_RELOAD" : {"command_bytes":[0x75], "bytes_returned":2, "bytes_format":">h, the documentation give those results but the printing is not the same"},
-            "READ_NUMBER_OF_LINES_PER_FRAME": {
-                "command_bytes": [0x74],
-                "bytes_returned": 2,
-                "bytes_format": ">h",
-            },
-            "READ_DAC_START": {
-                "command_bytes": [0x73],
-                "bytes_returned": 2,
-                "bytes_format": ">h",
-            },
-            "READ_DAC_INCREMENT": {
-                "command_bytes": [0x72],
-                "bytes_returned": 2,
-                "bytes_format": ">h",
-            },
-            "READ_NUMBER_OF_LINES_FOR_VSYNC": {
-                "command_bytes": [0x6E],
-                "bytes_returned": 2,
-                "bytes_format": ">h",
-            },
-        }
-
-        for command_name, command_dict in all_commands.items():
+        for command_name, command_dict in self.read_commands.items():
             command_bytes = command_dict["command_bytes"]
             bytes_returned = command_dict["bytes_returned"]
             bytes_format = command_dict["bytes_format"]
@@ -409,51 +442,7 @@ class TestReadWrite(unittest.TestCase):
                 f"Unable to open port : {CONTROLLER_SERIAL_PATH}. Verify that device is connected to your computer."
             )
 
-        "constants"
-        galvanometerStartValue = 19200
-        galvanometerIncrement = 32
-        DACIncrement = 32
-        bank = 0
-        numberOfLinesForVSync = 6
-        TMR1ReloadValue = 60327  # fixed value, do not change it
-        numberOfLinesPerFrame = 576
-        globalDACStart = (65535 / 2) - ((numberOfLinesPerFrame / 2) * DACIncrement)
-
-        galvanometerStartValueMostSignificantByte = galvanometerStartValue / 256
-        galvanometerStartValueLeastSignificantByte = galvanometerStartValue
-        galvanometerIncrementMostSignificantByte = galvanometerIncrement / 256
-        galvanometerIncrementLeastSignificantByte = galvanometerIncrement
-        numberOfLinesForVSyncMostSignificantByte = numberOfLinesForVSync / 256
-        numberOfLinesForVSyncLeastSignificantByte = numberOfLinesForVSync
-        TMR1ReloadValueMostSignificantByte = TMR1ReloadValue / 256
-        TMR1ReloadValueLeastSignificantByte = TMR1ReloadValue
-        numberOfLinesPerFrameMostSignificantByte = numberOfLinesPerFrame / 256
-        numberOfLinesPerFrameLeastSignificantByte = numberOfLinesPerFrame
-
-        all_commands = {
-            "WRITE_DAC_START": {
-                "command_code": 0x7B,
-                "bytes_format": ">bh",
-                "parameter": galvanometerStartValue,
-            },
-            "WRITE_DAC_INCREMENT": {
-                "command_code": 0x7A,
-                "bytes_format": ">bh",
-                "parameter": galvanometerIncrement,
-            },
-            "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
-                "command_code": 0x6F,
-                "bytes_format": ">bb",
-                "parameter": numberOfLinesForVSync,
-            },
-            "WRITE_NUMBER_OF_LINES_PER_FRAME": {
-                "command_code": 0x7C,
-                "bytes_format": ">bh",
-                "parameter": numberOfLinesPerFrame,
-            },
-        }
-
-        for command_name, command_dict in all_commands.items():
+        for command_name, command_dict in self.write_commands.items():
             command_code = command_dict["command_code"]
             bytes_format = command_dict["bytes_format"]
             parameter = command_dict["parameter"]
