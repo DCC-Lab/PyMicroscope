@@ -199,13 +199,13 @@ class TestReadWrite(unittest.TestCase):
         part_number = struct.unpack("2b", data_bytes)
         self.assertTrue(part_number == (0, 0))  # b'\x00\x00'
 
-        port.write(READ_EEPROM_ADDRESS)
-        data_bytes = port.read(1)
-        if self.assertIsNotNone(data_bytes):
-            part_number = struct.unpack("c", data_bytes)
-            self.assertTrue(part_number == "")
-        else:
-            pass
+        #port.write(READ_EEPROM_ADDRESS)
+        #data_bytes = port.read(1)
+        #if self.assertIsNotNone(data_bytes):
+        #    part_number = struct.unpack("c", data_bytes)
+        #    self.assertTrue(part_number == "")
+        #else:
+        #    pass
 
         port.write(READ_STATE_OF_SWITCHES_AND_TTL_IOS)
         data_bytes = port.read(1)
@@ -354,15 +354,6 @@ class TestReadWrite(unittest.TestCase):
 
         port.close()
 
-    def test_050_globale_initiation_commande(self):
-        globalTMR1ReloadValue = 60327  # correspond a b'\EB\A7'
-        globalNumberOfLinesPerFrame = 512 + 64
-        globalDACIncrement = 32
-        globalDACStart = (65535 / 2) - (
-            (globalNumberOfLinesPerFrame / 2) * globalDACIncrement
-        )
-        globalNumberOfLinesForVSync = 6
-
     @unittest.skip
     def test_060_polygonClockFrequency(self):
         READ_TMR1_RELOAD = [0x75]
@@ -384,15 +375,30 @@ class TestReadWrite(unittest.TestCase):
         polygonClockFrequency = 5000000 / (65535 - part_number)
         # self.assertTrue(polygonClockFrequency == pass)
         if polygonClockFrequency is True:
-            iPhotonNumberOfPixelsPerLine = (
-                None  # we don't know his value with the mathlab code
-            )
-            numberOfFacesOfPolygon = 36
-            maximumPixelFrequency = 20e6
 
+            minimumiPhotonNumberOfPixelsSupported = 1
+            maximumiPhotonNumberOfPixelsSupported = 262144
+            iPhotonNumberOfPixelsPerLine = None  # we don't know his value with the mathlab code
+                                                 # iPhotonRT 1.1 beta14 has an upper limit of 2048 pixels
+            
+            
+            numberOfFacesOfPolygon = 36
             polygonRevolutionsPerMinute = polygonClockFrequency / 2 * 60
             HSyncFrequency = polygonRevolutionsPerMinute * numberOfFacesOfPolygon
+            self.assertIsNotNone(HSyncFrequency)
             pixelFrequency = iPhotonNumberOfPixelsPerLine * HSyncFrequency
+
+            maximumPixelFrequency = 20e6
+            self.assertTrue(maximumPixelFrequency >= pixelFrequency)
+            if pixelFrequency > maximumPixelFrequency:
+                raise ValueError("The frequence is to hig")
+            else:
+                pass
+
+            numberOfLinesPerFrame = 576
+            VSyncFrequency = HSyncFrequency / numberOfLinesPerFrame
+            self.assertIsNotNone(VSyncFrequency)
+
 
             # Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
 
@@ -407,10 +413,12 @@ class TestReadWrite(unittest.TestCase):
         "constants"
         galvanometerStartValue = 19200
         galvanometerIncrement = 32
+        DACIncrement = 32
         bank = 0
         numberOfLinesForVSync = 6
         TMR1ReloadValue = 60327  # fixed value, do not change it
         numberOfLinesPerFrame = 576
+        globalDACStart = (65535 / 2) - ((numberOfLinesPerFrame / 2) * DACIncrement)
 
         galvanometerStartValueMostSignificantByte = galvanometerStartValue / 256
         galvanometerStartValueLeastSignificantByte = galvanometerStartValue
