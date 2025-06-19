@@ -199,12 +199,12 @@ class TestReadWrite(unittest.TestCase):
         part_number = struct.unpack("2b", data_bytes)
         self.assertTrue(part_number == (0, 0))  # b'\x00\x00'
 
-        #port.write(READ_EEPROM_ADDRESS)
-        #data_bytes = port.read(1)
-        #if self.assertIsNotNone(data_bytes):
+        # port.write(READ_EEPROM_ADDRESS)
+        # data_bytes = port.read(1)
+        # if self.assertIsNotNone(data_bytes):
         #    part_number = struct.unpack("c", data_bytes)
         #    self.assertTrue(part_number == "")
-        #else:
+        # else:
         #    pass
 
         port.write(READ_STATE_OF_SWITCHES_AND_TTL_IOS)
@@ -375,13 +375,13 @@ class TestReadWrite(unittest.TestCase):
         polygonClockFrequency = 5000000 / (65535 - part_number)
         # self.assertTrue(polygonClockFrequency == pass)
         if polygonClockFrequency is True:
-
             minimumiPhotonNumberOfPixelsSupported = 1
             maximumiPhotonNumberOfPixelsSupported = 262144
-            iPhotonNumberOfPixelsPerLine = None  # we don't know his value with the mathlab code
-                                                 # iPhotonRT 1.1 beta14 has an upper limit of 2048 pixels
-            
-            
+            iPhotonNumberOfPixelsPerLine = (
+                None  # we don't know his value with the mathlab code
+            )
+            # iPhotonRT 1.1 beta14 has an upper limit of 2048 pixels
+
             numberOfFacesOfPolygon = 36
             polygonRevolutionsPerMinute = polygonClockFrequency / 2 * 60
             HSyncFrequency = polygonRevolutionsPerMinute * numberOfFacesOfPolygon
@@ -398,7 +398,6 @@ class TestReadWrite(unittest.TestCase):
             numberOfLinesPerFrame = 576
             VSyncFrequency = HSyncFrequency / numberOfLinesPerFrame
             self.assertIsNotNone(VSyncFrequency)
-
 
             # Polygon clock: %0.1f Hz, HSync: %0.0f Hz, VSync %0.1f Hz, pixel frequency %0.2e Hz
 
@@ -481,7 +480,7 @@ class TestReadWrite(unittest.TestCase):
                     f"Testing {command_name}: returned {' '.join(f'0x{b:02X}' for b in part_number)} "
                 )
 
-        print("\n They are all supposed to return 0 bites")
+        print("\n They are all supposed to return 0 bytes")
 
         """Write commande to implement"""
         # WRITE_DAC_START = [0x7b]
