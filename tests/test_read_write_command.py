@@ -22,101 +22,86 @@ class TestReadWrite(unittest.TestCase):
         self.commands = {
             "READ_FIRMWARE_VERSION": {
                 "command_code": 0x7F,
-                "bytes_returned": 3,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "3b",
             },
             "READ_CID": {
                 "command_code": 0x6C,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "2b",
             },
             "READ_CPN": {
                 "command_code": 0x6D,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": ">h",
             },
             "READ_SN": {
                 "command_code": 0x6B,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "2b",
             },
             "READ_STATE_OF_SWITCHES_AND_TTL_IOS": {
                 "command_code": 0x7E,
-                "bytes_returned": 1,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "B",
             },
             "READ_BUILD_TIME": {
                 "command_code": 0x6A,
-                "bytes_returned": 9,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "8cx",
             },
             "READ_BUILD_DATE": {
                 "command_code": 0x69,
-                "bytes_returned": 11,
                 "command_bytes_format": ">b",
                 "response_bytes_format": "11c",
             },
             "READ_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x74,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": ">h",
             },
             "READ_DAC_START": {
                 "command_code": 0x73,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": ">h",
             },
             "READ_DAC_INCREMENT": {
                 "command_code": 0x72,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": ">h",
             },
             "READ_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6E,
-                "bytes_returned": 2,
                 "command_bytes_format": ">b",
                 "response_bytes_format": ">h",
             },
             "WRITE_DAC_START": {
                 "command_code": 0x7B,
                 "command_bytes_format": ">bh",
-                "response_bytes_format": None,
+                "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_START"],
-                "bytes_returned": 0,
             },
             "WRITE_DAC_INCREMENT": {
                 "command_code": 0x7A,
                 "command_bytes_format": ">bh",
-                "response_bytes_format": None,
+                "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
-                "bytes_returned": 0,
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
                 "command_bytes_format": ">bb",
-                "response_bytes_format": None,
+                "response_bytes_format": "",
                 "parameter": self.default_write_parameters[
                     "WRITE_NUMBER_OF_LINES_FOR_VSYNC"
                 ],
-                "bytes_returned": 0,
             },
             "WRITE_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x7C,
                 "command_bytes_format": ">bh",
-                "response_bytes_format": None,
+                "response_bytes_format": "",
                 "parameter": self.default_write_parameters[
                     "WRITE_NUMBER_OF_LINES_PER_FRAME"
                 ],
-                "bytes_returned": 0,
             },
         }
 
@@ -257,7 +242,8 @@ class TestReadWrite(unittest.TestCase):
 
             self.port.write(payload)
 
-            bytes_returned = command_dict["bytes_returned"]
+            response_bytes_format = command_dict["response_bytes_format"]
+            bytes_returned = struct.calcsize(response_bytes_format)
             if bytes_returned != 0:
                 response_bytes = self.port.read(bytes_returned)
                 self.assertEqual(
@@ -265,10 +251,9 @@ class TestReadWrite(unittest.TestCase):
                     bytes_returned,
                     f"Response wrong length for {command_name}",
                 )
-                response_bytes_format = command_dict["response_bytes_format"]
                 unpacked_response = struct.unpack(response_bytes_format, response_bytes)
                 self.assertIsNotNone(unpacked_response)
-                print(f"{command_name}, {unpacked_response}")
+                # print(f"{command_name}, {unpacked_response}")
 
 
 if __name__ == "__main__":
