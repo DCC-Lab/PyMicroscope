@@ -14,57 +14,57 @@ class TestReadWrite(unittest.TestCase):
     def setUp(self):
         self.read_commands = {
             "READ_FIRMWARE_VERSION": {
-                "command_code": [0x7F],
+                "command_code": 0x7F,
                 "bytes_returned": 3,
                 "bytes_format": "3b",
             },
             "READ_CID": {
-                "command_code": [0x6C],
+                "command_code": 0x6C,
                 "bytes_returned": 2,
                 "bytes_format": "2b",
             },
             "READ_CPN": {
-                "command_code": [0x6D],
+                "command_code": 0x6D,
                 "bytes_returned": 2,
                 "bytes_format": ">h",
             },
             "READ_SN": {
-                "command_code": [0x6B],
+                "command_code": 0x6B,
                 "bytes_returned": 2,
                 "bytes_format": "2b",
             },
             "READ_STATE_OF_SWITCHES_AND_TTL_IOS": {
-                "command_code": [0x7E],
+                "command_code": 0x7E,
                 "bytes_returned": 1,
                 "bytes_format": "B",
             },
             "READ_BUILD_TIME": {
-                "command_code": [0x6A],
+                "command_code": 0x6A,
                 "bytes_returned": 9,
                 "bytes_format": "8cx",
             },
             "READ_BUILD_DATE": {
-                "command_code": [0x69],
+                "command_code": 0x69,
                 "bytes_returned": 11,
                 "bytes_format": "11c",
             },
             "READ_NUMBER_OF_LINES_PER_FRAME": {
-                "command_code": [0x74],
+                "command_code": 0x74,
                 "bytes_returned": 2,
                 "bytes_format": ">h",
             },
             "READ_DAC_START": {
-                "command_code": [0x73],
+                "command_code": 0x73,
                 "bytes_returned": 2,
                 "bytes_format": ">h",
             },
             "READ_DAC_INCREMENT": {
-                "command_code": [0x72],
+                "command_code": 0x72,
                 "bytes_returned": 2,
                 "bytes_format": ">h",
             },
             "READ_NUMBER_OF_LINES_FOR_VSYNC": {
-                "command_code": [0x6E],
+                "command_code": 0x6E,
                 "bytes_returned": 2,
                 "bytes_format": ">h",
             },
@@ -322,7 +322,8 @@ class TestReadWrite(unittest.TestCase):
             bytes_returned = command_dict["bytes_returned"]
             bytes_format = command_dict["bytes_format"]
 
-            self.port.write(command_code)
+            payload = struct.pack(">b", command_code)
+            self.port.write(payload)
             data_bytes = self.port.read(bytes_returned)
             self.assertIsNotNone(data_bytes)
             self.assertTrue(
