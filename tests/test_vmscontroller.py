@@ -57,7 +57,7 @@ class TestController(unittest.TestCase):
         self.assertTrue(len(version) == 11)
         self.assertTrue(version == (b'F', b'e', b'b', b' ', b'0', b'6', b' ', b'2', b'0', b'1', b'2'))
 
-    def test120_firmware_version(self):
+    def test120_cid(self):
         version = self.controller.send_command("READ_CID")
         self.assertTrue(version == (0, 0))
 
