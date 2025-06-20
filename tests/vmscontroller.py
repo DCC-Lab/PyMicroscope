@@ -88,7 +88,7 @@ class VMSController:
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
-                "command_bytes_format": ">bb",
+                "command_bytes_format": ">bh",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters[
                     "WRITE_NUMBER_OF_LINES_FOR_VSYNC"
@@ -108,8 +108,6 @@ class VMSController:
 
     def initialize(self):
         self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
-        self.port.reset_input_buffer()
-        self.port.reset_output_buffer()
 
         version = self.send_command("READ_FIRMWARE_VERSION")
         if version[0] != 4:
@@ -120,8 +118,6 @@ class VMSController:
             self.port.close()
 
     def send_command(self, command_name, parameter=None):
-        self.port.reset_input_buffer()
-        self.port.reset_output_buffer()
 
         command_dict = self.commands[command_name]
 
@@ -134,7 +130,8 @@ class VMSController:
             payload = struct.pack(command_bytes_format, command_code)
 
         self.port.write(payload)
-        time.sleep(0.1)
+        self.port.flush()
+        #time.sleep(0.05)
 
         response_bytes_format = command_dict["response_bytes_format"]
         bytes_returned = struct.calcsize(response_bytes_format)
@@ -142,7 +139,6 @@ class VMSController:
         if bytes_returned != 0:
             response_bytes = self.port.read(bytes_returned)
             unpacked_response = struct.unpack(response_bytes_format, response_bytes)
-            time.sleep(0.1)
 
         return unpacked_response
 
@@ -158,6 +154,16 @@ class VMSController:
     def lines_for_vsync(self):
         return self.send_command("READ_NUMBER_OF_LINES_FOR_VSYNC")[0]
 
-    @lines_per_frame.setter
+    @lines_for_vsync.setter
     def lines_for_vsync(self, value):
         self.send_command("WRITE_NUMBER_OF_LINES_FOR_VSYNC", value)
+
+    @property
+    def dac_start(self):
+        return self.send_command("READ_DAC_START")[0]
+
+    @dac_start.setter
+    def dac_start(self, value):
+        self.send_command("WRITE_DAC_START", value)    
+    
+

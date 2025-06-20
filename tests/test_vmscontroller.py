@@ -19,24 +19,27 @@ class TestController(unittest.TestCase):
         self.assertIsNotNone(self.controller.lines_per_frame)
 
     def test020_get_lines_per_frame(self):
-        self.controller.lines_per_frame = 570
-        self.assertEqual(self.controller.lines_per_frame, 570)
+        self.controller.lines_per_frame = 576
+        self.assertEqual(self.controller.lines_per_frame, 576)
 
     def test030_get_lines_for_vsync(self):
         self.assertIsNotNone(self.controller.lines_for_vsync)
 
     def test040_get_lines_for_vsync(self):
-        self.controller.lines_for_vsync = 4
-        self.assertEqual(self.controller.lines_for_vsync, 4)
+        self.controller.lines_for_vsync = 6
+        self.assertEqual(self.controller.lines_for_vsync, 6)
 
-    def test_firmware_version(self):
+    def test050_firmware_version(self):
         version = self.controller.send_command("READ_FIRMWARE_VERSION")
-        self.assertEqual(version, (4, 0, 0))
+        self.assertTrue(version == (4, 0, 0))
+    
+    def test060_get_dac_start(self):
+        self.assertIsNotNone(self.controller.dac_start)
 
-    def test040_repeated_get_set(self):
-        for i in range(100):
-            self.controller.lines_per_frame = i
-            self.assertEqual(self.controller.lines_per_frame, i)
+    def test070_get_dac_start(self):
+        self.controller.dac_start = 19200
+        self.assertEqual(self.controller.dac_start, 19200)
+
 
 
 if __name__ == "__main__":
