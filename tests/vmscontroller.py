@@ -164,6 +164,12 @@ class VMSController:
 
     @dac_start.setter
     def dac_start(self, value):
-        self.send_command("WRITE_DAC_START", value)    
-    
+        self.send_command("WRITE_DAC_START", value)
 
+    @property
+    def dac_increment(self):
+        return self.send_command("READ_DAC_INCREMENT")[0]
+
+    @dac_increment.setter
+    def dac_increment(self, value):
+        self.send_command("WRITE_DAC_INCREMENT", value)
