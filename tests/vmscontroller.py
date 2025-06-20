@@ -113,12 +113,22 @@ class VMSController:
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
 
+        print(self.build_info())
+
     def shutdown(self):
         if self.port is not None:
             self.port.close()
 
-    def send_command(self, command_name, parameter=None):
+    def build_info(self):
+        fw = self.send_command("READ_FIRMWARE_VERSION")
+        cid = self.send_command("READ_CID")
+        cpn = self.send_command("READ_CPN")
+        serial_number = self.send_command("READ_SN")
+        build_time = self.send_command("READ_BUILD_TIME")
+        build_date = self.send_command("READ_BUILD_DATE")
+        return f"VMS Controller : ({cid}, {cpn}, #{serial_number}), {fw[0]}.{fw[1]}.{fw[2]} [Build: {build_date}, {build_time}]\n"
 
+    def send_command(self, command_name, parameter=None):
         command_dict = self.commands[command_name]
 
         command_code = command_dict["command_code"]
@@ -131,7 +141,6 @@ class VMSController:
 
         self.port.write(payload)
         self.port.flush()
-        #time.sleep(0.05)
 
         response_bytes_format = command_dict["response_bytes_format"]
         bytes_returned = struct.calcsize(response_bytes_format)
