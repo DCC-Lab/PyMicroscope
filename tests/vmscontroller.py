@@ -112,20 +112,6 @@ class VMSController:
         version = self.send_command("READ_FIRMWARE_VERSION")
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
-         
-        cpn = self.send_command("READ_CPN")
-        if cpn[0] != 522:
-            raise  RuntimeError("Unrecognized CPN value")
-        
-        lines_per_frame = self.send_command("READ_NUMBER_OF_LINES_PER_FRAME")
-        if lines_per_frame < 36 or lines_per_frame > 65520:
-            raise  RuntimeError("Number of lines per frame is outside valid range, i.e. 36 to 65520")
-
-        lines_for_vsync = self.send_command("READ_NUMBER_OF_LINES_FOR_VSYNC")
-        if lines_for_vsync < 1 or lines_for_vsync > (lines_per_frame - 1):
-            raise  RuntimeError("Number of lines for VSYNC is outside valid range, i.e. 1 to (number of lines per frame - 1)")
-
-        
 
         print(self.build_info())
 
