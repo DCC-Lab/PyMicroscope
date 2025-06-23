@@ -113,7 +113,7 @@ class VMSController:
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
 
-        print(self.build_info())
+        #print(self.build_info())
 
     def shutdown(self):
         if self.port is not None:
@@ -141,6 +141,7 @@ class VMSController:
 
         self.port.write(payload)
         self.port.flush()
+        
 
         response_bytes_format = command_dict["response_bytes_format"]
         bytes_returned = struct.calcsize(response_bytes_format)

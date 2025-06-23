@@ -1,6 +1,6 @@
 """ Port USB """
 import unittest
-
+import time
 from vmscontroller import VMSController
 
 
@@ -73,8 +73,45 @@ class TestController(unittest.TestCase):
         version = self.controller.send_command("READ_STATE_OF_SWITCHES_AND_TTL_IOS")
         self.assertTrue(version == (3,))
 
+    def test160_build_info(self):
+        print(self.controller.build_info())
+
 
 
 
 if __name__ == "__main__":
     unittest.main()
+    #controller = VMSController()
+    #controller.initialize()
+
+    #print("Changing lines from 576 to 512")
+    #controller.lines_per_frame = 576
+    #time.sleep(5)
+    #controller.lines_per_frame = 468
+    #time.sleep(5)
+    #controller.lines_per_frame = 576
+
+    #print("Changing lines from 6 to 150")
+    #controller.lines_for_vsync = 6
+    #time.sleep(5)
+    #controller.lines_for_vsync = 350
+    #time.sleep(5)
+    #controller.lines_for_vsync = 6
+
+    #print("Changing dac_start from 19200 to 15200")
+    #controller.dac_start = 19200
+    #time.sleep(5)
+    #controller.dac_start = 15200
+    #time.sleep(5)
+    #controller.dac_start = 19200
+
+    #print("Changing dac_increment from 32 to 10")
+    #controller.dac_increment = 32
+    #time.sleep(5)
+    #controller.dac_increment = 10
+    #time.sleep(5)
+    #controller.dac_increment = 32
+
+
+
+    #controller.shutdown()
