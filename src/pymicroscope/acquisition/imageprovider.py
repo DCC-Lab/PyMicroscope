@@ -49,7 +49,10 @@ class ImageProvider(ABC):
     """
 
     def __init__(
-        self, properties: Optional[dict[str, Any]] = None, *args: Any, **kwargs: Any
+        self,
+        properties: Optional[dict[str, Any]] = None,
+        *args: Any,
+        **kwargs: Any
     ) -> None:
         """
         Initialize the image provider with optional client and properties.
@@ -247,7 +250,9 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
     Image provider that exposes its interface over Pyro5.
     """
 
-    def __init__(self, pyro_name: Optional[str], *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, pyro_name: Optional[str], *args: Any, **kwargs: Any
+    ) -> None:
         """
         Initialize and register a remote image provider.
 
@@ -274,7 +279,9 @@ class RemoteImageProvider(ImageProvider, PyroProcess):
 
             return obj_or_name
 
-    def add_client(self, obj_or_name: Union[ImageProviderClient, str, URI]) -> None:
+    def add_client(
+        self, obj_or_name: Union[ImageProviderClient, str, URI]
+    ) -> None:
         """
         Add client as an object, Pyro name, or URI.  If it is a name or a URI
         we defer until the runloop to actually instantiate the object (i.e. it needs
@@ -347,7 +354,9 @@ class DebugRemoteImageProvider(RemoteImageProvider):
             (256, 256, 3)
         """
 
-        img = self.generate_random_noise(self.size[0], self.size[1], self.channels)
+        img = self.generate_random_noise(
+            self.size[0], self.size[1], self.channels
+        )
 
         frame_duration = 1 / self.frame_rate
 
@@ -363,7 +372,9 @@ class DebugRemoteImageProvider(RemoteImageProvider):
 
     @staticmethod
     def generate_random_noise(height, width, channels):
-        return np.random.randint(0, 256, (height, width, channels), dtype=np.uint8)
+        return np.random.randint(
+            0, 256, (height, width, channels), dtype=np.uint8
+        )
 
     @staticmethod
     def generate_moving_bars(height=240, width=320, step=1):

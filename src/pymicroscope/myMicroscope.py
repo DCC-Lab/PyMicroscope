@@ -31,14 +31,6 @@ class MicroscopeApp(App):
         self.camera.grid_into(
             self.window, row=0, column=0, pady=10, padx=10, sticky="nw"
         )
-        # self.box = Box(label="Image", width=500, height=700)
-        # self.box.grid_into(
-        #     self.window, row=0, column=0, pady=10, padx=10, sticky="nsew"
-        # )
-
-        # self.image = Image()
-        # # self.image.is_rescalable = True
-        # self.image.grid_into(self.box, row=0, column=0, pady=10, padx=10, sticky="nsew")
 
         self.controls = Box(label="Controls", width=500, height=700)
         self.window.widget.grid_columnconfigure(0, weight=1)
@@ -114,14 +106,15 @@ class MicroscopeApp(App):
         App.app.root.after(20, self.get_latest_image)
 
     def get_latest_image(self):
-        provider_proxy = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
-        img_pack = provider_proxy.get_last_packaged_image()
-        image_array = RemoteImageProvider.image_from_package(img_pack)
-        # pil_image = PILImage.fromarray(image_array)
-        # print(image_array, pil_image)
-        self.camera.update_display(image_array)
+        # provider_proxy = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
+        # img_pack = provider_proxy.get_last_packaged_image()
+        # image_array = RemoteImageProvider.image_from_package(img_pack)
+        # # pil_image = PILImage.fromarray(image_array)
+        # # print(image_array, pil_image)
+        # self.camera.update_display(image_array)
 
-        App.app.root.after(20, self.get_latest_image)
+        # App.app.root.after(20, self.get_latest_image)
+        pass
 
     def about(self):
         showinfo(
@@ -131,6 +124,10 @@ class MicroscopeApp(App):
 
     def help(self):
         webbrowser.open("https://www.dccmlab.ca/")
+
+
+class VMSControllerDialog(Dialog):
+    pass
 
 
 if __name__ == "__main__":
