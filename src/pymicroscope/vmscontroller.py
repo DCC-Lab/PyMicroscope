@@ -79,12 +79,16 @@ class VMSController:
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_START"],
+                "minimum": 1,
+                "maximum": 65500,
             },
             "WRITE_DAC_INCREMENT": {
                 "command_code": 0x7A,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
+                "parameter": self.default_write_parameters[
+                    "WRITE_DAC_INCREMENT"
+                ],
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
@@ -107,13 +111,15 @@ class VMSController:
         self.port = None
 
     def initialize(self):
-        self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
+        self.port = serial.Serial(
+            CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3
+        )
 
         version = self.send_command("READ_FIRMWARE_VERSION")
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
 
-        #print(self.build_info())
+        # print(self.build_info())
 
     def shutdown(self):
         if self.port is not None:
@@ -141,16 +147,28 @@ class VMSController:
 
         self.port.write(payload)
         self.port.flush()
-        
 
         response_bytes_format = command_dict["response_bytes_format"]
         bytes_returned = struct.calcsize(response_bytes_format)
         unpacked_response = None
         if bytes_returned != 0:
             response_bytes = self.port.read(bytes_returned)
-            unpacked_response = struct.unpack(response_bytes_format, response_bytes)
+            unpacked_response = struct.unpack(
+                response_bytes_format, response_bytes
+            )
 
         return unpacked_response
+
+    def parameters_are_valid(self, parameters):
+        is_valid = {}
+        for parameter, value in parameters.items():
+            # TODO: If a parameter value is invalid, return False
+            # Assuming the value is ok:
+            is_valid[parameter] = None
+            # Assuming it is not:
+            is_valid[parameter] = (minimum, maximum)
+
+        return is_valid
 
     @property
     def lines_per_frame(self):

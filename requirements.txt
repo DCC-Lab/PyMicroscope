@@ -9,3 +9,4 @@ pyro5==5.15
 serpent==1.41
     # via pyro5
 psutil==7.0.0
+pyserial
