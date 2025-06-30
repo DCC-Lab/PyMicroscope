@@ -13,13 +13,12 @@ import threading as Th
 from queue import Queue, Empty
 
 from PIL import Image as PILImage
-from pymicroscope.acquisition.imageprovider import (
-    RemoteImageProvider,
-)
-from pymicroscope.utils.pyroprocess import (
-    PyroProcess,
-)
-from pymicroscope.vmscontroller import VMSController
+#from pymicroscope.acquisition.imageprovider import (
+#    RemoteImageProvider,)
+#from utils.pyroprocess import (
+#    PyroProcess,)
+#from pymicroscope.vmscontroller import VMSController
+from vmscontroller import VMSController
 
 
 class MicroscopeApp(App):
@@ -169,7 +168,7 @@ class MicroscopeApp(App):
         )
 
         if self.vms_controller_is_accessible:
-            Label(self.vmscontroller.build_info).grid_into(
+            Label(self.vms_controller.build_info).grid_into(
                 self.scan_controls,
                 row=4,
                 column=0,

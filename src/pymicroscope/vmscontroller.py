@@ -79,32 +79,32 @@ class VMSController:
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_START"],
-                "minimum": 1,
-                "maximum": 65500,
+                "minimum": 0,
+                "maximum": 65535,
             },
             "WRITE_DAC_INCREMENT": {
                 "command_code": 0x7A,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters[
-                    "WRITE_DAC_INCREMENT"
-                ],
+                "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
+                "minimum": 0,
+                "maximum": 65535,
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters[
-                    "WRITE_NUMBER_OF_LINES_FOR_VSYNC"
-                ],
+                "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_FOR_VSYNC"],
+                "minimum": 1,
+                "maximum": 575,
             },
             "WRITE_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x7C,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters[
-                    "WRITE_NUMBER_OF_LINES_PER_FRAME"
-                ],
+                "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_PER_FRAME"],
+                "minimum": 36,
+                "maximum": 65520,
             },
         }
 
@@ -161,14 +161,23 @@ class VMSController:
 
     def parameters_are_valid(self, parameters):
         is_valid = {}
-        for parameter, value in parameters.items():
-            # TODO: If a parameter value is invalid, return False
-            # Assuming the value is ok:
-            is_valid[parameter] = None
-            # Assuming it is not:
-            is_valid[parameter] = (minimum, maximum)
+
+        #command_dict = self.commands[command_name]
+        #command_value = command_dict["parameter"]
+
+        for parameter_name, value in parameters.items():
+            command_dict = self.commands[parameter_name]
+            command_value = command_dict["parameter"]
+            minimum = command_dict["minimum"]
+            maximum = self.commands["maximum"]  
+
+            if minimum < command_value < maximum:
+                is_valid[parameter_name] = None  # OK
+            else:
+                is_valid[parameter_name] = (minimum, maximum)  # Erreur
 
         return is_valid
+            
 
     @property
     def lines_per_frame(self):
