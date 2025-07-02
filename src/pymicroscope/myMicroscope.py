@@ -168,7 +168,7 @@ class MicroscopeApp(App):
         )
 
         if self.vms_controller_is_accessible:
-            Label(self.vms_controller.build_info).grid_into(
+            Label(self.vms_controller.build_info()).grid_into(
                 self.scan_controls,
                 row=4,
                 column=0,
@@ -209,10 +209,10 @@ class MicroscopeApp(App):
             return
 
         parameters = {
-            "dac_start": self.dac_start_entry.value,
-            "dac_increment": self.dac_increment_entry.value,
-            "lines_per_frame": self.lines_per_frame_entry.value,
-            "lines_for_vsync": self.lines_for_vsync_entry.value,
+            "WRITE_DAC_START": self.dac_start_entry.value,
+            "WRITE_DAC_INCREMENT": self.dac_increment_entry.value,
+            "WRITE_NUMBER_OF_LINES_PER_FRAME": self.lines_per_frame_entry.value,
+            "WRITE_NUMBER_OF_LINES_FOR_VSYNC": self.lines_for_vsync_entry.value,
         }
 
         is_valid = self.vms_controller.parameters_are_valid(parameters)

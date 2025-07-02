@@ -5,6 +5,7 @@ from serial.tools import list_ports
 import binascii
 import time
 
+
 # CONTROLLER_SERIAL_PATH = "/dev/cu.USA19QW3d1P1.1"
 CONTROLLER_SERIAL_PATH = "/dev/cu.usbserial-A907SJ89"
 
@@ -159,25 +160,22 @@ class VMSController:
 
         return unpacked_response
 
+
     def parameters_are_valid(self, parameters):
         is_valid = {}
 
-        #command_dict = self.commands[command_name]
-        #command_value = command_dict["parameter"]
-
-        for parameter_name, value in parameters.items():
+        for parameter_name, values in parameters.items():
             command_dict = self.commands[parameter_name]
-            command_value = command_dict["parameter"]
+            #command_value = command_dict[values]
             minimum = command_dict["minimum"]
-            maximum = self.commands["maximum"]  
+            maximum = command_dict["maximum"]
 
-            if minimum < command_value < maximum:
+            if minimum < values < maximum:
                 is_valid[parameter_name] = None  # OK
             else:
                 is_valid[parameter_name] = (minimum, maximum)  # Erreur
 
         return is_valid
-            
 
     @property
     def lines_per_frame(self):
