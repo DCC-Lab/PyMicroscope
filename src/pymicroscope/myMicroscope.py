@@ -230,6 +230,7 @@ class MicroscopeApp(App):
             for parameter, value in is_valid.items():
                 if value is not None:
                     err_message += f" {parameter} must be between {value[0]}  and {value[1]} "
+                    
 
             Dialog.showerror(title="Invalid parameters", message=err_message)
 
