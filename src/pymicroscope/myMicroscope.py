@@ -160,11 +160,30 @@ class MicroscopeApp(App):
             self.scan_controls, row=3, column=1, pady=10, padx=10, sticky="w"
         )
 
+        Label("polygonClockFrequency").grid_into(
+            self.scan_controls, row=4, column=0, pady=10, padx=10, sticky="w"
+        )
+
+        Label("polygonRevolutionsPerMinute").grid_into(
+            self.scan_controls, row=5, column=0, pady=10, padx=10, sticky="w"
+        )
+        #self.lines_for_vsync_entry = IntEntry(value=initial_lines_for_vsync, width=6)
+        #self.lines_for_vsync_entry.grid_into(self.scan_controls, row=4, column=1, pady=10, padx=10, sticky="w")
+
+        Label("HSyncFrequency").grid_into(
+            self.scan_controls, row=6, column=0, pady=10, padx=10, sticky="w"
+        )
+
+        Label("VSyncFrequency").grid_into(
+            self.scan_controls, row=7, column=0, pady=10, padx=10, sticky="w"
+        )
+
+
         self.apply_scan_parameters_button = Button(
             "Apply", user_event_callback=self.user_clicked_apply_button
         )
         self.apply_scan_parameters_button.grid_into(
-            self.scan_controls, row=5, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=8, column=1, pady=10, padx=10, sticky="w"
         )
 
         if self.vms_controller_is_accessible:
