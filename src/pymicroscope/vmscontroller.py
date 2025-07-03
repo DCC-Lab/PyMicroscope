@@ -133,7 +133,7 @@ class VMSController:
         serial_number = self.send_command("READ_SN")
         build_time = self.send_command("READ_BUILD_TIME")
         build_date = self.send_command("READ_BUILD_DATE")
-        return f"VMS Controller : (cid:{cid[0]}, cpn:{cpn[0]}, serial#:{serial_number}), fireware version:{fw[0]}.{fw[1]}.{fw[2]} [Build: {b''.join(build_date).decode()}, {b''.join(build_time).decode()}]\n"
+        return f"VMS Controller: CID: {cid[0]}, CPN: {cpn[0]}, Serial #: {serial_number},\nFireware version: {fw[0]}.{fw[1]}.{fw[2]} [Build: {b''.join(build_date).decode()}, {b''.join(build_time).decode()}]\n"
 
     def send_command(self, command_name, parameter=None):
         command_dict = self.commands[command_name]
@@ -166,7 +166,6 @@ class VMSController:
 
         for parameter_name, values in parameters.items():
             command_dict = self.commands[parameter_name]
-            #command_value = command_dict[values]
             minimum = command_dict["minimum"]
             maximum = command_dict["maximum"]
 
