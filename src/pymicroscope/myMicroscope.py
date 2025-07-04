@@ -181,28 +181,28 @@ class MicroscopeApp(App):
             self.scan_controls, row=6, column=0, pady=10, padx=10, sticky="w"
         )
 
-        Label(initial_polygone_rev_per_min).grid_into(
+        Label(initial_polygone_rev_per_min " rev/min").grid_into(
             self.scan_controls, row=6, column=1, pady=10, padx=10, sticky="w"
         )
 
         Label("Pixel Frequency").grid_into(
             self.scan_controls, row=7, column=0, pady=10, padx=10, sticky="w"
         )
-        Label(initial_pixel_frequency).grid_into(
+        Label(initial_pixel_frequency " Hz").grid_into(
             self.scan_controls, row=7, column=1, pady=10, padx=10, sticky="w"
         )
 
         Label("HSync Frequency").grid_into(
             self.scan_controls, row=8, column=0, pady=10, padx=10, sticky="w"
         )
-        Label(initial_hsync_frequency).grid_into(
+        Label(initial_hsync_frequency " Hz").grid_into(
             self.scan_controls, row=8, column=1, pady=10, padx=10, sticky="w"
         )
 
         Label("VSync Frequency").grid_into(
             self.scan_controls, row=9, column=0, pady=10, padx=10, sticky="w"
         )
-        Label(initial_vsync_frequency).grid_into(
+        Label(initial_vsync_frequency " Hz").grid_into(
             self.scan_controls, row=9, column=1, pady=10, padx=10, sticky="w"
         )
 
