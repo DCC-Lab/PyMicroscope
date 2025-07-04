@@ -36,18 +36,24 @@ class MicroscopeApp(App):
 
     def build_interface(self):
         self.window.widget.title("Microscope")
+        self.build_video_interface()
+        self.build_control_interface()
+        self.build_scan_controller_interface()
 
+    def build_video_interface(self):
+        
         self.camera = VideoView(device=0, auto_start=False, zoom_level=3)
         self.camera.grid_into(
             self.window, row=0, column=0, pady=10, padx=10, sticky="nw"
         )
 
+    def build_control_interface(self):
         self.controls = Box(label="Controls", width=500, height=700)
         self.window.widget.grid_columnconfigure(0, weight=1)
         self.window.widget.grid_columnconfigure(1, weight=1)
 
         self.controls.grid_into(
-            self.window, column=1, row=0, pady=10, padx=10, sticky="nsew"
+            self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.controls.widget.grid_rowconfigure(0, weight=1)
         self.controls.widget.grid_rowconfigure(1, weight=1)
@@ -102,16 +108,17 @@ class MicroscopeApp(App):
         self.popup_camera.grid_into(
             self.controls, column=1, row=2, pady=5, padx=10, sticky="w"
         )
-
+        
+    def build_scan_controller_interface(self):
         self.scan_controls = Box(
             label="Scanning control", width=500, height=200
         )
         self.scan_controls.grid_into(
-            self.window, row=1, column=1, pady=10, padx=10, sticky="nsew"
+            self.window, row=1, column=1, pady=5, padx=10, sticky="nse"
         )
 
         Label("DAC start").grid_into(
-            self.scan_controls, row=0, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=0, column=0, pady=5, padx=10, sticky="w"
         )
 
         if self.vms_controller_is_accessible:
@@ -137,73 +144,73 @@ class MicroscopeApp(App):
 
         self.dac_start_entry = IntEntry(value=initial_dac_start, width=6)
         self.dac_start_entry.grid_into(
-            self.scan_controls, row=0, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=0, column=1, pady=5, padx=10, sticky="w"
         )
 
         Label("DAC increment").grid_into(
-            self.scan_controls, row=1, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=1, column=0, pady=5, padx=10, sticky="w"
         )
         self.dac_increment_entry = IntEntry(
             value=initial_dac_increment, width=6
         )
         self.dac_increment_entry.grid_into(
-            self.scan_controls, row=1, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=1, column=1, pady=5, padx=10, sticky="w"
         )
 
         Label("Lines per frame").grid_into(
-            self.scan_controls, row=2, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=2, column=0, pady=5, padx=10, sticky="w"
         )
         self.lines_per_frame_entry = IntEntry(
             value=initial_lines_per_frame, width=6
         )
         self.lines_per_frame_entry.grid_into(
-            self.scan_controls, row=2, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=2, column=1, pady=5, padx=10, sticky="w"
         )
 
         Label("Lines for VSYNC").grid_into(
-            self.scan_controls, row=3, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=3, column=0, pady=5, padx=10, sticky="w"
         )
         self.lines_for_vsync_entry = IntEntry(
             value=initial_lines_for_vsync, width=6
         )
         self.lines_for_vsync_entry.grid_into(
-            self.scan_controls, row=3, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=3, column=1, pady=5, padx=10, sticky="w"
         )
 
         Label("TMR1 reload value (for polygone speed control)").grid_into(
-            self.scan_controls, row=5, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=0, column=2, pady=5, padx=10, sticky="w"
         )
         Label(initial_tmr1_reload_value).grid_into(
-            self.scan_controls, row=5, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=0, column=3, pady=5, padx=10, sticky="w"
         )
 
         Label("Polygon Revolutions Per Minute [rpm]").grid_into(
-            self.scan_controls, row=6, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=1, column=2, pady=5, padx=10, sticky="w"
         )
 
         Label(initial_polygone_rev_per_min).grid_into(
-            self.scan_controls, row=6, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=1, column=3, pady=5, padx=10, sticky="w"
         )
 
         Label("Pixel Frequency [Hz]").grid_into(
-            self.scan_controls, row=7, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=2, column=2, pady=5, padx=10, sticky="w"
         )
         Label(initial_pixel_frequency).grid_into(
-            self.scan_controls, row=7, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=2, column=3, pady=5, padx=10, sticky="w"
         )
 
         Label("HSync Frequency [Hz]").grid_into(
-            self.scan_controls, row=8, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=3, column=2, pady=5, padx=10, sticky="w"
         )
         Label(initial_hsync_frequency).grid_into(
-            self.scan_controls, row=8, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=3, column=3, pady=5, padx=10, sticky="w"
         )
 
         Label("VSync Frequency [Hz]").grid_into(
-            self.scan_controls, row=9, column=0, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=4, column=2, pady=5, padx=10, sticky="w"
         )
         Label(initial_vsync_frequency).grid_into(
-            self.scan_controls, row=9, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=4, column=3, pady=5, padx=10, sticky="w"
         )
 
 
@@ -211,26 +218,26 @@ class MicroscopeApp(App):
             "Apply", user_event_callback=self.user_clicked_apply_button
         )
         self.apply_scan_parameters_button.grid_into(
-            self.scan_controls, row=10, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=5, column=3, pady=5, padx=10, sticky="e"
         )
 
         if self.vms_controller_is_accessible:
             Label(self.vms_controller.build_info()).grid_into(
                 self.scan_controls,
-                row=4,
+                row=5,
                 column=0,
                 columnspan=2,
-                pady=10,
+                pady=5,
                 padx=10,
                 sticky="w",
             )
         else:
             Label("VMS controller serial port is not inaccessible").grid_into(
                 self.scan_controls,
-                row=4,
+                row=5,
                 column=0,
                 columnspan=2,
-                pady=10,
+                pady=5,
                 padx=10,
                 sticky="w",
             )
@@ -244,6 +251,7 @@ class MicroscopeApp(App):
         self.lines_for_vsync_entry.is_enabled = (
             self.vms_controller_is_accessible
         )
+        self.apply_scan_parameters_button.is_enabled = self.vms_controller_is_accessible
 
         App.app.root.after(20, self.get_latest_image)
 
