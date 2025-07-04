@@ -216,23 +216,23 @@ class VMSController:
     @property
     def polygone_rev_per_min(self):
         tmr1_reload_value = self.default_other_parameters["TMR1_Reload_Value"]
-        polygonClockFrequency = 5000000 / (65535 - tmr1_reload_value)
-        return round(polygonClockFrequency / 2 * 60)
+        polygon_clock_frequency = 5000000 / (65535 - tmr1_reload_value)
+        return round(polygon_clock_frequency / 2 * 60)
     
     @property
     def hsync_frequency(self):
-        polygonRevolutionsPerMinute = self.polygone_rev_per_min
-        numberOfFacesOfPolygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
-        return round(polygonRevolutionsPerMinute * numberOfFacesOfPolygon)
+        polygon_revolutions_per_minute = self.polygone_rev_per_min
+        number_of_faces_of_polygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
+        return round(polygon_revolutions_per_minute * number_of_faces_of_polygon)
     
     @property
     def vsync_frequency(self):
-        HSyncFrequency = self.hsync_frequency
-        numberOfLinesPerFrame = self.lines_per_frame
-        return round(HSyncFrequency / numberOfLinesPerFrame)
+        hsync_frequency = self.hsync_frequency
+        number_of_lines_per_frame = self.lines_per_frame
+        return round(hsync_frequency / number_of_lines_per_frame)
     
     @property
     def pixel_frequency(self):
-        PixelsPerLine = self.default_other_parameters["PixelsPerLine"]
-        HSyncFrequency = self.hsync_frequency
-        return round(PixelsPerLine * HSyncFrequency)
+        pixels_per_line = self.default_other_parameters["PixelsPerLine"]
+        hsync_frequency = self.hsync_frequency
+        return round(pixels_per_line * hsync_frequency)
