@@ -119,11 +119,21 @@ class MicroscopeApp(App):
             initial_dac_increment = self.vms_controller.dac_increment
             initial_lines_per_frame = self.vms_controller.lines_per_frame
             initial_lines_for_vsync = self.vms_controller.lines_for_vsync
+            initial_tmr1_reload_value = self.vms_controller.tmr1_reload_value
+            initial_polygone_rev_per_min = self.vms_controller.polygone_rev_per_min
+            initial_hsync_frequency = self.vms_controller.hsync_frequency
+            initial_vsync_frequency = self.vms_controller.vsync_frequency
+            initial_pixel_frequency = self.vms_controller.pixel_frequency
         else:
             initial_dac_start = 0
             initial_dac_increment = 0
             initial_lines_per_frame = 0
             initial_lines_for_vsync = 0
+            initial_tmr1_reload_value = 0
+            initial_polygone_rev_per_min = 0
+            initial_hsync_frequency = 0
+            initial_vsync_frequency = 0
+            initial_pixel_frequency = 0
 
         self.dac_start_entry = IntEntry(value=initial_dac_start, width=6)
         self.dac_start_entry.grid_into(
@@ -160,22 +170,40 @@ class MicroscopeApp(App):
             self.scan_controls, row=3, column=1, pady=10, padx=10, sticky="w"
         )
 
-        Label("polygonClockFrequency").grid_into(
-            self.scan_controls, row=4, column=0, pady=10, padx=10, sticky="w"
-        )
-
-        Label("polygonRevolutionsPerMinute").grid_into(
+        Label("TMR1 reload value (for polygone speed control)").grid_into(
             self.scan_controls, row=5, column=0, pady=10, padx=10, sticky="w"
         )
-        #self.lines_for_vsync_entry = IntEntry(value=initial_lines_for_vsync, width=6)
-        #self.lines_for_vsync_entry.grid_into(self.scan_controls, row=4, column=1, pady=10, padx=10, sticky="w")
+        Label(initial_tmr1_reload_value).grid_into(
+            self.scan_controls, row=5, column=1, pady=10, padx=10, sticky="w"
+        )
 
-        Label("HSyncFrequency").grid_into(
+        Label("Polygon Revolutions Per Minute").grid_into(
             self.scan_controls, row=6, column=0, pady=10, padx=10, sticky="w"
         )
 
-        Label("VSyncFrequency").grid_into(
+        Label(initial_polygone_rev_per_min).grid_into(
+            self.scan_controls, row=6, column=1, pady=10, padx=10, sticky="w"
+        )
+
+        Label("Pixel Frequency").grid_into(
             self.scan_controls, row=7, column=0, pady=10, padx=10, sticky="w"
+        )
+        Label(initial_pixel_frequency).grid_into(
+            self.scan_controls, row=7, column=1, pady=10, padx=10, sticky="w"
+        )
+
+        Label("HSync Frequency").grid_into(
+            self.scan_controls, row=8, column=0, pady=10, padx=10, sticky="w"
+        )
+        Label(initial_hsync_frequency).grid_into(
+            self.scan_controls, row=8, column=1, pady=10, padx=10, sticky="w"
+        )
+
+        Label("VSync Frequency").grid_into(
+            self.scan_controls, row=9, column=0, pady=10, padx=10, sticky="w"
+        )
+        Label(initial_vsync_frequency).grid_into(
+            self.scan_controls, row=9, column=1, pady=10, padx=10, sticky="w"
         )
 
 
@@ -183,7 +211,7 @@ class MicroscopeApp(App):
             "Apply", user_event_callback=self.user_clicked_apply_button
         )
         self.apply_scan_parameters_button.grid_into(
-            self.scan_controls, row=8, column=1, pady=10, padx=10, sticky="w"
+            self.scan_controls, row=10, column=1, pady=10, padx=10, sticky="w"
         )
 
         if self.vms_controller_is_accessible:

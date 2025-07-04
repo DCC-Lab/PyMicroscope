@@ -18,6 +18,7 @@ class VMSController:
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": 6,
             "WRITE_NUMBER_OF_LINES_PER_FRAME": 576,
         }
+        self.default_other_parameters = {"Number_Of_Faces_Of_Polygon": 36, "TMR1_Reload_Value": 60327, "PixelsPerLine": 1024}
 
         self.commands = {
             "READ_FIRMWARE_VERSION": {
@@ -207,3 +208,31 @@ class VMSController:
     @dac_increment.setter
     def dac_increment(self, value):
         self.send_command("WRITE_DAC_INCREMENT", value)
+
+    @property
+    def tmr1_reload_value(self):
+        return self.default_other_parameters["TMR1_Reload_Value"]
+    
+    @property
+    def polygone_rev_per_min(self):
+        tmr1_reload_value = self.default_other_parameters["TMR1_Reload_Value"]
+        polygonClockFrequency = 5000000 / (65535 - tmr1_reload_value)
+        return round(polygonClockFrequency / 2 * 60)
+    
+    @property
+    def hsync_frequency(self):
+        polygonRevolutionsPerMinute = self.polygone_rev_per_min
+        numberOfFacesOfPolygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
+        return round(polygonRevolutionsPerMinute * numberOfFacesOfPolygon)
+    
+    @property
+    def vsync_frequency(self):
+        HSyncFrequency = self.hsync_frequency
+        numberOfLinesPerFrame = self.lines_per_frame
+        return round(HSyncFrequency / numberOfLinesPerFrame)
+    
+    @property
+    def pixel_frequency(self):
+        PixelsPerLine = self.default_other_parameters["PixelsPerLine"]
+        HSyncFrequency = self.hsync_frequency
+        return round(PixelsPerLine * HSyncFrequency)
