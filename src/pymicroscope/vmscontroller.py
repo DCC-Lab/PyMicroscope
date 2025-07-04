@@ -223,7 +223,7 @@ class VMSController:
     def hsync_frequency(self):
         polygon_revolutions_per_minute = self.polygone_rev_per_min
         number_of_faces_of_polygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
-        return round(polygon_revolutions_per_minute * number_of_faces_of_polygon)
+        return round(polygon_revolutions_per_minute / 60 * number_of_faces_of_polygon)
     
     @property
     def vsync_frequency(self):
