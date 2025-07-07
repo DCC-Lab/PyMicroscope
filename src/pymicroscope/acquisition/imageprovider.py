@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import time
 import math
 from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
-from multiprocessing import RLock
+from multiprocessing import RLock, shared_memory
 import numpy as np
 import base64
 
@@ -10,6 +10,7 @@ from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
 from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop
+from pymicroscope.utils.unifiedprocess import UnifiedProcess
 
 
 class ImageProviderClient:
@@ -23,7 +24,7 @@ class ImageProviderClient:
 
         """
         super().__init__(*args, **kwargs)
-        self.callback = None
+        self.callback = callback
         self.images = []
 
     def new_image_captured(self, image: np.ndarray) -> None:
@@ -207,7 +208,7 @@ class ImageProvider(ABC):
                     for client in self.clients:
                         client.new_image_captured(img_tuple)
                 except Exception as err:
-                    self.log.error("Error in ImageProvider run loop : {err}")
+                    self.log.error(f"Error in ImageProvider run loop : {err}")
             self.stop_capture()
 
 
@@ -424,11 +425,134 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         return img
 
 
+class DebugImageProvider(ImageProvider, UnifiedProcess):
+    """
+    An image provider that generates synthetic 8-bit images for testing.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        
+    def run(self) -> None:
+        """
+        Main capture loop for local use (no Pyro registration).
+
+        Subclasses may override this.
+        """
+        with self.syncing_context() as must_terminate_now:
+            self.start_capture()
+
+            while not must_terminate_now:
+                try:
+                    self.handle_remote_call_events()
+
+                    img_tuple = self.capture_packaged_image()
+                    for client in self.clients:
+                        client.new_image_captured(img_tuple)
+                except Exception as err:
+                    self.log.error(f"Error in ImageProvider run loop : {err}")
+            self.stop_capture()
+
+    def capture_image(self) -> np.ndarray:
+        """
+        Generate an 8-bit random image of shape (size[0], size[1], channels),
+        simulating frame rate delay between frames.
+
+        Returns:
+            np.ndarray: Random image as a uint8 array.
+
+        Example:
+            >>> img = provider.capture_image()
+            >>> img.shape
+            (256, 256, 3)
+        """
+
+        img = self.generate_random_noise(self.size[0], self.size[1], self.channels)
+
+        frame_duration = 1 / self.frame_rate
+
+        while (
+            self._last_image is not None
+            and time.time() < self._last_image + frame_duration
+        ):
+            time.sleep(0.001)
+
+        self._last_image = time.time()
+        self.log.debug("Image captured at %f", time.time() - self._start_time)
+        return img
+
+    @staticmethod
+    def generate_random_noise(height, width, channels):
+        return np.random.randint(0, 256, (height, width, channels), dtype=np.uint8)
+
+    @staticmethod
+    def generate_moving_bars(height=240, width=320, step=1):
+        """Return a larger RGB pattern that can be scrolled horizontally."""
+        bar_colors = np.array(
+            [
+                [255, 0, 0],  # Red
+                [0, 255, 0],  # Green
+                [0, 0, 255],  # Blue
+                [255, 255, 0],  # Yellow
+                [0, 255, 255],  # Cyan
+                [255, 0, 255],  # Magenta
+                [255, 255, 255],  # White
+                [0, 0, 0],  # Black
+            ],
+            dtype=np.uint8,
+        )
+
+        bar_width = width // 4
+        pattern_width = width * 2
+        pattern = np.zeros((height, pattern_width, 3), dtype=np.uint8)
+
+        for i in range(pattern_width // bar_width):
+            color = bar_colors[i % len(bar_colors)]
+            fractional, integer = math.modf(time.time())
+            if integer % 2 == 0:
+                i += fractional
+            else:
+                i -= fractional - 1
+            pattern[:, int(i * bar_width) : int((i + 1) * bar_width), :] = color
+
+        return pattern
+
+    @staticmethod
+    def generate_color_bars(height, width):
+        # Define the 7 SMPTE color bars in RGB
+        colors = [
+            [192, 192, 192],  # White
+            [192, 192, 0],  # Yellow
+            [0, 192, 192],  # Cyan
+            [0, 192, 0],  # Green
+            [192, 0, 192],  # Magenta
+            [192, 0, 0],  # Red
+            [0, 0, 192],  # Blue
+        ]
+        colors = np.array(colors, dtype=np.uint8)
+
+        # Compute width of each bar
+        bar_width = width // len(colors)
+
+        # Initialize image
+        img = np.zeros((height, width, 3), dtype=np.uint8)
+
+        # Fill bars
+        for i, color in enumerate(colors):
+            img[:, i * bar_width : (i + 1) * bar_width, :] = color
+
+        return img
+        
+        
+    
 if __name__ == "__main__":
     import logging
 
-    provider = DebugRemoteImageProvider(
-        log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    # provider = DebugImageProvider(
+    #     log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    # )
+    provider = DebugImageProvider(
+        log_level=logging.DEBUG
     )
-    provider.start()
+    provider.start_synchronously()
     provider.join()

@@ -111,7 +111,8 @@ class VMSController:
         }
 
         self.port = None
-
+        self.is_accessible = False
+        
     def initialize(self):
         self.port = serial.Serial(
             CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3
@@ -121,11 +122,12 @@ class VMSController:
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
 
-        # print(self.build_info())
+        self.is_accessible = True
 
     def shutdown(self):
         if self.port is not None:
             self.port.close()
+        self.is_accessible = False
 
     def build_info(self):
         fw = self.send_command("READ_FIRMWARE_VERSION")

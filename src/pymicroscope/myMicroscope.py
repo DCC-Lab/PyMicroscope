@@ -6,300 +6,185 @@ import re
 import time
 import gc
 from collections import deque
+import signal
+import atexit
 
 import numpy as np
 import scipy
 import threading as Th
 from queue import Queue, Empty
+from multiprocessing import RLock, shared_memory
 
 from PIL import Image as PILImage
 #from pymicroscope.acquisition.imageprovider import (
 #    RemoteImageProvider,)
 #from utils.pyroprocess import (
 #    PyroProcess,)
-#from pymicroscope.vmscontroller import VMSController
 from vmscontroller import VMSController
+from vmsconfigdialog import VMSConfigDialog
+from pymicroscope.acquisition.imageprovider import DebugImageProvider
 
-
+class ImageSharedMemory(Image):
+    def __init__(self, lock, name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock = lock
+        self.name = name
+        self.shm = shared_memory.SharedMemory(name=self.name)
+        self.shape = (480, 640,3)
+            
+    def update_display(self, image_to_display=None):
+        with self.lock:
+            self.array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
+            pil_image = PILImage.fromarray(self.array, mode="RGB")
+            super().update_display(pil_image)
+        self.widget.update_idletasks()
+    
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.vms_controller_is_accessible = True
+        self.shm_name = "image-shared-memory"
+        self.shm = shared_memory.SharedMemory(
+            create=True, size=10_000_000, name=self.shm_name
+        )
+        self.shm_lock = RLock()
+        self.shape = (480, 640, 3)
+        
+        self.provider_type = DebugImageProvider
+        self.provider = None
+        
         self.vms_controller = VMSController()
         try:
             self.vms_controller.initialize()
         except Exception as err:
-            self.vms_controller_is_accessible = False
+            pass # vms_controller.is_accessible == False
 
+        self.app_setup()
         self.build_interface()
+        self.after(100, self.microscope_run_loop)
+        self.root.protocol("WM_DELETE_WINDOW", self.quit)
+    
+    def app_setup(self):
+        def handle_sigterm(signum, frame):
+            print(f"Signal {signum} received")
+            self.quit()  # or your full shutdown logic
 
+        # self.window.widget.protocol("WM_DELETE_WINDOW", self.quit)    # for close button
+        # self.window.widget.createcommand("exit", self.quit)           # for ⌘+Q / Apple menu
+        # self.root.createcommand("exit", self.quit)           # for ⌘+Q / Apple menu
+
+        for s in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT, signal.SIGQUIT]:
+            signal.signal(s, handle_sigterm)
+
+        # atexit.register(self.cleanup)
+
+        # Define the Tcl callback for the macOS quit event
+        def on_mac_quit():
+            # This is called when the user clicks "Quit" from the Apple menu or presses ⌘+Q
+            self.quit()
+
+        try:
+            self.root.createcommand("tk::mac::Quit", on_mac_quit)
+        except TclError:
+            pass  # Not on macOS or already defined
+
+    def cleanup(self):
+        print("Cleaning up shared memory...")
+        self.image.shm.close()
+        try:
+            self.shm.unlink()
+        except FileNotFoundError as err:
+            pass
+            
+        
     def build_interface(self):
         self.window.widget.title("Microscope")
-        self.build_video_interface()
-        self.build_control_interface()
-        self.build_scan_controller_interface()
-
-    def build_video_interface(self):
         
-        self.camera = VideoView(device=0, auto_start=False, zoom_level=3)
-        self.camera.grid_into(
-            self.window, row=0, column=0, pady=10, padx=10, sticky="nw"
-        )
+        self.build_start_stop_interface()
+        self.build_imageview_interface()
+        self.build_control_interface()
 
+    def build_imageview_interface(self):
+        self.image = ImageSharedMemory(lock=self.shm_lock, name=self.shm_name)
+        self.image.grid_into(self.window, row=0, column=0, rowspan=5, pady=30, padx=20, sticky="nw")
+    
+    def build_start_stop_interface(self):
+        self.save_controls = Box(label="Save", width=400, height=200)
+        self.save_controls.grid_into(
+            self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
+        )
+        self.save_controls.widget.grid_propagate(False)
+
+        self.start_stop_button = Button("Start", user_event_callback=self.user_clicked_startstop)
+        self.start_stop_button.grid_into(self.save_controls, row=0, column=0, pady=10, padx=10,)
+        self.save_button = Button("Save …")
+        self.save_button.grid_into(self.save_controls, row=0, column=1, pady=10, padx=10,)
+
+        Label("Images to average: ").grid_into(self.save_controls, row=2, column=0, pady=10, padx=10,)
+
+        self.number_of_images_average = IntEntry(value=30, width=5)
+        self.number_of_images_average.grid_into(self.save_controls, row=2, column=1, pady=10, padx=10,)
+                
     def build_control_interface(self):
-        self.controls = Box(label="Controls", width=500, height=700)
         self.window.widget.grid_columnconfigure(0, weight=1)
         self.window.widget.grid_columnconfigure(1, weight=1)
 
+        self.controls = Box(label="Image Creation Controls", width=400, height=100)
+
         self.controls.grid_into(
-            self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
+            self.window, column=1, row=1, pady=10, padx=10, sticky="nse"
         )
+        self.controls.widget.grid_propagate(False)
+
         self.controls.widget.grid_rowconfigure(0, weight=1)
         self.controls.widget.grid_rowconfigure(1, weight=1)
 
-        self.exposure_time_label = Label("Exposure:")
-        self.exposure_time_label.grid_into(
-            self.controls, column=0, row=3, pady=5, padx=5, sticky="e"
-        )
-        self.exposure_time_slider = Slider()
-        self.exposure_time_slider.grid_into(
-            self.controls, column=1, row=3, pady=5, padx=10, sticky="nw"
-        )
+        Label("Scan configuration").grid_into(self.controls, row=0, column=0, pady=10, padx=10,sticky="e")
+        self.scan_settings = Button("Configure …", user_event_callback=self.user_clicked_configure_button)
+        self.scan_settings.grid_into(self.controls, row=0, column=1, pady=10, padx=10,sticky="w")
 
-        self.gain_label = Label("Gain:")
-        self.gain_label.grid_into(
-            self.controls, column=0, row=4, pady=5, padx=5, sticky="e"
-        )
-        self.gain_slider = Slider()
-        self.gain_slider.grid_into(
-            self.controls, column=1, row=4, pady=5, padx=10, sticky="nw"
-        )
 
-        self.popup_label = Label("Camera:")
-        self.popup_label.grid_into(
-            self.controls, column=0, row=2, pady=5, padx=10, sticky="e"
-        )
-
-        self.zoomlevel_label = Label("Zoom level:")
-        self.zoomlevel_label.grid_into(
-            self.controls, column=0, row=6, pady=5, padx=10, sticky="e"
-        )
-        self.zoom_level_control = IntEntry(value=3, width=5, minimum=1)
-        self.zoom_level_control.grid_into(
-            self.controls, column=1, row=6, pady=5, padx=10, sticky="w"
-        )
-        self.camera.bind_properties(
-            "zoom_level", self.zoom_level_control, "value_variable"
-        )
-
-        self.camera.histogram_xyplot = Histogram(figsize=(3.5, 1))
-        self.camera.histogram_xyplot.grid_into(
-            self.controls,
-            column=0,
-            columnspan=2,
-            row=7,
-            pady=5,
-            padx=10,
-            sticky="w",
-        )
-
-        self.popup_camera = self.camera.create_behaviour_popups()
-        self.popup_camera.grid_into(
-            self.controls, column=1, row=2, pady=5, padx=10, sticky="w"
-        )
+    def user_clicked_configure_button(self, event, button):
+        # if self.provider is not None:
+        #     self.stop_capturing()
         
-    def build_scan_controller_interface(self):
-        self.scan_controls = Box(
-            label="Scanning control", width=500, height=200
+        diag = VMSConfigDialog(
+            vms_controller=self.vms_controller,
+            title="Test Window",
+            buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
+            # auto_click=[Dialog.Replies.Ok, 1000],
         )
-        self.scan_controls.grid_into(
-            self.window, row=1, column=1, pady=5, padx=10, sticky="nse"
-        )
+        reply = diag.run()
+        print({id: entry.value for id, entry in diag.entries.items()})
 
-        Label("DAC start").grid_into(
-            self.scan_controls, row=0, column=0, pady=5, padx=10, sticky="w"
-        )
+        # if self.provider is not None:
+        #     self.provider.start_capturing()
 
-        if self.vms_controller_is_accessible:
-            initial_dac_start = self.vms_controller.dac_start
-            initial_dac_increment = self.vms_controller.dac_increment
-            initial_lines_per_frame = self.vms_controller.lines_per_frame
-            initial_lines_for_vsync = self.vms_controller.lines_for_vsync
-            initial_tmr1_reload_value = self.vms_controller.tmr1_reload_value
-            initial_polygone_rev_per_min = self.vms_controller.polygone_rev_per_min
-            initial_hsync_frequency = self.vms_controller.hsync_frequency
-            initial_vsync_frequency = self.vms_controller.vsync_frequency
-            initial_pixel_frequency = self.vms_controller.pixel_frequency
+    def user_clicked_startstop(self, event, button):
+        if self.provider is None:
+            self.provider = DebugImageProvider()
+            self.provider.start_synchronously()
         else:
-            initial_dac_start = 0
-            initial_dac_increment = 0
-            initial_lines_per_frame = 0
-            initial_lines_for_vsync = 0
-            initial_tmr1_reload_value = self.vms_controller.tmr1_reload_value
-            initial_polygone_rev_per_min = self.vms_controller.polygone_rev_per_min
-            initial_hsync_frequency = self.vms_controller.hsync_frequency
-            initial_vsync_frequency = 0
-            initial_pixel_frequency = 0
+            self.provider.terminate_synchronously()
+            self.provider = None
+          
+    def new_image(self, pil_image):
+        self.image.update_display()
+    
+    def microscope_run_loop(self):
+        self.debug_generate_noise()
 
-        self.dac_start_entry = IntEntry(value=initial_dac_start, width=6)
-        self.dac_start_entry.grid_into(
-            self.scan_controls, row=0, column=1, pady=5, padx=10, sticky="w"
-        )
-
-        Label("DAC increment").grid_into(
-            self.scan_controls, row=1, column=0, pady=5, padx=10, sticky="w"
-        )
-        self.dac_increment_entry = IntEntry(
-            value=initial_dac_increment, width=6
-        )
-        self.dac_increment_entry.grid_into(
-            self.scan_controls, row=1, column=1, pady=5, padx=10, sticky="w"
-        )
-
-        Label("Lines per frame").grid_into(
-            self.scan_controls, row=2, column=0, pady=5, padx=10, sticky="w"
-        )
-        self.lines_per_frame_entry = IntEntry(
-            value=initial_lines_per_frame, width=6
-        )
-        self.lines_per_frame_entry.grid_into(
-            self.scan_controls, row=2, column=1, pady=5, padx=10, sticky="w"
-        )
-
-        Label("Lines for VSYNC").grid_into(
-            self.scan_controls, row=3, column=0, pady=5, padx=10, sticky="w"
-        )
-        self.lines_for_vsync_entry = IntEntry(
-            value=initial_lines_for_vsync, width=6
-        )
-        self.lines_for_vsync_entry.grid_into(
-            self.scan_controls, row=3, column=1, pady=5, padx=10, sticky="w"
-        )
-
-        Label("TMR1 reload value (for polygone speed control)").grid_into(
-            self.scan_controls, row=0, column=2, pady=5, padx=10, sticky="w"
-        )
-        Label(initial_tmr1_reload_value).grid_into(
-            self.scan_controls, row=0, column=3, pady=5, padx=10, sticky="w"
-        )
-
-        Label("Polygon Revolutions Per Minute [rpm]").grid_into(
-            self.scan_controls, row=1, column=2, pady=5, padx=10, sticky="w"
-        )
-
-        Label(initial_polygone_rev_per_min).grid_into(
-            self.scan_controls, row=1, column=3, pady=5, padx=10, sticky="w"
-        )
-
-        Label("Pixel Frequency [Hz]").grid_into(
-            self.scan_controls, row=2, column=2, pady=5, padx=10, sticky="w"
-        )
-        Label(initial_pixel_frequency).grid_into(
-            self.scan_controls, row=2, column=3, pady=5, padx=10, sticky="w"
-        )
-
-        Label("HSync Frequency [Hz]").grid_into(
-            self.scan_controls, row=3, column=2, pady=5, padx=10, sticky="w"
-        )
-        Label(initial_hsync_frequency).grid_into(
-            self.scan_controls, row=3, column=3, pady=5, padx=10, sticky="w"
-        )
-
-        Label("VSync Frequency [Hz]").grid_into(
-            self.scan_controls, row=4, column=2, pady=5, padx=10, sticky="w"
-        )
-        Label(initial_vsync_frequency).grid_into(
-            self.scan_controls, row=4, column=3, pady=5, padx=10, sticky="w"
-        )
-
-
-        self.apply_scan_parameters_button = Button(
-            "Apply", user_event_callback=self.user_clicked_apply_button
-        )
-        self.apply_scan_parameters_button.grid_into(
-            self.scan_controls, row=5, column=3, pady=5, padx=10, sticky="e"
-        )
-
-        if self.vms_controller_is_accessible:
-            Label(self.vms_controller.build_info()).grid_into(
-                self.scan_controls,
-                row=5,
-                column=0,
-                columnspan=2,
-                pady=5,
-                padx=10,
-                sticky="w",
-            )
-        else:
-            Label("VMS controller serial port is not inaccessible").grid_into(
-                self.scan_controls,
-                row=5,
-                column=0,
-                columnspan=2,
-                pady=5,
-                padx=10,
-                sticky="w",
-            )
-
-        self.scan_controls.is_enabled = self.vms_controller_is_accessible
-        self.dac_start_entry.is_enabled = self.vms_controller_is_accessible
-        self.dac_increment_entry.is_enabled = self.vms_controller_is_accessible
-        self.lines_per_frame_entry.is_enabled = (
-            self.vms_controller_is_accessible
-        )
-        self.lines_for_vsync_entry.is_enabled = (
-            self.vms_controller_is_accessible
-        )
-        self.apply_scan_parameters_button.is_enabled = self.vms_controller_is_accessible
-
-        App.app.root.after(20, self.get_latest_image)
-
-    def user_clicked_apply_button(self, event, button):
-        if not self.vms_controller_is_accessible:
-            Dialog.showerror(
-                title="VMS controller is not connected or found",
-                message="Check that the controller is connected to the computer",
-            )
-            return
-
-        parameters = {
-            "WRITE_DAC_START": self.dac_start_entry.value,
-            "WRITE_DAC_INCREMENT": self.dac_increment_entry.value,
-            "WRITE_NUMBER_OF_LINES_PER_FRAME": self.lines_per_frame_entry.value,
-            "WRITE_NUMBER_OF_LINES_FOR_VSYNC": self.lines_for_vsync_entry.value,
-        }
-
-        is_valid = self.vms_controller.parameters_are_valid(parameters)
-        if all([value is None for value in is_valid.values()]):
-            self.vms_controller.dac_start = self.dac_start_entry.value
-            self.vms_controller.dac_increment = self.dac_increment_entry.value
-            self.vms_controller.lines_per_frame = (
-                self.lines_per_frame_entry.value
-            )
-            self.vms_controller.lines_for_vsync = (
-                self.lines_for_vsync_entry.value
-            )
-        else:
-            err_message = ""
-            for parameter, value in is_valid.items():
-                if value is not None:
-                    err_message += f" {parameter} must be between {value[0]}  and {value[1]} "
-                    
-
-            Dialog.showerror(title="Invalid parameters", message=err_message)
-
-    def get_latest_image(self):
-        # provider_proxy = PyroProcess.by_name("ca.dccmlab.imageprovider.debug")
-        # img_pack = provider_proxy.get_last_packaged_image()
-        # image_array = RemoteImageProvider.image_from_package(img_pack)
-        # # pil_image = PILImage.fromarray(image_array)
-        # # print(image_array, pil_image)
-        # self.camera.update_display(image_array)
-
-        # App.app.root.after(20, self.get_latest_image)
-        pass
-
+        self.after(30, self.microscope_run_loop)
+        
+    def debug_generate_noise(self):
+        array = None
+        with self.shm_lock:
+            array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
+            array[:] = np.random.randint(0, 256, self.shape, dtype=np.uint8)
+        
+        self.new_image(array)
+        
+        
     def about(self):
         showinfo(
             title="About Microscope",
@@ -309,6 +194,10 @@ class MicroscopeApp(App):
     def help(self):
         webbrowser.open("https://www.dccmlab.ca/")
 
+    def quit(self):
+        self.cleanup()
+        super().quit()
+        
 
 if __name__ == "__main__":
     app = MicroscopeApp()
