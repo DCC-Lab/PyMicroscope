@@ -8,8 +8,8 @@ from Pyro5.api import expose, Daemon, locate_ns, Proxy
 from Pyro5.errors import NamingError
 import psutil
 
-from pymicroscope.utils import UnifiedProcess
-
+#from pymicroscope.utils import UnifiedProcess
+from utils import UnifiedProcess
 
 class PyroProcess(UnifiedProcess):
     """

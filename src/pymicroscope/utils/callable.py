@@ -67,7 +67,8 @@ from dataclasses import dataclass
 from queue import Empty
 from typing import Any, Optional, Callable, Union, Tuple
 
-from pymicroscope.utils.terminable import TerminableProcess
+#from pymicroscope.utils.terminable import TerminableProcess
+from utils.terminable import TerminableProcess
 
 
 @dataclass
