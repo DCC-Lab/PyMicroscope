@@ -13,7 +13,7 @@ import numpy as np
 import scipy
 import threading as Th
 from queue import Queue, Empty
-from multiprocessing import RLock, shared_memory
+from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
 #from pymicroscope.acquisition.imageprovider import (
@@ -43,13 +43,14 @@ class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.shm_name = "image-shared-memory"
-        self.shm = shared_memory.SharedMemory(
-            create=True, size=10_000_000, name=self.shm_name
-        )
-        self.shm_lock = RLock()
+        # self.shm_name = "image-shared-memory"
+        # self.shm = shared_memory.SharedMemory(
+        #     create=True, size=10_000_000, name=self.shm_name
+        # )
+        # self.shm_lock = RLock()
         self.shape = (480, 640, 3)
         
+        self.image_queue = Queue()
         self.provider_type = DebugImageProvider
         self.provider = None
         
@@ -88,14 +89,16 @@ class MicroscopeApp(App):
         except TclError:
             pass  # Not on macOS or already defined
 
+        self.root.bind("<<NewImage>>", self.handle_new_image)
+
     def cleanup(self):
-        print("Cleaning up shared memory...")
-        self.image.shm.close()
-        try:
-            self.shm.unlink()
-        except FileNotFoundError as err:
-            pass
-            
+        # print("Cleaning up shared memory...")
+        # self.image.shm.close()
+        # try:
+        #     self.shm.unlink()
+        # except FileNotFoundError as err:
+        #     pass
+        pass            
         
     def build_interface(self):
         self.window.widget.title("Microscope")
@@ -105,7 +108,10 @@ class MicroscopeApp(App):
         self.build_control_interface()
 
     def build_imageview_interface(self):
-        self.image = ImageSharedMemory(lock=self.shm_lock, name=self.shm_name)
+        # self.image = ImageSharedMemory(lock=self.shm_lock, name=self.shm_name)
+        array = np.random.randint(0, 256, self.shape, dtype=np.uint8)
+        pil_image = PILImage.fromarray(array, mode="RGB")
+        self.image = Image(pil_image=pil_image)
         self.image.grid_into(self.window, row=0, column=0, rowspan=5, pady=30, padx=20, sticky="nw")
     
     def build_start_stop_interface(self):
@@ -168,21 +174,31 @@ class MicroscopeApp(App):
             self.provider.terminate_synchronously()
             self.provider = None
           
-    def new_image(self, pil_image):
-        self.image.update_display()
+    # def new_image(self, pil_image):
+    #     self.image_queue.put(pil_image)
+    #     self.root.event_generate("<<NewImage>>", when="tail")
     
+    def handle_new_image(self, event):
+        """Handle the image in the main (GUI) thread."""
+        try:
+            pil_image = self.image_queue.get_nowait()
+            self.image.update_display(pil_image)
+        except Empty:
+            return
+
     def microscope_run_loop(self):
         self.debug_generate_noise()
 
+        self.handle_new_image(None)
         self.after(30, self.microscope_run_loop)
         
     def debug_generate_noise(self):
-        array = None
-        with self.shm_lock:
-            array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
-            array[:] = np.random.randint(0, 256, self.shape, dtype=np.uint8)
-        
-        self.new_image(array)
+        # with self.shm_lock:
+            # array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
+            # array[:] = np.random.randint(0, 256, self.shape, dtype=np.uint8)
+        array = np.random.randint(0, 256, self.shape, dtype=np.uint8)
+        pil_image = PILImage.fromarray(array, mode="RGB")
+        self.image_queue.put(pil_image)
         
         
     def about(self):
