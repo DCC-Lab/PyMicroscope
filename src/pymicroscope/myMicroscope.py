@@ -16,9 +16,9 @@ from queue import Queue, Empty
 from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
-from vmscontroller import VMSController
-from vmsconfigdialog import VMSConfigDialog
-from acquisition.imageprovider import DebugImageProvider
+from pymicroscope.vmscontroller import VMSController
+from pymicroscope.vmsconfigdialog import VMSConfigDialog
+from pymicroscope.acquisition.imageprovider import DebugImageProvider
 
 #from "" import "controller_setter"
     
@@ -68,14 +68,14 @@ class MicroscopeApp(App):
         self.build_setter_interface()
 
     def build_imageview_interface(self):
-        array = np.random.randint(0, 256, self.shape, dtype=np.uint8)
+        array = np.zeros( self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
         self.image = Image(pil_image=pil_image)
         
         self.image.grid_into(self.window, row=0, column=0, rowspan=5, pady=30, padx=20, sticky="nw")
     
     def build_start_stop_interface(self):
-        self.save_controls = Box(label="Save", width=400, height=200)
+        self.save_controls = Box(label="Image Acquisition", width=500, height=150)
         self.save_controls.grid_into(
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
@@ -95,7 +95,7 @@ class MicroscopeApp(App):
         self.window.widget.grid_columnconfigure(0, weight=1)
         self.window.widget.grid_columnconfigure(1, weight=1)
 
-        self.controls = Box(label="Image Creation Controls", width=400, height=100)
+        self.controls = Box(label="Image Creation Controls", width=500, height=100)
 
         self.controls.grid_into(
             self.window, column=1, row=1, pady=10, padx=10, sticky="nse"
@@ -171,8 +171,10 @@ class MicroscopeApp(App):
             return (self.x.value, self.y.value, self.z.value) #to see again
 
     def user_clicked_configure_button(self, event, button):
+        restart_after = False
         if self.provider is not None:
-            self.stop_capturing()
+            self.stop_capture()
+            restart_after = True
         
         diag = VMSConfigDialog(
             vms_controller=self.vms_controller,
@@ -183,8 +185,8 @@ class MicroscopeApp(App):
         reply = diag.run()
         print({id: entry.value for id, entry in diag.entries.items()})
 
-        if self.provider is not None:
-            self.provider.start_capturing()
+        if restart_after:
+            self.start_capture()
 
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
@@ -200,11 +202,19 @@ class MicroscopeApp(App):
             self.start_stop_button.label = "Stop"
         else:
             raise RuntimeError("The capture is already running")
-                
+
+    def empty_image_queue(self):
+        try:
+            while self.image_queue.get(timeout=0.1)  is not None:
+                pass
+        except Empty:
+            pass
+                       
     def stop_capture(self):
-        if self.provider is not None:
+        if self.provider is not None:            
             self.provider.terminate()
             self.provider = None
+            self.empty_image_queue()
             self.start_stop_button.label = "Start"
         else:
             raise RuntimeError("The capture is not running")
@@ -231,9 +241,13 @@ class MicroscopeApp(App):
         webbrowser.open("https://www.dccmlab.ca/")
 
     def quit(self):
-        with suppress(RuntimeError):
+        # self.empty_image_queue()
+
+        try:
             self.stop_capture()
-        self.cleanup()
+            self.cleanup()
+        except Exception as err:
+            print(err)
         super().quit()
         
 
