@@ -5,12 +5,15 @@ import struct
 from serial.tools import list_ports
 import binascii
 import time
+from hardwarelibrary.motion.sutterdevice import *
+
+
 
 # CONTROLLER_SERIAL_PATH = "/dev/cu.USA19QW3d1P1.1"
 #CONTROLLER_SERIAL_PATH = 
+#id_setter = SIDG2TGX
 
-
-class TestReadWrite(unittest.TestCase):
+class SutterDevice(unittest.TestCase):
     #def setUp(self):
     #    self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
     #    self.port.reset_input_buffer()
@@ -21,13 +24,13 @@ class TestReadWrite(unittest.TestCase):
     #        self.port.close()
 
     #@unittest.SkipTest
-    def test003_list_ports(self):
+    def test000_list_ports(self):
         ports_list = serial.tools.list_ports.comports()
         self.assertIsNotNone(ports_list)
         print(ports_list)
 
-        for port_info in ports_list:
-            print(f"Device:{port_info.device} vid:{port_info.vid} pid:{port_info.pid}")
+        for port, desc, hwid in ports_list:
+            print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
 
         self.assertTrue(len(ports_list) > 0)
 
