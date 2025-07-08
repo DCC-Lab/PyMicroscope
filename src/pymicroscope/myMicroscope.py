@@ -7,7 +7,7 @@ import time
 import gc
 from collections import deque
 import signal
-import atexit
+from contextlib import suppress
 
 import numpy as np
 import scipy
@@ -16,45 +16,19 @@ from queue import Queue, Empty
 from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
-#from pymicroscope.acquisition.imageprovider import (
-#    RemoteImageProvider,)
-#from utils.pyroprocess import (
-#    PyroProcess,)
 from vmscontroller import VMSController
 from vmsconfigdialog import VMSConfigDialog
-#from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from acquisition.imageprovider import DebugImageProvider
 
 #from "" import "controller_setter"
-
-class ImageSharedMemory(Image):
-    def __init__(self, lock, name, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lock = lock
-        self.name = name
-        self.shm = shared_memory.SharedMemory(name=self.name)
-        self.shape = (480, 640,3)
-            
-    def update_display(self, image_to_display=None):
-        with self.lock:
-            self.array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
-            pil_image = PILImage.fromarray(self.array, mode="RGB")
-            super().update_display(pil_image)
-        self.widget.update_idletasks()
     
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # self.shm_name = "image-shared-memory"
-        # self.shm = shared_memory.SharedMemory(
-        #     create=True, size=10_000_000, name=self.shm_name
-        # )
-        # self.shm_lock = RLock()
-        self.shape = (480, 640, 3)
-        
         self.image_queue = Queue()
-        self.provider_type = DebugImageProvider
+
+        self.shape = (480, 640, 3)
         self.provider = None
         
         self.vms_controller = VMSController()
@@ -73,34 +47,16 @@ class MicroscopeApp(App):
             print(f"Signal {signum} received")
             self.quit()  # or your full shutdown logic
 
-        # self.window.widget.protocol("WM_DELETE_WINDOW", self.quit)    # for close button
-        # self.window.widget.createcommand("exit", self.quit)           # for ⌘+Q / Apple menu
-        # self.root.createcommand("exit", self.quit)           # for ⌘+Q / Apple menu
-
         for s in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT, signal.SIGQUIT]:
             signal.signal(s, handle_sigterm)
 
-        # atexit.register(self.cleanup)
-
-        # Define the Tcl callback for the macOS quit event
-        def on_mac_quit():
-            # This is called when the user clicks "Quit" from the Apple menu or presses ⌘+Q
-            self.quit()
-
         try:
-            self.root.createcommand("tk::mac::Quit", on_mac_quit)
+            # This is called when the user clicks "Quit" from the Apple menu or presses ⌘+Q
+            self.root.createcommand("tk::mac::Quit", self.quit)
         except TclError:
             pass  # Not on macOS or already defined
 
-        self.root.bind("<<NewImage>>", self.handle_new_image)
-
     def cleanup(self):
-        # print("Cleaning up shared memory...")
-        # self.image.shm.close()
-        # try:
-        #     self.shm.unlink()
-        # except FileNotFoundError as err:
-        #     pass
         pass            
         
     def build_interface(self):
@@ -112,10 +68,10 @@ class MicroscopeApp(App):
         self.build_setter_interface()
 
     def build_imageview_interface(self):
-        # self.image = ImageSharedMemory(lock=self.shm_lock, name=self.shm_name)
         array = np.random.randint(0, 256, self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
         self.image = Image(pil_image=pil_image)
+        
         self.image.grid_into(self.window, row=0, column=0, rowspan=5, pady=30, padx=20, sticky="nw")
     
     def build_start_stop_interface(self):
@@ -213,13 +169,10 @@ class MicroscopeApp(App):
             return
         else:
             return (self.x.value, self.y.value, self.z.value) #to see again
-        
-
-
 
     def user_clicked_configure_button(self, event, button):
-        # if self.provider is not None:
-        #     self.stop_capturing()
+        if self.provider is not None:
+            self.stop_capturing()
         
         diag = VMSConfigDialog(
             vms_controller=self.vms_controller,
@@ -230,44 +183,44 @@ class MicroscopeApp(App):
         reply = diag.run()
         print({id: entry.value for id, entry in diag.entries.items()})
 
-        # if self.provider is not None:
-        #     self.provider.start_capturing()
+        if self.provider is not None:
+            self.provider.start_capturing()
 
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
-            self.provider = DebugImageProvider()
-            self.provider.start_synchronously()
+            self.start_capture()
         else:
-            self.provider.terminate_synchronously()
+            self.stop_capture()
+
+    def start_capture(self):
+        if self.provider is None:
+            self.image_queue = Queue()
+            self.provider = DebugImageProvider(queue=self.image_queue)
+            self.provider.start_synchronously()
+            self.start_stop_button.label = "Stop"
+        else:
+            raise RuntimeError("The capture is already running")
+                
+    def stop_capture(self):
+        if self.provider is not None:
+            self.provider.terminate()
             self.provider = None
-          
-    # def new_image(self, pil_image):
-    #     self.image_queue.put(pil_image)
-    #     self.root.event_generate("<<NewImage>>", when="tail")
-    
-    def handle_new_image(self, event):
-        """Handle the image in the main (GUI) thread."""
+            self.start_stop_button.label = "Start"
+        else:
+            raise RuntimeError("The capture is not running")
+                      
+    def handle_new_image(self):
         try:
             pil_image = self.image_queue.get_nowait()
+            
             self.image.update_display(pil_image)
         except Empty:
             return
 
     def microscope_run_loop(self):
-        self.debug_generate_noise()
-
-        self.handle_new_image(None)
-        self.after(30, self.microscope_run_loop)
-        
-    def debug_generate_noise(self):
-        # with self.shm_lock:
-            # array = np.ndarray(self.shape, dtype=np.uint8, buffer=self.shm.buf)
-            # array[:] = np.random.randint(0, 256, self.shape, dtype=np.uint8)
-        array = np.random.randint(0, 256, self.shape, dtype=np.uint8)
-        pil_image = PILImage.fromarray(array, mode="RGB")
-        self.image_queue.put(pil_image)
-        
-        
+        self.handle_new_image()
+        self.after(10, self.microscope_run_loop)
+                
     def about(self):
         showinfo(
             title="About Microscope",
@@ -278,6 +231,8 @@ class MicroscopeApp(App):
         webbrowser.open("https://www.dccmlab.ca/")
 
     def quit(self):
+        with suppress(RuntimeError):
+            self.stop_capture()
         self.cleanup()
         super().quit()
         
