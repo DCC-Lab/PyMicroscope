@@ -11,10 +11,11 @@ from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 #from pymicroscope.utils.pyroprocess import PyroProcess
 #from pymicroscope.utils.terminable import run_loop
 #from pymicroscope.utils.unifiedprocess import UnifiedProcess
-from utils.pyroprocess import PyroProcess
-from utils.terminable import run_loop
-from utils.unifiedprocess import UnifiedProcess
+from pymicroscope.utils.pyroprocess import PyroProcess
+from pymicroscope.utils.terminable import run_loop, TerminableProcess
+from pymicroscope.utils.unifiedprocess import UnifiedProcess
 
+from PIL import Image as PILImage
 
 class ImageProviderClient:
     """
@@ -67,7 +68,7 @@ class ImageProvider(ABC):
         super().__init__(log_name="imageprovider", *args, **kwargs)
         self.properties: dict[str, Any] = {
             "size": (480, 640),
-            "frame_rate": 10,
+            "frame_rate": 30,
             "channels": 3,
         }
         if properties:
@@ -428,13 +429,13 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         return img
 
 
-class DebugImageProvider(ImageProvider, UnifiedProcess):
+class DebugImageProvider(ImageProvider, TerminableProcess):
     """
     An image provider that generates synthetic 8-bit images for testing.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self, queue, *args, **kwargs):
+        super().__init__(name="DebugImageProvider", *args, **kwargs)
+        self.image_queue = queue
         
     def run(self) -> None:
         """
@@ -447,13 +448,12 @@ class DebugImageProvider(ImageProvider, UnifiedProcess):
 
             while not must_terminate_now:
                 try:
-                    self.handle_remote_call_events()
-
-                    img_tuple = self.capture_packaged_image()
-                    for client in self.clients:
-                        client.new_image_captured(img_tuple)
+                    img_array = self.capture_image()
+                    pil_image = PILImage.fromarray(img_array, mode="RGB")
+                    self.image_queue.put(pil_image)
                 except Exception as err:
                     self.log.error(f"Error in ImageProvider run loop : {err}")
+
             self.stop_capture()
 
     def capture_image(self) -> np.ndarray:
@@ -469,8 +469,7 @@ class DebugImageProvider(ImageProvider, UnifiedProcess):
             >>> img.shape
             (256, 256, 3)
         """
-
-        img = self.generate_random_noise(self.size[0], self.size[1], self.channels)
+        img = self.generate_color_bars(self.size[0], self.size[1])
 
         frame_duration = 1 / self.frame_rate
 
@@ -541,8 +540,9 @@ class DebugImageProvider(ImageProvider, UnifiedProcess):
         img = np.zeros((height, width, 3), dtype=np.uint8)
 
         # Fill bars
+        fractional, integer = math.modf(time.time())
         for i, color in enumerate(colors):
-            img[:, i * bar_width : (i + 1) * bar_width, :] = color
+            img[:, i * bar_width : (i + 1) * bar_width, :] = color*fractional
 
         return img
         
