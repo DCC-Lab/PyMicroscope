@@ -15,9 +15,6 @@ from hardwarelibrary.communication.serialport import SerialPort
 #id_setter = SIDG2TGX
 
 class Sutter(unittest.TestCase):
-    def __init__(self):
-        self.microstepsPerMicrons = 16
-
     #def setUp(self):
     #    self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
     #    self.port.reset_input_buffer()
@@ -42,18 +39,18 @@ class Sutter(unittest.TestCase):
         print(position)
 
         #move to position (5, 23, 6)
-        #move = sutter.moveTo(5, 23, 6)
-        #print(position)
-
-
-
-
-
+        move = sutter.moveTo((5, 23, 6))
+        print(position)
+        print(move)
+        if move == None:
+            print("the value didn't move")
+            
         #for port, desc, hwid in sutter:
         #    print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
 
         #self.assertTrue(len(ports_list) > 0)
     
+
 
 if __name__ == "__main__":
     unittest.main()
