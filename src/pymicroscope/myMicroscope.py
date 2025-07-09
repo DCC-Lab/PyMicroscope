@@ -232,12 +232,13 @@ class MicroscopeApp(App):
         self.after(10, self.microscope_run_loop)
                 
     def about(self):
-        showinfo(
+        Dialog.showinfo(
             title="About Microscope",
             message="An application created with myTk",
         )
 
     def help(self):
+        import webbrowser
         webbrowser.open("https://www.dccmlab.ca/")
 
     def quit(self):
