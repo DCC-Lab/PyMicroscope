@@ -44,8 +44,7 @@ class MicroscopeApp(App):
     
     def app_setup(self):
         def handle_sigterm(signum, frame):
-            print(f"Signal {signum} received")
-            self.quit()  # or your full shutdown logic
+            self.quit()
 
         for s in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT, signal.SIGQUIT]:
             signal.signal(s, handle_sigterm)
@@ -60,7 +59,7 @@ class MicroscopeApp(App):
         pass            
         
     def build_interface(self):
-        self.window.widget.title("Microscope")
+        self.window.widget.title("PyMicroscope")
         
         self.build_start_stop_interface()
         self.build_imageview_interface()
@@ -83,13 +82,14 @@ class MicroscopeApp(App):
 
         self.start_stop_button = Button("Start", user_event_callback=self.user_clicked_startstop)
         self.start_stop_button.grid_into(self.save_controls, row=0, column=0, pady=10, padx=10,)
-        self.save_button = Button("Save …")
-        self.save_button.grid_into(self.save_controls, row=0, column=1, pady=10, padx=10,)
 
-        Label("Images to average: ").grid_into(self.save_controls, row=2, column=0, pady=10, padx=10,)
+        self.save_button = Button("Save …")
+        self.save_button.grid_into(self.save_controls, row=2, column=0, pady=10, padx=10,)
+        Label("Images to average: ").grid_into(self.save_controls, row=2, column=1, pady=10, padx=10,)
 
         self.number_of_images_average = IntEntry(value=30, width=5)
-        self.number_of_images_average.grid_into(self.save_controls, row=2, column=1, pady=10, padx=10,)
+        self.number_of_images_average.grid_into(self.save_controls, row=2, column=2, pady=10, padx=10,)
+
                 
     def build_control_interface(self):
         self.window.widget.grid_columnconfigure(0, weight=1)
@@ -205,7 +205,7 @@ class MicroscopeApp(App):
 
     def empty_image_queue(self):
         try:
-            while self.image_queue.get(timeout=0.1)  is not None:
+            while self.image_queue.get(timeout=0.1) is not None:
                 pass
         except Empty:
             pass
@@ -244,10 +244,12 @@ class MicroscopeApp(App):
         # self.empty_image_queue()
 
         try:
-            self.stop_capture()
-            self.cleanup()
+            if self.provider is not None:
+                self.stop_capture()
         except Exception as err:
-            print(err)
+            pass
+        
+        self.cleanup()
         super().quit()
         
 
