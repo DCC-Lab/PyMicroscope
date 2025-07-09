@@ -5,7 +5,8 @@ import struct
 from serial.tools import list_ports
 import binascii
 import time
-from hardwarelibrary.motion.sutterdevice import *
+from hardwarelibrary.motion import sutterdevice
+from hardwarelibrary.communication.serialport import SerialPort
 
 
 
@@ -13,7 +14,10 @@ from hardwarelibrary.motion.sutterdevice import *
 #CONTROLLER_SERIAL_PATH = 
 #id_setter = SIDG2TGX
 
-class SutterDevice(unittest.TestCase):
+class Sutter(unittest.TestCase):
+    def __init__(self):
+        self.microstepsPerMicrons = 16
+
     #def setUp(self):
     #    self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
     #    self.port.reset_input_buffer()
@@ -25,16 +29,31 @@ class SutterDevice(unittest.TestCase):
 
     #@unittest.SkipTest
     def test000_list_ports(self):
-        ports_list = serial.tools.list_ports.comports()
-        self.assertIsNotNone(ports_list)
-        print(ports_list)
+        sutter = sutterdevice.SutterDevice(serialNumber="debug")
+        self.assertIsNotNone(sutter)
+        #print(sutter.idVendor)
+        sutter.doInitializeDevice()
+        print(sutter)
+        #ports_list = serial.tools.list_ports.comports()
+        #self.assertIsNotNone(ports_list)
+        #print(ports_list)
 
-        for port, desc, hwid in ports_list:
-            print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
+        position = sutter.doGetPosition()
+        print(position)
 
-        self.assertTrue(len(ports_list) > 0)
+        #move to position (5, 23, 6)
+        #move = sutter.moveTo(5, 23, 6)
+        #print(position)
 
 
+
+
+
+        #for port, desc, hwid in sutter:
+        #    print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
+
+        #self.assertTrue(len(ports_list) > 0)
+    
 
 if __name__ == "__main__":
     unittest.main()
