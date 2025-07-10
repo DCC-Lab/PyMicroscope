@@ -19,6 +19,7 @@ from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
+from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from hardwarelibrary.motion import SutterDevice
 
 
@@ -92,11 +93,20 @@ class MicroscopeApp(App):
         self.save_controls = Box(
             label="Image Acquisition", width=500, height=150
         )
+        
         self.save_controls.grid_into(
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.save_controls.widget.grid_propagate(False)
 
+        self.camera_popup = PopupMenu(["Debug","Laptop camera"])
+        self.camera_popup.grid_into(self.save_controls,
+            row=0,
+            column=1,
+            pady=10,
+            padx=10,)
+        self.camera_popup.value_variable.set("Debug")
+        
         self.start_stop_button = Button(
             "Start", user_event_callback=self.user_clicked_startstop
         )
@@ -434,7 +444,10 @@ class MicroscopeApp(App):
     def start_capture(self):
         if self.provider is None:
             self.image_queue = Queue()
-            self.provider = DebugImageProvider(queue=self.image_queue)
+            if self.camera_popup.value_variable.get() == "Debug":
+                self.provider = DebugImageProvider(queue=self.image_queue)
+            else:
+                self.provider = OpenCVImageProvider(queue=self.image_queue)
             self.provider.start_synchronously()
             self.start_stop_button.label = "Stop"
         else:
