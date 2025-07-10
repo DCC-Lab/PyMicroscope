@@ -16,11 +16,11 @@ from queue import Queue, Empty
 from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
-from pymicroscope.vmscontroller import VMSController
-from pymicroscope.vmsconfigdialog import VMSConfigDialog
-from pymicroscope.acquisition.imageprovider import DebugImageProvider
+from vmscontroller import VMSController
+from vmsconfigdialog import VMSConfigDialog
+from acquisition.imageprovider import DebugImageProvider
 
-#from "" import "controller_setter"
+#from "" import "controller_sutter"
     
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -64,7 +64,7 @@ class MicroscopeApp(App):
         self.build_start_stop_interface()
         self.build_imageview_interface()
         self.build_control_interface()
-        self.build_setter_interface()
+        self.build_sutter_interface()
 
     def build_imageview_interface(self):
         array = np.zeros( self.shape, dtype=np.uint8)
@@ -109,61 +109,57 @@ class MicroscopeApp(App):
         self.scan_settings = Button("Configure …", user_event_callback=self.user_clicked_configure_button)
         self.scan_settings.grid_into(self.controls, row=0, column=1, pady=10, padx=10,sticky="w")
 
-    def build_setter_interface(self):
-        self.setter = Box(label="Setter", width=500, height=200)
-        self.setter.grid_into(
+    def build_sutter_interface(self):
+        self.sutter = Box(label="Sutter", width=500, height=200)
+        self.sutter.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
-        self.setter.widget.grid_propagate(False)
+        self.sutter.widget.grid_propagate(False)
 
-        Label("Setter position").grid_into(self.setter, row=0, column=0, columnspan=2, pady=8, padx=10,sticky="w")
-        Label("x :").grid_into(self.setter, row=1, column=0, pady=2, padx=1,sticky="e")
-        Label(0).grid_into(self.setter, row=1, column=1, pady=2, padx=2,sticky="w")
-        Label("y :").grid_into(self.setter, row=1, column=2, pady=2, padx=2,sticky="e")
-        Label(0).grid_into(self.setter, row=1, column=3, pady=2, padx=2,sticky="w")
-        Label("z :").grid_into(self.setter, row=1, column=4, pady=2, padx=2,sticky="e")
-        Label(0).grid_into(self.setter, row=1, column=5, pady=2, padx=2,sticky="w")
+        Label("sutter position").grid_into(self.sutter, row=0, column=0, columnspan=2, pady=8, padx=10,sticky="w")
+        Label("x :").grid_into(self.sutter, row=1, column=0, pady=2, padx=1,sticky="e")
+        Label(0).grid_into(self.sutter, row=1, column=1, pady=2, padx=2,sticky="w")
+        Label("y :").grid_into(self.sutter, row=1, column=2, pady=2, padx=2,sticky="e")
+        Label(0).grid_into(self.sutter, row=1, column=3, pady=2, padx=2,sticky="w")
+        Label("z :").grid_into(self.sutter, row=1, column=4, pady=2, padx=2,sticky="e")
+        Label(0).grid_into(self.sutter, row=1, column=5, pady=2, padx=2,sticky="w")
         
-        Label("Initial configuration").grid_into(self.setter, row=2, column=0, columnspan=2, pady=10, padx=10,sticky="w")
-        Label("Upper left corner").grid_into(self.setter, row=3, column=0, columnspan=2, pady=10, padx=10,sticky="w")
+        Label("Initial configuration").grid_into(self.sutter, row=2, column=0, columnspan=2, pady=10, padx=10,sticky="w")
         self.apply_upper_left_button = Button(
-            "Apply", user_event_callback=None
+        "Upper left corner", user_event_callback=None
         ) # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
-            self.setter, row=3, column=2, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter, row=3, column=0, columnspan=2, pady=2, padx=2, sticky="e"
         )
 
-        Label("Upper right corner").grid_into(self.setter, row=3, column=4, columnspan=2, pady=10, padx=10,sticky="w")
         self.apply_upper_right_button = Button(
-            "Apply", user_event_callback=None
+        "Upper right corner", user_event_callback=None
         ) # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
-            self.setter, row=3, column=6, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter, row=3, column=4, columnspan=2, pady=2, padx=2, sticky="e"
         )
         '''
-        self.apply_upper_right_button.is_enabled = self.controller_setter.is_accessible #we don't konw now
+        self.apply_upper_right_button.is_enabled = self.controller_sutter.is_accessible #we don't konw now
         '''
-        Label("Lower right corner").grid_into(self.setter, row=4, column=4, columnspan=2, pady=10, padx=10,sticky="w")
         self.apply_lower_right_button = Button(
-            "Apply", user_event_callback=None
+        "Lower right corner", user_event_callback=None
         ) # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
-            self.setter, row=4, column=6, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter, row=4, column=4, columnspan=2, pady=2, padx=2, sticky="e"
         )
 
-        Label("Lower left corner").grid_into(self.setter, row=4, column=0, columnspan=2, pady=10, padx=10,sticky="w")
         self.apply_lower_left_button = Button(
-            "Apply", user_event_callback=None
+        "Lower left corner", user_event_callback=None
         ) # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_left_button.grid_into(
-            self.setter, row=4, column=2, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter, row=4, column=0, columnspan=2, pady=2, padx=2, sticky="e"
         )
     
     #review the code before continue this section, we don't have that much information
-    def button_introducing_position_setter(self, even, button):
-        if not self.controller_setter.is_accessible: #we don't konw now
+    def button_introducing_position_sutter(self, even, button):
+        if not self.controller_sutter.is_accessible: #we don't konw now
             Dialog.showerror(
-                title="Setter controller is not connected or found",
+                title="sutter controller is not connected or found",
                 message="Check that the controller is connected to the computer",
             )
             return

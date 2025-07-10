@@ -35,15 +35,17 @@ class Sutter(unittest.TestCase):
         #self.assertIsNotNone(ports_list)
         #print(ports_list)
 
-        position = sutter.doGetPosition()
+        position = sutter.position()
         print(position)
 
         #move to position (5, 23, 6)
-        move = sutter.moveTo((5, 23, 6))
-        print(position)
-        print(move)
-        if move == None:
-            print("the value didn't move")
+        sutter.moveTo((5, 23, 6))
+        #newposition_in_mycroscope = sutter.positionInMicrosteps()
+        #print(newposition_in_mycroscope)
+        last_position = sutter.position()
+        print(last_position)
+
+
             
         #for port, desc, hwid in sutter:
         #    print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
