@@ -31,6 +31,7 @@ class MicroscopeApp(App):
 
         self.shape = (480, 640, 3)
         self.provider = None
+        self.cameras = {"Debug":"DebugImageProvider"}
 
         self.vms_controller = VMSController()
         try:
@@ -69,6 +70,7 @@ class MicroscopeApp(App):
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
 
+        self.build_cameras_menu()
         self.build_start_stop_interface()
         self.build_imageview_interface()
         self.build_control_interface()
@@ -89,6 +91,11 @@ class MicroscopeApp(App):
             sticky="nw",
         )
 
+
+    def build_cameras_menu(self):
+        if len(OpenCVImageProvider.available_devices()) > 0:
+            self.cameras["Laptop camera"] = "OpenCVImageProvider"
+        
     def build_start_stop_interface(self):
         self.save_controls = Box(
             label="Image Acquisition", width=500, height=150
@@ -99,7 +106,6 @@ class MicroscopeApp(App):
         )
         self.save_controls.widget.grid_propagate(False)
 
-        self.cameras = {"Debug":"DebugImageProvider", "Laptop camera":"OpenCVImageProvider"}
         
         self.camera_popup = PopupMenu(list(self.cameras.keys()))
         self.camera_popup.grid_into(self.save_controls,
