@@ -20,7 +20,8 @@ from vmscontroller import VMSController
 from vmsconfigdialog import VMSConfigDialog
 from acquisition.imageprovider import DebugImageProvider
 from hardwarelibrary.motion import SutterDevice
-    
+
+
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,24 +30,25 @@ class MicroscopeApp(App):
 
         self.shape = (480, 640, 3)
         self.provider = None
-        
+
         self.vms_controller = VMSController()
         try:
             self.vms_controller.initialize()
         except Exception as err:
-            pass # vms_controller.is_accessible == False
+            pass  # vms_controller.is_accessible == False
 
         self.sutter_device = SutterDevice()
         try:
             self.sutter_device.doInitializeDevice()
         except Exception as err:
-            pass # sutter_device.is_accessible == False
+            pass  # sutter_device.is_accessible == False
+        self.can_start_map = False
 
         self.app_setup()
         self.build_interface()
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
-    
+
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
@@ -61,46 +63,83 @@ class MicroscopeApp(App):
             pass  # Not on macOS or already defined
 
     def cleanup(self):
-        pass            
-        
+        pass
+
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
-        
+
         self.build_start_stop_interface()
         self.build_imageview_interface()
         self.build_control_interface()
         self.build_sutter_interface()
 
     def build_imageview_interface(self):
-        array = np.zeros( self.shape, dtype=np.uint8)
+        array = np.zeros(self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
         self.image = Image(pil_image=pil_image)
-        
-        self.image.grid_into(self.window, row=0, column=0, rowspan=5, pady=30, padx=20, sticky="nw")
-    
+
+        self.image.grid_into(
+            self.window,
+            row=0,
+            column=0,
+            rowspan=5,
+            pady=30,
+            padx=20,
+            sticky="nw",
+        )
+
     def build_start_stop_interface(self):
-        self.save_controls = Box(label="Image Acquisition", width=500, height=150)
+        self.save_controls = Box(
+            label="Image Acquisition", width=500, height=150
+        )
         self.save_controls.grid_into(
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.save_controls.widget.grid_propagate(False)
 
-        self.start_stop_button = Button("Start", user_event_callback=self.user_clicked_startstop)
-        self.start_stop_button.grid_into(self.save_controls, row=0, column=0, pady=10, padx=10,)
+        self.start_stop_button = Button(
+            "Start", user_event_callback=self.user_clicked_startstop
+        )
+        self.start_stop_button.grid_into(
+            self.save_controls,
+            row=0,
+            column=0,
+            pady=10,
+            padx=10,
+        )
 
         self.save_button = Button("Save …")
-        self.save_button.grid_into(self.save_controls, row=2, column=0, pady=10, padx=10,)
-        Label("Images to average: ").grid_into(self.save_controls, row=2, column=1, pady=10, padx=10,)
+        self.save_button.grid_into(
+            self.save_controls,
+            row=2,
+            column=0,
+            pady=10,
+            padx=10,
+        )
+        Label("Images to average: ").grid_into(
+            self.save_controls,
+            row=2,
+            column=1,
+            pady=10,
+            padx=10,
+        )
 
         self.number_of_images_average = IntEntry(value=30, width=5)
-        self.number_of_images_average.grid_into(self.save_controls, row=2, column=2, pady=10, padx=10,)
+        self.number_of_images_average.grid_into(
+            self.save_controls,
+            row=2,
+            column=2,
+            pady=10,
+            padx=10,
+        )
 
-                
     def build_control_interface(self):
         self.window.widget.grid_columnconfigure(0, weight=1)
         self.window.widget.grid_columnconfigure(1, weight=1)
 
-        self.controls = Box(label="Image Creation Controls", width=500, height=100)
+        self.controls = Box(
+            label="Image Creation Controls", width=500, height=100
+        )
 
         self.controls.grid_into(
             self.window, column=1, row=1, pady=10, padx=10, sticky="nse"
@@ -110,9 +149,16 @@ class MicroscopeApp(App):
         self.controls.widget.grid_rowconfigure(0, weight=1)
         self.controls.widget.grid_rowconfigure(1, weight=1)
 
-        Label("Scan configuration").grid_into(self.controls, row=0, column=0, pady=10, padx=10,sticky="e")
-        self.scan_settings = Button("Configure …", user_event_callback=self.user_clicked_configure_button)
-        self.scan_settings.grid_into(self.controls, row=0, column=1, pady=10, padx=10,sticky="w")
+        Label("Scan configuration").grid_into(
+            self.controls, row=0, column=0, pady=10, padx=10, sticky="e"
+        )
+        self.scan_settings = Button(
+            "Configure …",
+            user_event_callback=self.user_clicked_configure_button,
+        )
+        self.scan_settings.grid_into(
+            self.controls, row=0, column=1, pady=10, padx=10, sticky="w"
+        )
 
     def build_sutter_interface(self):
         self.sutter = Box(label="Sutter", width=500, height=200)
@@ -121,7 +167,7 @@ class MicroscopeApp(App):
         )
         self.sutter.widget.grid_propagate(False)
 
-        if not self.sutter_device.doInitializeDevice: #we don't konw now
+        if not self.sutter_device.doInitializeDevice:  # we don't konw now
             Dialog.showerror(
                 title="sutter controller is not connected or found",
                 message="Check that the controller is connected to the computer",
@@ -136,57 +182,139 @@ class MicroscopeApp(App):
             initial_y_value = 0
             initial_z_value = 0
 
-        self.parameters = {"Upper left corner": None, "Upper right corner": None, "Lower left corner": None, "Lower right corner": None}
+        self.parameters = {
+            "Upper left corner": None,
+            "Upper right corner": None,
+            "Lower left corner": None,
+            "Lower right corner": None,
+        }
 
-        Label("sutter position").grid_into(self.sutter, row=0, column=0, columnspan=2, pady=8, padx=10,sticky="w")
-        Label("x :").grid_into(self.sutter, row=1, column=0, pady=2, padx=1,sticky="e")
-        Label(initial_x_value).grid_into(self.sutter, row=1, column=1, pady=2, padx=2,sticky="w")
-        Label("y :").grid_into(self.sutter, row=1, column=2, pady=2, padx=2,sticky="e")
-        Label(initial_y_value).grid_into(self.sutter, row=1, column=3, pady=2, padx=2,sticky="w")
-        Label("z :").grid_into(self.sutter, row=1, column=4, pady=2, padx=2,sticky="e")
-        Label(initial_z_value).grid_into(self.sutter, row=1, column=5, pady=2, padx=2,sticky="w")
-        
-        Label("Initial configuration").grid_into(self.sutter, row=2, column=0, columnspan=2, pady=10, padx=10,sticky="w")
+        Label("sutter position").grid_into(
+            self.sutter,
+            row=0,
+            column=0,
+            columnspan=2,
+            pady=8,
+            padx=10,
+            sticky="w",
+        )
+        Label("x :").grid_into(
+            self.sutter, row=1, column=0, pady=2, padx=1, sticky="e"
+        )
+        Label(initial_x_value).grid_into(
+            self.sutter, row=1, column=1, pady=2, padx=2, sticky="w"
+        )
+        Label("y :").grid_into(
+            self.sutter, row=1, column=2, pady=2, padx=2, sticky="e"
+        )
+        Label(initial_y_value).grid_into(
+            self.sutter, row=1, column=3, pady=2, padx=2, sticky="w"
+        )
+        Label("z :").grid_into(
+            self.sutter, row=1, column=4, pady=2, padx=2, sticky="e"
+        )
+        Label(initial_z_value).grid_into(
+            self.sutter, row=1, column=5, pady=2, padx=2, sticky="w"
+        )
+
+        Label("Initial configuration").grid_into(
+            self.sutter,
+            row=2,
+            column=0,
+            columnspan=2,
+            pady=10,
+            padx=10,
+            sticky="w",
+        )
         self.apply_upper_left_button = Button(
-        "Upper left corner", user_event_callback=None
-        ) # want that when the button is push, the first value is memorised and we see the position at the button place
+            "Upper left corner",
+            user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
-            self.sutter, row=3, column=0, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter,
+            row=3,
+            column=0,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="e",
         )
 
         self.apply_upper_right_button = Button(
-        "Upper right corner", user_event_callback=None
-        ) # want that when the button is push, the first value is memorised and we see the position at the button place
+            "Upper right corner",
+            user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
-            self.sutter, row=3, column=4, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter,
+            row=3,
+            column=4,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="e",
         )
 
         self.apply_lower_right_button = Button(
-        "Lower right corner", user_event_callback=None
-        ) # want that when the button is push, the first value is memorised and we see the position at the button place
+            "Lower right corner",
+            user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
-            self.sutter, row=4, column=4, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter,
+            row=4,
+            column=4,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="e",
         )
 
         self.apply_lower_left_button = Button(
-        "Lower left corner", user_event_callback=None
-        ) # want that when the button is push, the first value is memorised and we see the position at the button place
+            "Lower left corner",
+            user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_left_button.grid_into(
-            self.sutter, row=4, column=0, columnspan=2, pady=2, padx=2, sticky="e"
+            self.sutter,
+            row=4,
+            column=0,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="e",
         )
 
         self.start_map_aquisition = Button(
-        "Start Map", user_event_callback=None
-        ) # want that when the button is push, the first value is memorised and we see the position at the button place
-        self.apply_lower_left_button.grid_into(
-            self.sutter, row=5, column=0, columnspan=2, pady=2, padx=2, sticky="e"
+            "Start Map", user_event_callback=None
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        self.start_map_aquisition.grid_into(
+            self.sutter,
+            row=4,
+            column=7,
+            columnspan=1,
+            pady=2,
+            padx=2,
+            sticky="e",
         )
-        #self.start_map_aquisition.is_enabled = 
-    
-    def button_saving_position(self, even, button):
-        position = self.sutter_device.doGetPosition()
-        self.parameters[button] = position
-    
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_enabled"
+        )
+
+    def user_clicked_saving_position(self, even, button):
+        if button.label == "Clear":
+            for p in self.parameters:
+                self.parameters[p] = None
+
+        else:
+            position = (0, 0, 0)
+            try:
+                position = self.sutter_device.doGetPosition()
+            except Exception as err:
+                pass
+
+        self.parameters[button.label] = position
+        self.start_map_aquisition.is_enabled = all(
+            x is not None for x in self.parameters.values()
+        )
+
     def ajuste_map_imaging(self):
         parameters = self.parameters
         if len(parameters[object is not None] == 4):
@@ -195,51 +323,80 @@ class MicroscopeApp(App):
             lower_left_corner = parameters["Lower left corner"]
             lower_right_corner = parameters["Lower right corner"]
 
-            #ajuste image for making a square
+            # ajuste image for making a square
             if upper_left_corner[1] > upper_right_corner[1]:
-                ajusted_position = (upper_left_corner[0], upper_right_corner[1], upper_left_corner[2])
+                ajusted_position = (
+                    upper_left_corner[0],
+                    upper_right_corner[1],
+                    upper_left_corner[2],
+                )
                 parameters["Upper left corner"] = ajusted_position
 
             if upper_left_corner[1] < upper_right_corner[1]:
-                ajusted_position = (upper_right_corner[0], upper_left_corner[1], upper_right_corner[2])
+                ajusted_position = (
+                    upper_right_corner[0],
+                    upper_left_corner[1],
+                    upper_right_corner[2],
+                )
                 parameters["Upper right corner"] = ajusted_position
 
             if upper_right_corner[0] > lower_right_corner[0]:
-                ajusted_position = (lower_right_corner[0], upper_right_corner[1], upper_right_corner[2])
+                ajusted_position = (
+                    lower_right_corner[0],
+                    upper_right_corner[1],
+                    upper_right_corner[2],
+                )
                 parameters["Upper right corner"] = ajusted_position
 
             if upper_right_corner[0] < lower_right_corner[0]:
-                ajusted_position = (upper_right_corner[0], lower_right_corner[1], lower_right_corner[2])
+                ajusted_position = (
+                    upper_right_corner[0],
+                    lower_right_corner[1],
+                    lower_right_corner[2],
+                )
                 parameters["Lower right corner"] = ajusted_position
 
             if lower_left_corner[1] > lower_right_corner[1]:
-                ajusted_position = (lower_left_corner[0], lower_right_corner[1], lower_left_corner[2])
+                ajusted_position = (
+                    lower_left_corner[0],
+                    lower_right_corner[1],
+                    lower_left_corner[2],
+                )
                 parameters["Lower left corner"] = ajusted_position
 
             if lower_left_corner[1] < lower_right_corner[1]:
-                ajusted_position = (lower_right_corner[0], lower_left_corner[1], lower_right_corner[2])
+                ajusted_position = (
+                    lower_right_corner[0],
+                    lower_left_corner[1],
+                    lower_right_corner[2],
+                )
                 parameters["Lower right corner"] = ajusted_position
 
             if upper_left_corner[0] > lower_left_corner[0]:
-                ajusted_position = (upper_left_corner[0], lower_left_corner[1], lower_left_corner[2])
+                ajusted_position = (
+                    upper_left_corner[0],
+                    lower_left_corner[1],
+                    lower_left_corner[2],
+                )
                 parameters["Lower left corner"] = ajusted_position
 
             if upper_left_corner[0] < lower_left_corner[0]:
-                ajusted_position = (lower_left_corner[0], upper_left_corner[1], upper_left_corner[2])
+                ajusted_position = (
+                    lower_left_corner[0],
+                    upper_left_corner[1],
+                    upper_left_corner[2],
+                )
                 parameters["Upper left corner"] = ajusted_position
-
-
 
         else:
             raise ValueError("Some initial parameters are missing")
-        
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
         if self.provider is not None:
             self.stop_capture()
             restart_after = True
-        
+
         diag = VMSConfigDialog(
             vms_controller=self.vms_controller,
             title="Test Window",
@@ -273,16 +430,16 @@ class MicroscopeApp(App):
                 pass
         except Empty:
             pass
-                       
+
     def stop_capture(self):
-        if self.provider is not None:            
+        if self.provider is not None:
             self.provider.terminate()
             self.provider = None
             self.empty_image_queue()
             self.start_stop_button.label = "Start"
         else:
             raise RuntimeError("The capture is not running")
-                      
+
     def handle_new_image(self):
         try:
             img_array = self.image_queue.get_nowait()
@@ -294,7 +451,7 @@ class MicroscopeApp(App):
     def microscope_run_loop(self):
         self.handle_new_image()
         self.after(20, self.microscope_run_loop)
-                
+
     def about(self):
         Dialog.showinfo(
             title="About Microscope",
@@ -303,6 +460,7 @@ class MicroscopeApp(App):
 
     def help(self):
         import webbrowser
+
         webbrowser.open("https://www.dccmlab.ca/")
 
     def quit(self):
@@ -313,10 +471,10 @@ class MicroscopeApp(App):
                 self.stop_capture()
         except Exception as err:
             pass
-        
+
         self.cleanup()
         super().quit()
-        
+
 
 if __name__ == "__main__":
     app = MicroscopeApp()
