@@ -136,6 +136,8 @@ class MicroscopeApp(App):
             initial_y_value = 0
             initial_z_value = 0
 
+        self.parameters = {"Upper left corner": None, "Upper right corner": None, "Lower left corner": None, "Lower right corner": None}
+
         Label("sutter position").grid_into(self.sutter, row=0, column=0, columnspan=2, pady=8, padx=10,sticky="w")
         Label("x :").grid_into(self.sutter, row=1, column=0, pady=2, padx=1,sticky="e")
         Label(initial_x_value).grid_into(self.sutter, row=1, column=1, pady=2, padx=2,sticky="w")
@@ -172,20 +174,62 @@ class MicroscopeApp(App):
         self.apply_lower_left_button.grid_into(
             self.sutter, row=4, column=0, columnspan=2, pady=2, padx=2, sticky="e"
         )
+
+        self.start_map_aquisition = Button(
+        "Start Map", user_event_callback=None
+        ) # want that when the button is push, the first value is memorised and we see the position at the button place
+        self.apply_lower_left_button.grid_into(
+            self.sutter, row=5, column=0, columnspan=2, pady=2, padx=2, sticky="e"
+        )
+        #self.start_map_aquisition.is_enabled = 
     
     def button_saving_position(self, even, button):
         position = self.sutter_device.doGetPosition()
-        parameter = {}
-        parameter[button] = position
-        return parameter
+        self.parameters[button] = position
     
     def ajuste_map_imaging(self):
-        parameters = self.button_saving_position
-        if len(parameters == 4):
+        parameters = self.parameters
+        if len(parameters[object is not None] == 4):
             upper_left_corner = parameters["Upper left corner"]
             upper_right_corner = parameters["Upper right corner"]
             lower_left_corner = parameters["Lower left corner"]
             lower_right_corner = parameters["Lower right corner"]
+
+            #ajuste image for making a square
+            if upper_left_corner[1] > upper_right_corner[1]:
+                ajusted_position = (upper_left_corner[0], upper_right_corner[1], upper_left_corner[2])
+                parameters["Upper left corner"] = ajusted_position
+
+            if upper_left_corner[1] < upper_right_corner[1]:
+                ajusted_position = (upper_right_corner[0], upper_left_corner[1], upper_right_corner[2])
+                parameters["Upper right corner"] = ajusted_position
+
+            if upper_right_corner[0] > lower_right_corner[0]:
+                ajusted_position = (lower_right_corner[0], upper_right_corner[1], upper_right_corner[2])
+                parameters["Upper right corner"] = ajusted_position
+
+            if upper_right_corner[0] < lower_right_corner[0]:
+                ajusted_position = (upper_right_corner[0], lower_right_corner[1], lower_right_corner[2])
+                parameters["Lower right corner"] = ajusted_position
+
+            if lower_left_corner[1] > lower_right_corner[1]:
+                ajusted_position = (lower_left_corner[0], lower_right_corner[1], lower_left_corner[2])
+                parameters["Lower left corner"] = ajusted_position
+
+            if lower_left_corner[1] < lower_right_corner[1]:
+                ajusted_position = (lower_right_corner[0], lower_left_corner[1], lower_right_corner[2])
+                parameters["Lower right corner"] = ajusted_position
+
+            if upper_left_corner[0] > lower_left_corner[0]:
+                ajusted_position = (upper_left_corner[0], lower_left_corner[1], lower_left_corner[2])
+                parameters["Lower left corner"] = ajusted_position
+
+            if upper_left_corner[0] < lower_left_corner[0]:
+                ajusted_position = (lower_left_corner[0], upper_left_corner[1], upper_left_corner[2])
+                parameters["Upper left corner"] = ajusted_position
+
+
+
         else:
             raise ValueError("Some initial parameters are missing")
         
