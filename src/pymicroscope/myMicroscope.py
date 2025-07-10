@@ -8,7 +8,7 @@ import gc
 from collections import deque
 import signal
 from contextlib import suppress
-
+from typing import Tuple, Optional
 import numpy as np
 import scipy
 import threading as Th
@@ -182,7 +182,7 @@ class MicroscopeApp(App):
             initial_y_value = 0
             initial_z_value = 0
 
-        self.parameters = {
+        self.parameters : dict[str, Optional[Tuple[int,int,int]]] = {
             "Upper left corner": None,
             "Upper right corner": None,
             "Lower left corner": None,
