@@ -99,13 +99,15 @@ class MicroscopeApp(App):
         )
         self.save_controls.widget.grid_propagate(False)
 
-        self.camera_popup = PopupMenu(["Debug","Laptop camera"])
+        self.cameras = {"Debug":"DebugImageProvider", "Laptop camera":"OpenCVImageProvider"}
+        
+        self.camera_popup = PopupMenu(list(self.cameras.keys()))
         self.camera_popup.grid_into(self.save_controls,
             row=0,
             column=1,
             pady=10,
             padx=10,)
-        self.camera_popup.value_variable.set("Debug")
+        self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
         
         self.start_stop_button = Button(
             "Start", user_event_callback=self.user_clicked_startstop

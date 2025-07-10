@@ -244,7 +244,7 @@ if __name__ == "__main__":
     #     log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
     # )
     provider = DebugImageProvider(
-        log_level=logging.DEBUG
+        log_level=logging.DEBUG, queue=Queue()
     )
     provider.start_synchronously()
     provider.join()
