@@ -285,15 +285,15 @@ class MicroscopeApp(App):
                       
     def handle_new_image(self):
         try:
-            pil_image = self.image_queue.get_nowait()
-            
+            img_array = self.image_queue.get_nowait()
+            pil_image = PILImage.fromarray(img_array, mode="RGB")
             self.image.update_display(pil_image)
         except Empty:
             return
 
     def microscope_run_loop(self):
         self.handle_new_image()
-        self.after(10, self.microscope_run_loop)
+        self.after(20, self.microscope_run_loop)
                 
     def about(self):
         Dialog.showinfo(
