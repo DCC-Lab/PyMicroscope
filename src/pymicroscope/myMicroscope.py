@@ -287,16 +287,33 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
+            row=3,
+            column=7,
+            columnspan=1,
+            pady=2,
+            padx=2,
+            sticky="w",
+        )
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_enabled"
+        )
+
+        self.clear_map_aquisition = Button(
+            "Clear", user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        self.clear_map_aquisition.grid_into(
+            self.sutter,
             row=4,
             column=7,
             columnspan=1,
             pady=2,
             padx=2,
-            sticky="e",
+            sticky="w",
         )
         self.bind_properties(
-            "can_start_map", self.start_map_aquisition, "is_enabled"
+            "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
+
 
     def user_clicked_saving_position(self, even, button):
         if button.label == "Clear":
@@ -310,18 +327,17 @@ class MicroscopeApp(App):
             except Exception as err:
                 pass
 
-        self.parameters[button.label] = position
-        self.start_map_aquisition.is_enabled = all(
-            x is not None for x in self.parameters.values()
-        )
+            self.parameters[button.label] = position
+            self.start_map_aquisition.is_enabled = all(
+                x is not None for x in self.parameters.values()
+            )
 
     def ajuste_map_imaging(self):
-        parameters = self.parameters
-        if len(parameters[object is not None] == 4):
-            upper_left_corner = parameters["Upper left corner"]
-            upper_right_corner = parameters["Upper right corner"]
-            lower_left_corner = parameters["Lower left corner"]
-            lower_right_corner = parameters["Lower right corner"]
+        if all(x is not None for x in self.parameters.values()):
+            upper_left_corner = self.parameters["Upper left corner"]
+            upper_right_corner = self.parameters["Upper right corner"]
+            lower_left_corner = self.parameters["Lower left corner"]
+            lower_right_corner = self.parameters["Lower right corner"]
 
             # ajuste image for making a square
             if upper_left_corner[1] > upper_right_corner[1]:
@@ -330,15 +346,15 @@ class MicroscopeApp(App):
                     upper_right_corner[1],
                     upper_left_corner[2],
                 )
-                parameters["Upper left corner"] = ajusted_position
+                self.parameters["Upper left corner"] = ajusted_position
 
             if upper_left_corner[1] < upper_right_corner[1]:
                 ajusted_position = (
                     upper_right_corner[0],
-                    upper_left_corner[1],
+                    upper_left_corner[1],                        
                     upper_right_corner[2],
                 )
-                parameters["Upper right corner"] = ajusted_position
+                self.parameters["Upper right corner"] = ajusted_position
 
             if upper_right_corner[0] > lower_right_corner[0]:
                 ajusted_position = (
@@ -346,47 +362,47 @@ class MicroscopeApp(App):
                     upper_right_corner[1],
                     upper_right_corner[2],
                 )
-                parameters["Upper right corner"] = ajusted_position
+                self.parameters["Upper right corner"] = ajusted_position
 
             if upper_right_corner[0] < lower_right_corner[0]:
                 ajusted_position = (
                     upper_right_corner[0],
-                    lower_right_corner[1],
+                    lower_right_corner[1],                        
                     lower_right_corner[2],
                 )
-                parameters["Lower right corner"] = ajusted_position
+                self.parameters["Lower right corner"] = ajusted_position
 
             if lower_left_corner[1] > lower_right_corner[1]:
                 ajusted_position = (
                     lower_left_corner[0],
-                    lower_right_corner[1],
+                    lower_right_corner[1],                        
                     lower_left_corner[2],
                 )
-                parameters["Lower left corner"] = ajusted_position
+                self.parameters["Lower left corner"] = ajusted_position
 
             if lower_left_corner[1] < lower_right_corner[1]:
                 ajusted_position = (
                     lower_right_corner[0],
-                    lower_left_corner[1],
+                    lower_left_corner[1],                        
                     lower_right_corner[2],
                 )
-                parameters["Lower right corner"] = ajusted_position
+                self.parameters["Lower right corner"] = ajusted_position
 
             if upper_left_corner[0] > lower_left_corner[0]:
                 ajusted_position = (
                     upper_left_corner[0],
-                    lower_left_corner[1],
+                    lower_left_corner[1],                        
                     lower_left_corner[2],
                 )
-                parameters["Lower left corner"] = ajusted_position
+                self.parameters["Lower left corner"] = ajusted_position
 
             if upper_left_corner[0] < lower_left_corner[0]:
                 ajusted_position = (
                     lower_left_corner[0],
-                    upper_left_corner[1],
+                    upper_left_corner[1],                        
                     upper_left_corner[2],
                 )
-                parameters["Upper left corner"] = ajusted_position
+                self.parameters["Upper left corner"] = ajusted_position
 
         else:
             raise ValueError("Some initial parameters are missing")
