@@ -72,7 +72,7 @@ import psutil
 
 
 #from pymicroscope.utils import LoggableProcess
-from utils import LoggableProcess
+from pymicroscope.utils import LoggableProcess
 
 
 def deprecated(reason: str = ""):

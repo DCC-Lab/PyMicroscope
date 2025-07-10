@@ -8,12 +8,9 @@ import base64
 
 from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
-#from pymicroscope.utils.pyroprocess import PyroProcess
-#from pymicroscope.utils.terminable import run_loop
-#from pymicroscope.utils.unifiedprocess import UnifiedProcess
-from utils.pyroprocess import PyroProcess
-from utils.terminable import run_loop, TerminableProcess
-from utils.unifiedprocess import UnifiedProcess
+from pymicroscope.utils.pyroprocess import PyroProcess
+from pymicroscope.utils.terminable import run_loop, TerminableProcess
+from pymicroscope.utils.unifiedprocess import UnifiedProcess
 
 from PIL import Image as PILImage
 

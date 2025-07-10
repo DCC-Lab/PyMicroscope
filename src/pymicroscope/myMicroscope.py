@@ -16,9 +16,9 @@ from queue import Queue, Empty
 from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
-from vmscontroller import VMSController
-from vmsconfigdialog import VMSConfigDialog
-from acquisition.imageprovider import DebugImageProvider
+from pymicroscope.vmscontroller import VMSController
+from pymicroscope.vmsconfigdialog import VMSConfigDialog
+from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from hardwarelibrary.motion import SutterDevice
 
 

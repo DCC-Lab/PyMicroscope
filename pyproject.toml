@@ -9,6 +9,9 @@ requires-python = ">=3.8"
 dependencies = [
     "pyro5",
     "mytk",
+    "hardwarelibrary",
+    "psutil",
+    "pyserial"
 ]
 
 [build-system]
