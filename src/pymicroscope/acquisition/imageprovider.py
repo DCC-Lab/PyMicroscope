@@ -449,8 +449,7 @@ class DebugImageProvider(ImageProvider, TerminableProcess):
             while not must_terminate_now:
                 try:
                     img_array = self.capture_image()
-                    pil_image = PILImage.fromarray(img_array, mode="RGB")
-                    self.image_queue.put(pil_image)
+                    self.image_queue.put(img_array)
                 except Exception as err:
                     self.log.error(f"Error in ImageProvider run loop : {err}")
 
