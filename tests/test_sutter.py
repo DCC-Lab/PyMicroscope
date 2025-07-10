@@ -11,9 +11,7 @@ from hardwarelibrary.communication.serialport import SerialPort
 
 
 # CONTROLLER_SERIAL_PATH = "/dev/cu.USA19QW3d1P1.1"
-#CONTROLLER_SERIAL_PATH = 
-#id_setter = SIDG2TGX
-
+#CONTROLLER_SERIAL_PATH = "/dev/cu.SIDG2TGX"
 class Sutter(unittest.TestCase):
     #def setUp(self):
     #    self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)

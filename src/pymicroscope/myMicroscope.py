@@ -19,8 +19,7 @@ from PIL import Image as PILImage
 from vmscontroller import VMSController
 from vmsconfigdialog import VMSConfigDialog
 from acquisition.imageprovider import DebugImageProvider
-
-#from "" import "controller_sutter"
+from hardwarelibrary.motion import SutterDevice
     
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -36,6 +35,12 @@ class MicroscopeApp(App):
             self.vms_controller.initialize()
         except Exception as err:
             pass # vms_controller.is_accessible == False
+
+        self.sutter_device = SutterDevice()
+        try:
+            self.sutter_device.doInitializeDevice()
+        except Exception as err:
+            pass # sutter_device.is_accessible == False
 
         self.app_setup()
         self.build_interface()
@@ -116,13 +121,28 @@ class MicroscopeApp(App):
         )
         self.sutter.widget.grid_propagate(False)
 
+        if not self.sutter_device.doInitializeDevice: #we don't konw now
+            Dialog.showerror(
+                title="sutter controller is not connected or found",
+                message="Check that the controller is connected to the computer",
+            )
+            position = self.sutter_device.doGetPosition()
+            initial_x_value = position[0]
+            initial_y_value = position[1]
+            initial_z_value = position[2]
+
+        else:
+            initial_x_value = 0
+            initial_y_value = 0
+            initial_z_value = 0
+
         Label("sutter position").grid_into(self.sutter, row=0, column=0, columnspan=2, pady=8, padx=10,sticky="w")
         Label("x :").grid_into(self.sutter, row=1, column=0, pady=2, padx=1,sticky="e")
-        Label(0).grid_into(self.sutter, row=1, column=1, pady=2, padx=2,sticky="w")
+        Label(initial_x_value).grid_into(self.sutter, row=1, column=1, pady=2, padx=2,sticky="w")
         Label("y :").grid_into(self.sutter, row=1, column=2, pady=2, padx=2,sticky="e")
-        Label(0).grid_into(self.sutter, row=1, column=3, pady=2, padx=2,sticky="w")
+        Label(initial_y_value).grid_into(self.sutter, row=1, column=3, pady=2, padx=2,sticky="w")
         Label("z :").grid_into(self.sutter, row=1, column=4, pady=2, padx=2,sticky="e")
-        Label(0).grid_into(self.sutter, row=1, column=5, pady=2, padx=2,sticky="w")
+        Label(initial_z_value).grid_into(self.sutter, row=1, column=5, pady=2, padx=2,sticky="w")
         
         Label("Initial configuration").grid_into(self.sutter, row=2, column=0, columnspan=2, pady=10, padx=10,sticky="w")
         self.apply_upper_left_button = Button(
@@ -138,9 +158,7 @@ class MicroscopeApp(App):
         self.apply_upper_right_button.grid_into(
             self.sutter, row=3, column=4, columnspan=2, pady=2, padx=2, sticky="e"
         )
-        '''
-        self.apply_upper_right_button.is_enabled = self.controller_sutter.is_accessible #we don't konw now
-        '''
+
         self.apply_lower_right_button = Button(
         "Lower right corner", user_event_callback=None
         ) # want that when the button is push, the first value is memorised and we see the position at the button place
@@ -155,16 +173,22 @@ class MicroscopeApp(App):
             self.sutter, row=4, column=0, columnspan=2, pady=2, padx=2, sticky="e"
         )
     
-    #review the code before continue this section, we don't have that much information
-    def button_introducing_position_sutter(self, even, button):
-        if not self.controller_sutter.is_accessible: #we don't konw now
-            Dialog.showerror(
-                title="sutter controller is not connected or found",
-                message="Check that the controller is connected to the computer",
-            )
-            return
+    def button_saving_position(self, even, button):
+        position = self.sutter_device.doGetPosition()
+        parameter = {}
+        parameter[button] = position
+        return parameter
+    
+    def ajuste_map_imaging(self):
+        parameters = self.button_saving_position
+        if len(parameters == 4):
+            upper_left_corner = parameters["Upper left corner"]
+            upper_right_corner = parameters["Upper right corner"]
+            lower_left_corner = parameters["Lower left corner"]
+            lower_right_corner = parameters["Lower right corner"]
         else:
-            return (self.x.value, self.y.value, self.z.value) #to see again
+            raise ValueError("Some initial parameters are missing")
+        
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
