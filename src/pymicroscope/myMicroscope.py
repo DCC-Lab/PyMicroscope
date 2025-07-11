@@ -329,7 +329,7 @@ class MicroscopeApp(App):
         )
 
         self.start_map_aquisition = Button(
-            "Start Map", user_event_callback=None
+            "Start Map", user_event_callback=self.aquisition_image,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
@@ -465,7 +465,7 @@ class MicroscopeApp(App):
         else:
             raise ValueError("Some initial parameters are missing")
         
-    def aquisition_image(self):
+    def aquisition_image(self, even, button):
         if all(x is not None for x in self.parameters.values()):
             self.ajuste_map_imaging
             x_pixels_value_per_image = int(1000)
@@ -493,10 +493,12 @@ class MicroscopeApp(App):
                     self.sutter_device.doMoveBy((-x_microstep_value_per_image*number_of_x_pictures, -y_microstep_value_per_image + 0.1*y_microstep_value_per_image, 0)) #for the moment, need a dy movement
                     '''Take a picture'''
                     '''Save'''
-                    for x in range(number_of_x_pictures - 1):
+                    for x in range(number_of_x_pictures):
                         self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1*x_microstep_value_per_image, 0, 0)) #for the moment, need a dx movement
                         '''Take a picture'''
                         '''Save'''
+
+            print(self.sutter_device.position())
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
