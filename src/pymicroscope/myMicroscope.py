@@ -185,7 +185,7 @@ class MicroscopeApp(App):
         )
 
     def build_sutter_interface(self):
-        self.sutter = Box(label="Position", width=500, height=200)
+        self.sutter = Box(label="Position", width=500, height=250)
         self.sutter.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
@@ -271,7 +271,7 @@ class MicroscopeApp(App):
         self.apply_upper_right_button.grid_into(
             self.sutter,
             row=3,
-            column=4,
+            column=2,
             columnspan=2,
             pady=2,
             padx=2,
@@ -285,7 +285,7 @@ class MicroscopeApp(App):
         self.apply_lower_right_button.grid_into(
             self.sutter,
             row=4,
-            column=4,
+            column=2,
             columnspan=2,
             pady=2,
             padx=2,
@@ -306,13 +306,32 @@ class MicroscopeApp(App):
             sticky="e",
         )
 
+        Label("Height/Depth :").grid_into(
+            self.sutter,
+            row=5,
+            column=0,
+            columnspan=2,
+            pady=10,
+            padx=10,
+            sticky="w",
+        )
+        self.z_level_number = IntEntry(value=5, width=5)
+        self.z_level_number.grid_into(
+            self.sutter,
+            row=5,
+            column=2,
+            pady=2,
+            padx=2,
+            sticky="e"
+        )
+
         self.start_map_aquisition = Button(
             "Start Map", user_event_callback=None
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
-            row=3,
-            column=7,
+            row=4,
+            column=5,
             columnspan=1,
             pady=2,
             padx=2,
@@ -327,8 +346,8 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.clear_map_aquisition.grid_into(
             self.sutter,
-            row=4,
-            column=7,
+            row=5,
+            column=5,
             columnspan=1,
             pady=2,
             padx=2,
