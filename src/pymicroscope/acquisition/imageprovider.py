@@ -135,8 +135,10 @@ class DebugImageProvider(ImageProvider):
     """
     An image provider that generates synthetic 8-bit images for testing.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, size=None, *args, **kwargs):
         super().__init__(name="DebugImageProvider", *args, **kwargs)
+        if size is not None:
+            self.properties['size'] = (size[0], size[1])
         
     def capture_image(self) -> np.ndarray:
         """

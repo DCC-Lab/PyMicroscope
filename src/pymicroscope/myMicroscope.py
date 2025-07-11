@@ -32,7 +32,7 @@ class MicroscopeApp(App):
 
         self.shape = (480, 640, 3)
         self.provider = None
-        self.cameras = {"Debug":{"type":DebugImageProvider, "args":(), "kwargs":{}}}
+        self.cameras = {"Debug":{"type":DebugImageProvider, "args":(), "kwargs":{"size":self.shape}}}
         self.is_camera_running = False
         
         self.vms_controller = VMSController()
@@ -470,13 +470,6 @@ class MicroscopeApp(App):
         else:
             raise RuntimeError("The capture is already running")
 
-    def empty_image_queue(self):
-        try:
-            while self.image_queue.get(timeout=0.1) is not None:
-                pass
-        except Empty:
-            pass
-
     def stop_capture(self):
         if self.provider is not None:
             self.provider.terminate()
@@ -487,12 +480,19 @@ class MicroscopeApp(App):
         else:
             raise RuntimeError("The capture is not running")
 
+    def empty_image_queue(self):
+        try:
+            while self.image_queue.get(timeout=0.1) is not None:
+                pass
+        except Empty:
+            pass
+
     def handle_new_image(self):
         img_array = None
         try:
-            img_array = self.image_queue.get(timeout=0.01)
+            img_array = self.image_queue.get(timeout=0.001)
             while img_array is not None:
-                img_array = self.image_queue.get(timeout=0.01)        
+                img_array = self.image_queue.get(timeout=0.001)        
         except Empty:
             pass
 
