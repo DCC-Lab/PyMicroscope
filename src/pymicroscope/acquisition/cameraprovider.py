@@ -10,6 +10,8 @@ class OpenCVImageProvider(ImageProvider):
     Image provider using OpenCV to capture frames from a camera.
     """
 
+    _available_devices = None
+    
     def __init__(
         self,
         camera_index: int = 0,
@@ -22,21 +24,22 @@ class OpenCVImageProvider(ImageProvider):
         
     @classmethod
     def available_devices(cls):
-        available_devices = []
-        try:
-            index = 0
-            while True:
-                cap = cv2.VideoCapture(index)
-                if not cap.read()[0]:
-                    break
-                else:
-                    available_devices.append(index)
-                cap.release()
-                index += 1
-        except Exception as err:
-            print(err)
+        if cls._available_devices is None:
+            cls._available_devices = []
+            try:
+                index = 0
+                while True:
+                    cap = cv2.VideoCapture(index)
+                    if not cap.read()[0]:
+                        break
+                    else:
+                        cls._available_devices.append(index)
+                    cap.release()
+                    index += 1
+            except Exception as err:
+                print(err)
 
-        return available_devices
+        return cls._available_devices
 
     def start_capture(self):
         if not self.is_running:

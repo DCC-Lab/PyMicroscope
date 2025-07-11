@@ -8,7 +8,7 @@ import numpy as np
 import envtest  # setup environment for testing
 from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.acquisition.imageprovider import (
-    ImageProvider,
+    ImageProvider
 )
 
 if __name__ == "__main__":

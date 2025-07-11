@@ -6,7 +6,7 @@ from contextlib import suppress
 from typing import Tuple, Optional
 import numpy as np
 import threading as Th
-from queue import Queue, Empty
+from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
 
 from PIL import Image as PILImage
@@ -110,9 +110,11 @@ class MicroscopeApp(App):
         self.camera_popup = PopupMenu(list(self.cameras.keys()))
         self.camera_popup.grid_into(self.save_controls,
             row=0,
-            column=1,
+            column=2,
             pady=10,
-            padx=10,)
+            padx=10,
+            sticky="w"
+            )
         self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
         self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
         
@@ -141,6 +143,7 @@ class MicroscopeApp(App):
             column=1,
             pady=10,
             padx=10,
+            sticky="w"
         )
 
         self.number_of_images_average = IntEntry(value=30, width=5)
@@ -150,6 +153,7 @@ class MicroscopeApp(App):
             column=2,
             pady=10,
             padx=10,
+            sticky="w"
         )
 
     def build_control_interface(self):
@@ -468,15 +472,15 @@ class MicroscopeApp(App):
         if self.provider is not None:
             self.provider.terminate()
             self.provider = None
-            self.empty_image_queue()
+            self.empty_queue(self.image_queue)
             self.start_stop_button.label = "Start"
             self.is_camera_running = False
         else:
             raise RuntimeError("The capture is not running")
 
-    def empty_image_queue(self):
+    def empty_queue(self, queue):
         try:
-            while self.image_queue.get(timeout=0.1) is not None:
+            while queue.get(timeout=0.1) is not None:
                 pass
         except Empty:
             pass
@@ -485,17 +489,27 @@ class MicroscopeApp(App):
         img_array = None
         try:
             img_array = self.image_queue.get(timeout=0.001)
+            
+            with suppress(Full):
+                self.preview_queue.put_nowait(img_array)
+            
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)        
         except Empty:
             pass
 
-        if img_array is not None:
+    def update_preview(self):
+        try:
+            img_array = self.preview_queue.get_nowait()
             pil_image = PILImage.fromarray(img_array, mode="RGB")
             self.image.update_display(pil_image)
-
+        except Empty:
+            pass
+        
     def microscope_run_loop(self):
         self.handle_new_image()
+        self.update_preview()
+        
         self.after(20, self.microscope_run_loop)
 
     def about(self):
