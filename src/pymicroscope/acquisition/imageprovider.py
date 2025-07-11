@@ -1,20 +1,10 @@
-from abc import ABC, abstractmethod
 import time
 import math
 from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
-from multiprocessing import RLock, shared_memory
 import numpy as np
-import base64
 from multiprocessing import Queue
-from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
 
-from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
-from pymicroscope.utils.unifiedprocess import UnifiedProcess
-
-from PIL import Image as PILImage
-
-
 
 class ImageProvider(TerminableProcess):
     """
@@ -77,7 +67,6 @@ class ImageProvider(TerminableProcess):
         """Set the number of image channels."""
         self.properties["channels"] = value
 
-    @abstractmethod
     def capture_image(self) -> np.ndarray:
         """
         Capture an image and return it as a NumPy array.

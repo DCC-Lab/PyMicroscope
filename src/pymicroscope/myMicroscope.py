@@ -1,16 +1,10 @@
 from mytk import *
 from tkinter import filedialog
-import os
-import csv
-import re
-import time
-import gc
 from collections import deque
 import signal
 from contextlib import suppress
 from typing import Tuple, Optional
 import numpy as np
-import scipy
 import threading as Th
 from queue import Queue, Empty
 from multiprocessing import RLock, shared_memory, Queue
