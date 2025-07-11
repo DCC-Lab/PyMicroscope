@@ -3,6 +3,7 @@ import numpy as np
 from typing import Any, Optional
 
 from pymicroscope.acquisition.imageprovider import ImageProvider
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
 
 
 class OpenCVImageProvider(ImageProvider):
@@ -18,8 +19,18 @@ class OpenCVImageProvider(ImageProvider):
         *args: Any,
         **kwargs: Any,
     ) -> None:
+
+        prop_index = ConfigurableProperty[int]("camera_index",0)
+        
+        properties_description = kwargs.get('properties_description',[])
+        properties_description.append(prop_index)
+        kwargs['properties_description'] = properties_description
+        
+        configuration = kwargs.get('configuration',{})
+        configuration.update({"camera_index":camera_index})
+        kwargs['configuration'] = configuration
+
         super().__init__(*args, **kwargs)
-        self.camera_index = camera_index
         self.cap: Optional[cv2.VideoCapture] = None
         
     @classmethod
@@ -44,7 +55,7 @@ class OpenCVImageProvider(ImageProvider):
     def start_capture(self):
         if not self.is_running:
             try:
-                self.cap = cv2.VideoCapture(self.camera_index)
+                self.cap = cv2.VideoCapture(self.configuration['camera_index'])
             except Exception as err:
                 print(err)
                 self.cap = None
@@ -71,7 +82,7 @@ class OpenCVImageProvider(ImageProvider):
             frame = np.expand_dims(frame, axis=2)
 
         # Resize to requested size (height, width) if different from camera native
-        target_size = self.size
+        target_size = (self.height, self.width)
         if frame.shape[0] != target_size[0] or frame.shape[1] != target_size[1]:
             frame = cv2.resize(frame, (target_size[1], target_size[0]))
 

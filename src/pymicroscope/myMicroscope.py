@@ -8,6 +8,7 @@ import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty, ConfigurationDialog
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -432,21 +433,19 @@ class MicroscopeApp(App):
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
+        properties_description = []
+        configuration = {}
         if self.provider is not None:
+            properties_description = self.provider.properties_description
+            configuration = self.provider.configuration
             self.stop_capture()
             restart_after = True
 
-        diag = VMSConfigDialog(
-            vms_controller=self.vms_controller,
-            title="Test Window",
-            buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
-            # auto_click=[Dialog.Replies.Ok, 1000],
-        )
+        diag = ConfigurationDialog(title="Configuration", properties_description=properties_description, configuration=configuration)
         reply = diag.run()
-        print({id: entry.value for id, entry in diag.entries.items()})
-
+        
         if restart_after:
-            self.start_capture()
+            self.start_capture(diag.configuration)
 
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
@@ -454,14 +453,14 @@ class MicroscopeApp(App):
         else:
             self.stop_capture()
 
-    def start_capture(self):
+    def start_capture(self, configuration={}):
         if self.provider is None:
             self.image_queue = Queue()
             selected_camera_name = self.camera_popup.value_variable.get()
             CameraType = self.cameras[selected_camera_name]["type"]
             args = self.cameras[selected_camera_name]["args"]
             kwargs = self.cameras[selected_camera_name]["kwargs"]
-            self.provider = CameraType(queue=self.image_queue, *args, **kwargs)
+            self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
             self.provider.start_synchronously()
             self.start_stop_button.label = "Stop"
             self.is_camera_running = True
