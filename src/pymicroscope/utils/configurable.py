@@ -1,23 +1,21 @@
 from mytk import Dialog, Label, Entry
-from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple, Generic, TypeVar
-
+from typing import Protocol, Optional, Any, Callable
+from multiprocessing import Manager
 from dataclasses import dataclass
 
-T = TypeVar("T")
-
 @dataclass
-class ConfigurableProperty(Generic[T]):
+class ConfigurableProperty:
     name: str
-    default_value : Optional[T] = None
+    default_value : Optional[Any] = None
     displayed_name: str = None
-    min_value: Optional[T] = float("-inf")
-    max_value: Optional[T] = float("+inf")
-    validate_fct : Optional[Callable[[T], bool]] = None
+    min_value: Optional[Any] = float("-inf")
+    max_value: Optional[Any] = float("+inf")
+    validate_fct : Optional[Callable[[Any], bool]] = None
     format_string: Optional[str] = None
     multiplier: int = 1
-    value_type = InterruptedError
+    value_type: type = int
     
-    def is_in_valid_range(self, value:T):
+    def is_in_valid_range(self, value:Any):
         return (value >= self.min_value and value <= self.max_value)
     
     @staticmethod
@@ -29,14 +27,19 @@ class ConfigurableProperty(Generic[T]):
         return properties
     
 class Configurable:
+
     def __init__(self, properties_description:list[ConfigurableProperty] = None, configuration = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.properties_description = properties_description
         self.properties_description_dict = { pd.name:pd  for pd in properties_description} 
-        self.configuration = { p.name:p.default_value for p in properties_description }
+        
+        self.configuration = Manager().dict()
+        
+        self.configuration.update({ p.name:p.default_value for p in properties_description })
         
         if configuration is not None:
             self.configuration.update(configuration)
+
 
 class ConfigurationDialog(Dialog, Configurable):
     def __init__(self, populate_body_fct=None, *args, **kwargs):
@@ -65,8 +68,6 @@ class ConfigurationDialog(Dialog, Configurable):
         for key, entry_widget in self.configuration_widgets.items():
             ValueType = self.properties_description_dict[key].value_type
             
-            self.configuration[key] = int(entry_widget.value_variable.get())
+            self.configuration[key] = ValueType(entry_widget.value_variable.get())
             
-        print(self.configuration)
-    
         return reply

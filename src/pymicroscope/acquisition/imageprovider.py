@@ -3,7 +3,7 @@ import math
 from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple, Generic, TypeVar
 
 import numpy as np
-from multiprocessing import Queue
+from multiprocessing import Queue, Value
 from dataclasses import dataclass
 
 from mytk import Dialog
@@ -51,16 +51,16 @@ class ImageProvider(TerminableProcess, Configurable):
             **kwargs: Additional keyword arguments.
         """
         
-        prop_width = ConfigurableProperty[int](
+        prop_width = ConfigurableProperty(
             name="width",
             default_value=640,
         )
-        prop_height = ConfigurableProperty[int](
+        prop_height = ConfigurableProperty(
             name="height",
             default_value=480,
         )
 
-        prop_frame_rate = ConfigurableProperty[int](
+        prop_frame_rate = ConfigurableProperty(
             name="frame_rate",
             default_value=30,
         )
@@ -75,21 +75,23 @@ class ImageProvider(TerminableProcess, Configurable):
         
         TerminableProcess.__init__(self, *args, **kwargs)
 
-        self.is_running: bool = False
-        self._start_time: Optional[float] = None
-        self._last_image: Optional[float] = None
-        
+        self._is_running = Value('b', False)
+        self._last_image = None
         self.image_queue = queue
-        
-    # @property
-    # def size(self) -> Tuple[int, int]:
-    #     """Return the current image size (height, width)."""
-    #     return self.configuration["size"]
+    
+    @property
+    def is_running(self):
+        with self._is_running.get_lock():
+            return self._is_running.value != 0
 
-    # def set_size(self, value: Tuple[int, int]) -> None:
-    #     """Set the image size (height, width)."""
-    #     self.configuration["size"] = value
-
+    @is_running.setter
+    def is_running(self, value):
+        with self._is_running.get_lock():
+            if value != 0:
+                self._is_running.value = True
+            else:
+                self._is_running.value = False
+    
     @property
     def width(self) -> int:
         return self.configuration["width"]
@@ -130,15 +132,17 @@ class ImageProvider(TerminableProcess, Configurable):
         """
         pass
 
-    def start_capture(self) -> None:
+    def start_capture(self, configuration) -> None:
         """Mark the beginning of an image capture session."""
-        self.is_running = True
-        self._start_time = time.time()
+        with self._is_running.get_lock():
+            self._is_running.value = 1
+        
+        self.configuration.update(configuration)
 
     def stop_capture(self) -> None:
         """Stop the image capture session."""
-        self.is_running = False
-        self._start_time = None
+        with self._is_running.get_lock():
+            self._is_running.value = 0
 
     def set_configuration(self, properties: dict[str, Any]) -> None:
         """
@@ -165,14 +169,15 @@ class ImageProvider(TerminableProcess, Configurable):
         Subclasses may override this.
         """
         with self.syncing_context() as must_terminate_now:
-            self.start_capture()
-
             while not must_terminate_now:
                 try:
-                    img_array = self.capture_image()
-                    self.image_queue.put(img_array)
+                    with self._is_running.get_lock():
+                        if self._is_running.value:
+                            img_array = self.capture_image()
+                            self.image_queue.put(img_array)
                 except Exception as err:
                     self.log.error(f"Error in ImageProvider run loop : {err}")
+        
             self.stop_capture()
 
 class DebugImageProvider(ImageProvider):
@@ -204,9 +209,8 @@ class DebugImageProvider(ImageProvider):
             and time.time() < self._last_image + frame_duration
         ):
             time.sleep(0.001)
-
         self._last_image = time.time()
-        self.log.debug("Image captured at %f", time.time() - self._start_time)
+        
         return img
 
     @staticmethod

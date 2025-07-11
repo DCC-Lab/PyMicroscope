@@ -20,7 +20,7 @@ class OpenCVImageProvider(ImageProvider):
         **kwargs: Any,
     ) -> None:
 
-        prop_index = ConfigurableProperty[int]("camera_index",0)
+        prop_index = ConfigurableProperty("camera_index",0)
         
         properties_description = kwargs.get('properties_description',[])
         properties_description.append(prop_index)

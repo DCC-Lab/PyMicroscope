@@ -13,7 +13,7 @@ class ConfigurableTestCase(envtest.CoreTestCase):
         Verify that the abstract ImageProvider cannot be instantiated directly.
         """
 
-        prop = ConfigurableProperty[int](
+        prop = ConfigurableProperty(
             name="Exposure Time",
             default_value=100,
             min_value=0,
@@ -27,7 +27,7 @@ class ConfigurableTestCase(envtest.CoreTestCase):
 
     def test010_configurable_property_with_defaults(self) -> None:
 
-        prop = ConfigurableProperty[int](
+        prop = ConfigurableProperty(
             name="Exposure Time",
             default_value=100,
         )
@@ -39,7 +39,7 @@ class ConfigurableTestCase(envtest.CoreTestCase):
                          
     def test020_configurable_property_validated(self) -> None:
 
-        prop = ConfigurableProperty[int](
+        prop = ConfigurableProperty(
             name="Exposure Time",
             default_value=100,
             min_value=0,
@@ -52,14 +52,14 @@ class ConfigurableTestCase(envtest.CoreTestCase):
 
     def test030_configurable_object(self) -> None:
 
-        prop1 = ConfigurableProperty[int](
+        prop1 = ConfigurableProperty(
             name="exposure_time",
             default_value=100,
             min_value=0,
             max_value=1000,            
         )
 
-        prop2 = ConfigurableProperty[int](
+        prop2 = ConfigurableProperty(
             name="gain",
             default_value=100,
             min_value=0,
@@ -73,7 +73,7 @@ class ConfigurableTestCase(envtest.CoreTestCase):
 
     def test040_configurable_object_dialog(self) -> None:
 
-        prop1 = ConfigurableProperty[int](
+        prop1 = ConfigurableProperty(
             name="exposure_time",
             displayed_name="Exposure time",
             default_value=100,
@@ -81,7 +81,7 @@ class ConfigurableTestCase(envtest.CoreTestCase):
             max_value=1000,            
         )
 
-        prop2 = ConfigurableProperty[int](
+        prop2 = ConfigurableProperty(
             name="gain",
             displayed_name="Gain",
             default_value=3.14,

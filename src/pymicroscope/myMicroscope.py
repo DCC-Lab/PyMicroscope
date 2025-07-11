@@ -38,7 +38,7 @@ class MicroscopeApp(App):
 
         self.sutter_device = SutterDevice()
         try:
-            self.sutter_device.doInitializeDevice()
+            self.sutter_device.initializeDevice()
         except Exception as err:
             pass  # sutter_device.is_accessible == False
         self.can_start_map = False
@@ -447,13 +447,15 @@ class MicroscopeApp(App):
         if restart_after:
             self.start_capture(diag.configuration)
 
-    def user_clicked_startstop(self, event, button):
-        if self.provider is None:
-            self.start_capture()
-        else:
-            self.stop_capture()
-
-    def start_capture(self, configuration={}):
+    def new_provider(self, configuration={}):
+        if self.provider is not None:
+            self.provider.stop_capture()
+            self.provider.terminate()
+            self.provider = None
+            self.empty_queue(self.image_queue)
+            self.start_stop_button.label = "Start"
+            self.is_camera_running = False
+            
         if self.provider is None:
             self.image_queue = Queue()
             selected_camera_name = self.camera_popup.value_variable.get()
@@ -462,21 +464,28 @@ class MicroscopeApp(App):
             kwargs = self.cameras[selected_camera_name]["kwargs"]
             self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
             self.provider.start_synchronously()
-            self.start_stop_button.label = "Stop"
-            self.is_camera_running = True
+
+    def user_clicked_startstop(self, event, button):
+        if self.provider is None:
+            self.new_provider()
+            
+        if self.provider.is_running:
+            self.stop_capture()
         else:
-            raise RuntimeError("The capture is already running")
+            self.start_capture()
+        
+    def start_capture(self, configuration={}):
+        
+        self.provider.start_capture(configuration)
+        self.is_camera_running = True
+        self.start_stop_button.label = "Stop"
+
 
     def stop_capture(self):
-        if self.provider is not None:
-            self.provider.terminate()
-            self.provider = None
-            self.empty_queue(self.image_queue)
-            self.start_stop_button.label = "Start"
-            self.is_camera_running = False
-        else:
-            raise RuntimeError("The capture is not running")
-
+        self.provider.stop_capture()
+        self.is_camera_running = False
+        self.start_stop_button.label = "Start"
+        
     def empty_queue(self, queue):
         try:
             while queue.get(timeout=0.1) is not None:
@@ -526,6 +535,7 @@ class MicroscopeApp(App):
         try:
             if self.provider is not None:
                 self.stop_capture()
+                self.provider.terminate()
         except Exception as err:
             pass
 
