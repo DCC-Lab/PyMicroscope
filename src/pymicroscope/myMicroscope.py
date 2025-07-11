@@ -342,6 +342,7 @@ class MicroscopeApp(App):
         if button.label == "Clear":
             for p in self.parameters:
                 self.parameters[p] = None
+                self.can_start_map = False
 
         else:
             position = (0, 0, 0)
