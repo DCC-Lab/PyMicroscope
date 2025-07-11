@@ -4,6 +4,7 @@ from collections import deque
 import signal
 from contextlib import suppress
 from typing import Tuple, Optional
+import math
 import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
@@ -428,34 +429,49 @@ class MicroscopeApp(App):
                 )
                 self.parameters["Upper left corner"] = ajusted_position
 
+            for parameter, z in self.parameters:
+                z_values_comparaison = z[2]
+            
+                if len(set(z_values_comparaison)) != 1:
+                    ajusted_position = (
+                        z[0],
+                        z[1],                        
+                        max(z_values_comparaison),
+                    )
+                    self.parameters[parameter] = ajusted_position
+
+            
+
         else:
             raise ValueError("Some initial parameters are missing")
         
     def aquisition_image(self):
         if all(x is not None for x in self.parameters.values()):
             self.ajuste_map_imaging
-            x_pixels_value = 1000
-            y_pixels_value = 500
-            microstep_pixel = 0.16565 #for a zoom 2x
+            x_pixels_value_per_image = int(1000)
+            y_pixels_value_per_image = int(500)
+            microstep_pixel = int(0.16565) #for a zoom 2x
+            x_microstep_value_per_image = x_pixels_value_per_image*microstep_pixel
+            y_microstep_value_per_image = y_pixels_value_per_image*microstep_pixel
             self.sutter_device.moveTo(self.parameters["Upper left corner"])
-            self.sutter_device.doMoveBy((x_pixels_value*microstep_pixel*number_of_x_pictures, y_pixels_value*microstep_pixel, 0))
-            
+            self.sutter_device.doMoveBy((x_microstep_value_per_image*number_of_x_pictures, y_microstep_value_per_image, 0))
+            # the initial value need to be upper because we start with a domoveby in the for boucle
+
             upper_left_corner = self.parameters["Upper left corner"]
             upper_right_corner = self.parameters["Upper right corner"]
             lower_right_corner = self.parameters["Lower right corner"]
 
-            number_of_x_pictures = (upper_right_corner[0]-upper_left_corner[0]) // (x_pixels_value*microstep_pixel)
-            number_of_y_pictures = (upper_right_corner[1]- lower_right_corner[1]) // (y_pixels_value*microstep_pixel)
+            # a 10% ajustement between each image to match them
+            number_of_x_pictures = math.ceil((upper_right_corner[0]-upper_left_corner[0]) / (x_microstep_value_per_image - 0.1*x_microstep_value_per_image))
+            number_of_y_pictures = math.ceil((upper_right_corner[1]- lower_right_corner[1]) / (y_microstep_value_per_image - 0.1*y_microstep_value_per_image))
 
             #z coordonne
-
-            # the initial value need to be upper because we start with a domoveby
             for y in range(number_of_y_pictures - 1):
-                self.sutter_device.doMoveBy(-x_pixels_value*microstep_pixel*number_of_x_pictures, -y_pixels_value*microstep_pixel, 0) #for the moment, need a dy movement
+                self.sutter_device.doMoveBy((-x_microstep_value_per_image*number_of_x_pictures, -y_microstep_value_per_image + 0.1*y_microstep_value_per_image, 0)) #for the moment, need a dy movement
                 '''Take a picture'''
                 '''Save'''
                 for x in range(number_of_x_pictures - 1):
-                    self.sutter_device.doMoveBy(x_pixels_value*microstep_pixel, ) #for the moment, need a dx movement
+                    self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1*x_microstep_value_per_image, 0, 0)) #for the moment, need a dx movement
                     '''Take a picture'''
                     '''Save'''
 
