@@ -200,11 +200,13 @@ class MicroscopeApp(App):
             initial_x_value = position[0]
             initial_y_value = position[1]
             initial_z_value = position[2]
+            z_image_number = 1
 
         else:
             initial_x_value = 0
             initial_y_value = 0
             initial_z_value = 0
+            z_image_number = 1
 
         self.parameters : dict[str, Optional[Tuple[int,int,int]]] = {
             "Upper left corner": None,
@@ -223,22 +225,22 @@ class MicroscopeApp(App):
             sticky="w",
         )
         Label("x :").grid_into(
-            self.sutter, row=1, column=0, pady=2, padx=1, sticky="e"
+            self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
         Label(initial_x_value).grid_into(
-            self.sutter, row=1, column=1, pady=2, padx=2, sticky="w"
+            self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
-            self.sutter, row=1, column=2, pady=2, padx=2, sticky="e"
+            self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
         Label(initial_y_value).grid_into(
-            self.sutter, row=1, column=3, pady=2, padx=2, sticky="w"
+            self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
-            self.sutter, row=1, column=4, pady=2, padx=2, sticky="e"
+            self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
         Label(initial_z_value).grid_into(
-            self.sutter, row=1, column=5, pady=2, padx=2, sticky="w"
+            self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
         Label("Initial configuration").grid_into(
@@ -250,11 +252,8 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w",
         )
-        self.apply_upper_left_button = Button(
-            "Upper left corner",
-            user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
-        self.apply_upper_left_button.grid_into(
+
+        Label("Nomber of z image :").grid_into(
             self.sutter,
             row=3,
             column=0,
@@ -262,6 +261,29 @@ class MicroscopeApp(App):
             pady=2,
             padx=2,
             sticky="e",
+        )
+        self.z_image_number_entry = IntEntry(value=z_image_number, width=5)
+        self.z_image_number_entry.grid_into(
+            self.sutter,
+            row=3,
+            column=2,
+            pady=2,
+            padx=2,
+            sticky="w"
+        )
+
+        self.apply_upper_left_button = Button(
+            "Upper left corner",
+            user_event_callback=self.user_clicked_saving_position,
+        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        self.apply_upper_left_button.grid_into(
+            self.sutter,
+            row=4,
+            column=0,
+            columnspan=2,
+            pady=3,
+            padx=2,
+            sticky="w",
         )
 
         self.apply_upper_right_button = Button(
@@ -270,12 +292,12 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
             self.sutter,
-            row=3,
+            row=4,
             column=2,
             columnspan=2,
-            pady=2,
+            pady=3,
             padx=2,
-            sticky="e",
+            sticky="w",
         )
 
         self.apply_lower_right_button = Button(
@@ -284,12 +306,12 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
             self.sutter,
-            row=4,
+            row=5,
             column=2,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="e",
+            sticky="w",
         )
 
         self.apply_lower_left_button = Button(
@@ -298,31 +320,12 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_left_button.grid_into(
             self.sutter,
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="e",
-        )
-
-        Label("Height/Depth :").grid_into(
-            self.sutter,
-            row=5,
-            column=0,
-            columnspan=2,
-            pady=10,
-            padx=10,
             sticky="w",
-        )
-        self.z_level_number = IntEntry(value=5, width=5)
-        self.z_level_number.grid_into(
-            self.sutter,
-            row=5,
-            column=2,
-            pady=2,
-            padx=2,
-            sticky="e"
         )
 
         self.start_map_aquisition = Button(
@@ -332,10 +335,9 @@ class MicroscopeApp(App):
             self.sutter,
             row=4,
             column=5,
-            columnspan=1,
             pady=2,
             padx=2,
-            sticky="w",
+            sticky="e",
         )
         self.bind_properties(
             "can_start_map", self.start_map_aquisition, "is_enabled"
@@ -348,10 +350,9 @@ class MicroscopeApp(App):
             self.sutter,
             row=5,
             column=5,
-            columnspan=1,
             pady=2,
             padx=2,
-            sticky="w",
+            sticky="e",
         )
         self.bind_properties(
             "can_start_map", self.clear_map_aquisition, "is_enabled"
@@ -473,7 +474,7 @@ class MicroscopeApp(App):
             x_microstep_value_per_image = x_pixels_value_per_image*microstep_pixel
             y_microstep_value_per_image = y_pixels_value_per_image*microstep_pixel
             self.sutter_device.moveTo(self.parameters["Upper left corner"])
-            self.sutter_device.doMoveBy((x_microstep_value_per_image*number_of_x_pictures, y_microstep_value_per_image, 0))
+            self.sutter_device.doMoveBy((x_microstep_value_per_image*number_of_x_pictures, y_microstep_value_per_image, -1))
             # the initial value need to be upper because we start with a domoveby in the for boucle
 
             upper_left_corner = self.parameters["Upper left corner"]
@@ -483,16 +484,19 @@ class MicroscopeApp(App):
             # a 10% ajustement between each image to match them
             number_of_x_pictures = math.ceil((upper_right_corner[0]-upper_left_corner[0]) / (x_microstep_value_per_image - 0.1*x_microstep_value_per_image))
             number_of_y_pictures = math.ceil((upper_right_corner[1]- lower_right_corner[1]) / (y_microstep_value_per_image - 0.1*y_microstep_value_per_image))
+            number_of_z_pictures = self.z_image_number_entry.value
 
-            #z coordonne
-            for y in range(number_of_y_pictures - 1):
-                self.sutter_device.doMoveBy((-x_microstep_value_per_image*number_of_x_pictures, -y_microstep_value_per_image + 0.1*y_microstep_value_per_image, 0)) #for the moment, need a dy movement
-                '''Take a picture'''
-                '''Save'''
-                for x in range(number_of_x_pictures - 1):
-                    self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1*x_microstep_value_per_image, 0, 0)) #for the moment, need a dx movement
+
+            for z in range(number_of_z_pictures):
+                self.sutter_device.doMoveBy((0, 0, 1))
+                for y in range(number_of_y_pictures):
+                    self.sutter_device.doMoveBy((-x_microstep_value_per_image*number_of_x_pictures, -y_microstep_value_per_image + 0.1*y_microstep_value_per_image, 0)) #for the moment, need a dy movement
                     '''Take a picture'''
                     '''Save'''
+                    for x in range(number_of_x_pictures - 1):
+                        self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1*x_microstep_value_per_image, 0, 0)) #for the moment, need a dx movement
+                        '''Take a picture'''
+                        '''Save'''
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
