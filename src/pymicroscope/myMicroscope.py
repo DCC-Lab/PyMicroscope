@@ -184,7 +184,7 @@ class MicroscopeApp(App):
         )
 
     def build_sutter_interface(self):
-        self.sutter = Box(label="Sutter", width=500, height=200)
+        self.sutter = Box(label="Position", width=500, height=200)
         self.sutter.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
@@ -430,6 +430,34 @@ class MicroscopeApp(App):
 
         else:
             raise ValueError("Some initial parameters are missing")
+        
+    def aquisition_image(self):
+        if all(x is not None for x in self.parameters.values()):
+            self.ajuste_map_imaging
+            x_pixels_value = 1000
+            y_pixels_value = 500
+            microstep_pixel = 0.16565 #for a zoom 2x
+            self.sutter_device.moveTo(self.parameters["Upper left corner"])
+            self.sutter_device.doMoveBy((x_pixels_value*microstep_pixel*number_of_x_pictures, y_pixels_value*microstep_pixel, 0))
+            
+            upper_left_corner = self.parameters["Upper left corner"]
+            upper_right_corner = self.parameters["Upper right corner"]
+            lower_right_corner = self.parameters["Lower right corner"]
+
+            number_of_x_pictures = (upper_right_corner[0]-upper_left_corner[0]) // (x_pixels_value*microstep_pixel)
+            number_of_y_pictures = (upper_right_corner[1]- lower_right_corner[1]) // (y_pixels_value*microstep_pixel)
+
+            #z coordonne
+
+            # the initial value need to be upper because we start with a domoveby
+            for y in range(number_of_y_pictures - 1):
+                self.sutter_device.doMoveBy(-x_pixels_value*microstep_pixel*number_of_x_pictures, -y_pixels_value*microstep_pixel, 0) #for the moment, need a dy movement
+                '''Take a picture'''
+                '''Save'''
+                for x in range(number_of_x_pictures - 1):
+                    self.sutter_device.doMoveBy(x_pixels_value*microstep_pixel, ) #for the moment, need a dx movement
+                    '''Take a picture'''
+                    '''Save'''
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
