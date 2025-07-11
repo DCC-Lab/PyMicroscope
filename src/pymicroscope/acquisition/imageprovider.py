@@ -77,13 +77,6 @@ class ImageProvider(TerminableProcess):
         """Set the number of image channels."""
         self.properties["channels"] = value
 
-    def get_last_image(self) -> np.array:
-        data = self.last_image_package["data"]
-        dtype = self.last_image_package["dtype"]
-        shape = self.last_image_package["shape"]
-        return np.frombuffer(data, dtype=dtype).reshape(shape)
-
-
     @abstractmethod
     def capture_image(self) -> np.ndarray:
         """
