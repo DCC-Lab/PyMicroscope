@@ -6,6 +6,43 @@ from multiprocessing import Queue
 
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
 
+class Controllable:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def initialize(self):
+        pass
+    
+    def shutdown(self):
+        pass
+        
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+    
+
+class ConfigurableProperty:
+    def __init__(self, name, type, default_value, min_value, max_value, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+class Configurable:
+    def __init__(self, properties, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.properties = properties
+        self.dialog = None
+        
+    def configuration_dialog(self):
+        return self.dialog
+    
+    def set_configuration(self, properties):
+        self.properties = properties
+        
+    def get_configuration(self):
+        return self.properties
+
+
 class ImageProvider(TerminableProcess):
     """
     Abstract base class defining the interface for image providers.
