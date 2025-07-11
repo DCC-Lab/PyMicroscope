@@ -19,6 +19,7 @@ from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
+from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from hardwarelibrary.motion import SutterDevice
 
 
@@ -27,10 +28,13 @@ class MicroscopeApp(App):
         super().__init__(*args, **kwargs)
 
         self.image_queue = Queue()
+        self.preview_queue = Queue(maxsize=1)
 
         self.shape = (480, 640, 3)
         self.provider = None
-
+        self.cameras = {"Debug":{"type":DebugImageProvider, "args":(), "kwargs":{"size":self.shape}}}
+        self.is_camera_running = False
+        
         self.vms_controller = VMSController()
         try:
             self.vms_controller.initialize()
@@ -48,7 +52,7 @@ class MicroscopeApp(App):
         self.build_interface()
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
-
+        
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
@@ -61,13 +65,20 @@ class MicroscopeApp(App):
             self.root.createcommand("tk::mac::Quit", self.quit)
         except TclError:
             pass  # Not on macOS or already defined
-
+       
+    def background_get_cameras(self):
+        devices = OpenCVImageProvider.available_devices()
+        for device in devices:
+            self.cameras[f"OpenCV camera #{device}"] = {"type":OpenCVImageProvider, "args":(), "kwargs":{"camera_index":device}}
+            
     def cleanup(self):
         pass
 
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
 
+        self.background_get_cameras()
+        self.build_cameras_menu()
         self.build_start_stop_interface()
         self.build_imageview_interface()
         self.build_control_interface()
@@ -88,15 +99,29 @@ class MicroscopeApp(App):
             sticky="nw",
         )
 
+
+    def build_cameras_menu(self):
+        self.background_get_cameras()
+
     def build_start_stop_interface(self):
         self.save_controls = Box(
             label="Image Acquisition", width=500, height=150
         )
+        
         self.save_controls.grid_into(
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.save_controls.widget.grid_propagate(False)
 
+        self.camera_popup = PopupMenu(list(self.cameras.keys()))
+        self.camera_popup.grid_into(self.save_controls,
+            row=0,
+            column=1,
+            pady=10,
+            padx=10,)
+        self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
+        self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
+        
         self.start_stop_button = Button(
             "Start", user_event_callback=self.user_clicked_startstop
         )
@@ -434,11 +459,26 @@ class MicroscopeApp(App):
     def start_capture(self):
         if self.provider is None:
             self.image_queue = Queue()
-            self.provider = DebugImageProvider(queue=self.image_queue)
+            selected_camera_name = self.camera_popup.value_variable.get()
+            CameraType = self.cameras[selected_camera_name]["type"]
+            args = self.cameras[selected_camera_name]["args"]
+            kwargs = self.cameras[selected_camera_name]["kwargs"]
+            self.provider = CameraType(queue=self.image_queue, *args, **kwargs)
             self.provider.start_synchronously()
             self.start_stop_button.label = "Stop"
+            self.is_camera_running = True
         else:
             raise RuntimeError("The capture is already running")
+
+    def stop_capture(self):
+        if self.provider is not None:
+            self.provider.terminate()
+            self.provider = None
+            self.empty_image_queue()
+            self.start_stop_button.label = "Start"
+            self.is_camera_running = False
+        else:
+            raise RuntimeError("The capture is not running")
 
     def empty_image_queue(self):
         try:
@@ -447,22 +487,18 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
-    def stop_capture(self):
-        if self.provider is not None:
-            self.provider.terminate()
-            self.provider = None
-            self.empty_image_queue()
-            self.start_stop_button.label = "Start"
-        else:
-            raise RuntimeError("The capture is not running")
-
     def handle_new_image(self):
+        img_array = None
         try:
-            img_array = self.image_queue.get_nowait()
+            img_array = self.image_queue.get(timeout=0.001)
+            while img_array is not None:
+                img_array = self.image_queue.get(timeout=0.001)        
+        except Empty:
+            pass
+
+        if img_array is not None:
             pil_image = PILImage.fromarray(img_array, mode="RGB")
             self.image.update_display(pil_image)
-        except Empty:
-            return
 
     def microscope_run_loop(self):
         self.handle_new_image()
@@ -480,8 +516,6 @@ class MicroscopeApp(App):
         webbrowser.open("https://www.dccmlab.ca/")
 
     def quit(self):
-        # self.empty_image_queue()
-
         try:
             if self.provider is not None:
                 self.stop_capture()
