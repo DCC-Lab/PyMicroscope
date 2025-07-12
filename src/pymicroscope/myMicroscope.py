@@ -9,6 +9,7 @@ import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty, ConfigurationDialog
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -38,7 +39,7 @@ class MicroscopeApp(App):
 
         self.sutter_device = SutterDevice()
         try:
-            self.sutter_device.doInitializeDevice()
+            self.sutter_device.initializeDevice()
         except Exception as err:
             pass  # sutter_device.is_accessible == False
         self.can_start_map = False
@@ -76,7 +77,6 @@ class MicroscopeApp(App):
         self.build_cameras_menu()
         self.build_start_stop_interface()
         self.build_imageview_interface()
-        self.build_control_interface()
         self.build_sutter_interface()
 
     def build_imageview_interface(self):
@@ -100,7 +100,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
+            label="Image Acquisition", width=500, height=130
         )
         
         self.save_controls.grid_into(
@@ -108,7 +108,16 @@ class MicroscopeApp(App):
         )
         self.save_controls.widget.grid_propagate(False)
 
-        self.camera_popup = PopupMenu(list(self.cameras.keys()))
+        Label("Source: ").grid_into(
+            self.save_controls,
+            row=0,
+            column=1,
+            pady=10,
+            padx=10,
+            sticky="e"
+        )
+        
+        self.camera_popup = PopupMenu(list(self.cameras.keys()), user_callback=self.user_changed_camera)
         self.camera_popup.grid_into(self.save_controls,
             row=0,
             column=2,
@@ -119,6 +128,14 @@ class MicroscopeApp(App):
         self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
         self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
         
+        self.provider_settings = Button(
+            "Configure …",
+            user_event_callback=self.user_clicked_configure_button,
+        )
+        self.provider_settings.grid_into(
+            self.save_controls, row=0, column=3, pady=10, padx=10, sticky="w"
+        )
+
         self.start_stop_button = Button(
             "Start", user_event_callback=self.user_clicked_startstop
         )
@@ -144,7 +161,7 @@ class MicroscopeApp(App):
             column=1,
             pady=10,
             padx=10,
-            sticky="w"
+            sticky="e"
         )
 
         self.number_of_images_average = IntEntry(value=30, width=5)
@@ -156,33 +173,9 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w"
         )
-
-    def build_control_interface(self):
-        self.window.widget.grid_columnconfigure(0, weight=1)
-        self.window.widget.grid_columnconfigure(1, weight=1)
-
-        self.controls = Box(
-            label="Image Creation Controls", width=500, height=100
-        )
-
-        self.controls.grid_into(
-            self.window, column=1, row=1, pady=10, padx=10, sticky="nse"
-        )
-        self.controls.widget.grid_propagate(False)
-
-        self.controls.widget.grid_rowconfigure(0, weight=1)
-        self.controls.widget.grid_rowconfigure(1, weight=1)
-
-        Label("Scan configuration").grid_into(
-            self.controls, row=0, column=0, pady=10, padx=10, sticky="e"
-        )
-        self.scan_settings = Button(
-            "Configure …",
-            user_event_callback=self.user_clicked_configure_button,
-        )
-        self.scan_settings.grid_into(
-            self.controls, row=0, column=1, pady=10, padx=10, sticky="w"
-        )
+        
+    def user_changed_camera(self, popup, index):
+        self.change_provider()
 
     def build_sutter_interface(self):
         self.sutter = Box(label="Position", width=500, height=250)
@@ -502,52 +495,57 @@ class MicroscopeApp(App):
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
-        if self.provider is not None:
+
+        if self.provider._is_running.value:
             self.stop_capture()
             restart_after = True
 
-        diag = VMSConfigDialog(
-            vms_controller=self.vms_controller,
-            title="Test Window",
-            buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
-            # auto_click=[Dialog.Replies.Ok, 1000],
-        )
+        properties_description = self.provider.properties_description
+        configuration = self.provider.configuration
+
+        diag = ConfigurationDialog(title="Configuration", properties_description=properties_description, configuration=configuration)
         reply = diag.run()
-        print({id: entry.value for id, entry in diag.entries.items()})
-
+        
         if restart_after:
-            self.start_capture()
+            self.start_capture(diag.configuration)
 
-    def user_clicked_startstop(self, event, button):
-        if self.provider is None:
-            self.start_capture()
-        else:
-            self.stop_capture()
-
-    def start_capture(self):
+    def change_provider(self, configuration={}):
+        if self.provider is not None:
+            self.provider.stop_capture()
+            self.provider.terminate()
+            self.provider = None
+            self.empty_queue(self.image_queue)
+            self.start_stop_button.label = "Start"
+            self.is_camera_running = False
+            
         if self.provider is None:
             self.image_queue = Queue()
             selected_camera_name = self.camera_popup.value_variable.get()
             CameraType = self.cameras[selected_camera_name]["type"]
             args = self.cameras[selected_camera_name]["args"]
             kwargs = self.cameras[selected_camera_name]["kwargs"]
-            self.provider = CameraType(queue=self.image_queue, *args, **kwargs)
+            self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
             self.provider.start_synchronously()
-            self.start_stop_button.label = "Stop"
-            self.is_camera_running = True
+
+    def user_clicked_startstop(self, event, button):
+        if self.provider is None:
+            self.change_provider()
+            
+        if self.provider.is_running:
+            self.stop_capture()
         else:
-            raise RuntimeError("The capture is already running")
+            self.start_capture()
+        
+    def start_capture(self, configuration={}):
+        self.provider.start_capture(configuration)
+        self.is_camera_running = True
+        self.start_stop_button.label = "Stop"
 
     def stop_capture(self):
-        if self.provider is not None:
-            self.provider.terminate()
-            self.provider = None
-            self.empty_queue(self.image_queue)
-            self.start_stop_button.label = "Start"
-            self.is_camera_running = False
-        else:
-            raise RuntimeError("The capture is not running")
-
+        self.provider.stop_capture()
+        self.is_camera_running = False
+        self.start_stop_button.label = "Start"
+        
     def empty_queue(self, queue):
         try:
             while queue.get(timeout=0.1) is not None:
@@ -597,6 +595,7 @@ class MicroscopeApp(App):
         try:
             if self.provider is not None:
                 self.stop_capture()
+                self.provider.terminate()
         except Exception as err:
             pass
 

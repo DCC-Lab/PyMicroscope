@@ -1,12 +1,34 @@
 import time
 import math
-from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
+from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple, Generic, TypeVar
+
 import numpy as np
-from multiprocessing import Queue
+from multiprocessing import Queue, Value
+from dataclasses import dataclass
 
+from mytk import Dialog
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
+from pymicroscope.vmsconfigdialog import VMSConfigDialog
 
-class ImageProvider(TerminableProcess):
+class Controllable:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def initialize(self):
+        pass
+    
+    def shutdown(self):
+        pass
+        
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+    
+        
+class ImageProvider(TerminableProcess, Configurable):
     """
     Abstract base class defining the interface for image providers.
 
@@ -14,58 +36,93 @@ class ImageProvider(TerminableProcess):
     """
 
     def __init__(
-        self, properties: Optional[dict[str, Any]] = None, queue:Optional[Queue] = None, *args: Any, **kwargs: Any
+        self, queue:Optional[Queue] = None, *args: Any, **kwargs: Any
     ) -> None:
         """
         Initialize the image provider with optional client and properties.
 
+        Note: Process() is not cooperative and the MRO is incorrect.
+        I need to call the __init__() manuallty and remove the spurios arguments
+        
         Args:
             client: Object implementing ImageProviderClient.
             properties: Dictionary of configuration settings.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        super().__init__(*args, **kwargs)
-        self.properties: dict[str, Any] = {
-            "size": (480, 640),
-            "frame_rate": 30,
-            "channels": 3,
-        }
-        if properties:
-            self.properties.update(properties)
-
-        self.is_running: bool = False
-        self._start_time: Optional[float] = None
-        self._last_image: Optional[float] = None
         
+        prop_width = ConfigurableProperty(
+            name="width",
+            default_value=640,
+        )
+        prop_height = ConfigurableProperty(
+            name="height",
+            default_value=480,
+        )
+
+        prop_frame_rate = ConfigurableProperty(
+            name="frame_rate",
+            default_value=30,
+        )
+
+        properties_description = kwargs.pop("properties_description", [])
+        properties_description.extend([prop_width, prop_height,prop_frame_rate])
+        
+        configuration = {"frame_rate":30, "channels":3, "size":(480, 640)}
+        configuration.update(kwargs.pop("configuration", {}))
+        
+        Configurable.__init__(self, properties_description=properties_description, configuration=configuration)
+        
+        TerminableProcess.__init__(self, *args, **kwargs)
+
+        self._is_running = Value('b', False)
+        self._last_image = None
         self.image_queue = queue
-        
+    
     @property
-    def size(self) -> Tuple[int, int]:
-        """Return the current image size (height, width)."""
-        return self.properties["size"]
+    def is_running(self):
+        with self._is_running.get_lock():
+            return self._is_running.value != 0
 
-    def set_size(self, value: Tuple[int, int]) -> None:
-        """Set the image size (height, width)."""
-        self.properties["size"] = value
+    @is_running.setter
+    def is_running(self, value):
+        with self._is_running.get_lock():
+            if value != 0:
+                self._is_running.value = True
+            else:
+                self._is_running.value = False
+    
+    @property
+    def width(self) -> int:
+        return self.configuration["width"]
+
+    def set_width(self, value: int) -> None:
+        self.configuration["width"] = value
+
+    @property
+    def height(self) -> int:
+        return self.configuration["height"]
+
+    def set_height(self, value: int) -> None:
+        self.configuration["height"] = value
 
     @property
     def frame_rate(self) -> float:
         """Return the frame rate in Hz."""
-        return self.properties["frame_rate"]
+        return self.configuration["frame_rate"]
 
     def set_frame_rate(self, value: float) -> None:
         """Set the frame rate in Hz."""
-        self.properties["frame_rate"] = value
+        self.configuration["frame_rate"] = value
 
     @property
     def channels(self) -> int:
         """Return the number of image channels (e.g., 3 for RGB)."""
-        return self.properties["channels"]
+        return self.configuration["channels"]
 
     def set_channels(self, value: int) -> None:
         """Set the number of image channels."""
-        self.properties["channels"] = value
+        self.configuration["channels"] = value
 
     def capture_image(self) -> np.ndarray:
         """
@@ -75,15 +132,17 @@ class ImageProvider(TerminableProcess):
         """
         pass
 
-    def start_capture(self) -> None:
+    def start_capture(self, configuration) -> None:
         """Mark the beginning of an image capture session."""
-        self.is_running = True
-        self._start_time = time.time()
+        with self._is_running.get_lock():
+            self._is_running.value = 1
+        
+        self.configuration.update(configuration)
 
     def stop_capture(self) -> None:
         """Stop the image capture session."""
-        self.is_running = False
-        self._start_time = None
+        with self._is_running.get_lock():
+            self._is_running.value = 0
 
     def set_configuration(self, properties: dict[str, Any]) -> None:
         """
@@ -92,7 +151,7 @@ class ImageProvider(TerminableProcess):
         Args:
             properties: Dictionary of property updates.
         """
-        self.properties.update(properties)
+        self.configuration.update(properties)
 
     def get_configuration(self) -> dict[str, Any]:
         """
@@ -101,7 +160,7 @@ class ImageProvider(TerminableProcess):
         Returns:
             Dictionary of configuration values.
         """
-        return self.properties
+        return self.configuration
 
     def run(self) -> None:
         """
@@ -110,14 +169,15 @@ class ImageProvider(TerminableProcess):
         Subclasses may override this.
         """
         with self.syncing_context() as must_terminate_now:
-            self.start_capture()
-
             while not must_terminate_now:
                 try:
-                    img_array = self.capture_image()
-                    self.image_queue.put(img_array)
+                    with self._is_running.get_lock():
+                        if self._is_running.value:
+                            img_array = self.capture_image()
+                            self.image_queue.put(img_array)
                 except Exception as err:
                     self.log.error(f"Error in ImageProvider run loop : {err}")
+        
             self.stop_capture()
 
 class DebugImageProvider(ImageProvider):
@@ -125,10 +185,8 @@ class DebugImageProvider(ImageProvider):
     An image provider that generates synthetic 8-bit images for testing.
     """
     def __init__(self, size=None, *args, **kwargs):
-        super().__init__(name="DebugImageProvider", *args, **kwargs)
-        if size is not None:
-            self.properties['size'] = (size[0], size[1])
-        
+        super().__init__(*args, **kwargs)
+                
     def capture_image(self) -> np.ndarray:
         """
         Generate an 8-bit random image of shape (size[0], size[1], channels),
@@ -142,7 +200,7 @@ class DebugImageProvider(ImageProvider):
             >>> img.shape
             (256, 256, 3)
         """
-        img = self.generate_color_bars(self.size[0], self.size[1])
+        img = self.generate_color_bars(self.height, self.width)
 
         frame_duration = 1 / self.frame_rate
 
@@ -151,9 +209,8 @@ class DebugImageProvider(ImageProvider):
             and time.time() < self._last_image + frame_duration
         ):
             time.sleep(0.001)
-
         self._last_image = time.time()
-        self.log.debug("Image captured at %f", time.time() - self._start_time)
+        
         return img
 
     @staticmethod
@@ -222,13 +279,15 @@ class DebugImageProvider(ImageProvider):
         
     
 if __name__ == "__main__":
-    import logging
+    print(ImageProvider.__mro__)
+    ImageProvider(properties_description=[])
+    # import logging
 
+    # # provider = DebugImageProvider(
+    # #     log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    # # )
     # provider = DebugImageProvider(
-    #     log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    #     log_level=logging.DEBUG, queue=Queue()
     # )
-    provider = DebugImageProvider(
-        log_level=logging.DEBUG, queue=Queue()
-    )
-    provider.start_synchronously()
-    provider.join()
+    # provider.start_synchronously()
+    # provider.join()

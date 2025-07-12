@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
 from typing import Any, Optional
+import time
 
 from pymicroscope.acquisition.imageprovider import ImageProvider
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
 
 
 class OpenCVImageProvider(ImageProvider):
@@ -18,42 +20,35 @@ class OpenCVImageProvider(ImageProvider):
         *args: Any,
         **kwargs: Any,
     ) -> None:
+
+        prop_index = ConfigurableProperty("camera_index",0)
+        
+        properties_description = kwargs.get('properties_description',[])
+        properties_description.append(prop_index)
+        kwargs['properties_description'] = properties_description
+        
+        configuration = kwargs.get('configuration',{})
+        configuration.update({"camera_index":camera_index})
+        kwargs['configuration'] = configuration
+
         super().__init__(*args, **kwargs)
-        self.camera_index = camera_index
-        self.cap: Optional[cv2.VideoCapture] = None
+    
         
     @classmethod
     def available_devices(cls):
         if cls._available_devices is None:
             cls._available_devices = []
-            try:
-                index = 0
-                while True:
-                    cap = cv2.VideoCapture(index)
-                    if not cap.read()[0]:
-                        break
-                    else:
-                        cls._available_devices.append(index)
+            index = 0
+            while True:
+                cap = cv2.VideoCapture(index)                                
+                if cap.isOpened():
+                    cls._available_devices.append(index)
                     cap.release()
                     index += 1
-            except Exception as err:
-                print(err)
+                else:
+                    break
 
         return cls._available_devices
-
-    def start_capture(self):
-        if not self.is_running:
-            try:
-                self.cap = cv2.VideoCapture(self.camera_index)
-            except Exception as err:
-                print(err)
-                self.cap = None
-
-    def stop_capture(self):
-        if self.is_running:
-            self.capture.release()
-            self.capture = None
-
 
     def capture_image(self) -> np.ndarray:
         if not self.cap or not self.cap.isOpened():
@@ -71,8 +66,24 @@ class OpenCVImageProvider(ImageProvider):
             frame = np.expand_dims(frame, axis=2)
 
         # Resize to requested size (height, width) if different from camera native
-        target_size = self.size
+        target_size = (self.height, self.width)
         if frame.shape[0] != target_size[0] or frame.shape[1] != target_size[1]:
             frame = cv2.resize(frame, (target_size[1], target_size[0]))
 
         return frame
+    
+    def run(self):
+        self.cap = cv2.VideoCapture(self.configuration['camera_index'])
+
+        # Wait until camera is ready
+        timeout = 5  # seconds
+        start_time = time.time()
+
+        while True:
+            ret, frame = self.cap.read()
+            if ret:
+                break
+            if time.time() - start_time > timeout:
+                raise TimeoutError("Camera not ready after waiting {} seconds".format(timeout))
+            time.sleep(0.1)  # avoid tight loop
+        super().run()
