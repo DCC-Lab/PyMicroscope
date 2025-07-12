@@ -76,7 +76,6 @@ class MicroscopeApp(App):
         self.build_cameras_menu()
         self.build_start_stop_interface()
         self.build_imageview_interface()
-        self.build_control_interface()
         self.build_sutter_interface()
 
     def build_imageview_interface(self):
@@ -100,7 +99,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
+            label="Image Acquisition", width=500, height=130
         )
         
         self.save_controls.grid_into(
@@ -108,6 +107,15 @@ class MicroscopeApp(App):
         )
         self.save_controls.widget.grid_propagate(False)
 
+        Label("Source: ").grid_into(
+            self.save_controls,
+            row=0,
+            column=1,
+            pady=10,
+            padx=10,
+            sticky="e"
+        )
+        
         self.camera_popup = PopupMenu(list(self.cameras.keys()), user_callback=self.user_changed_camera)
         self.camera_popup.grid_into(self.save_controls,
             row=0,
@@ -119,6 +127,14 @@ class MicroscopeApp(App):
         self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
         self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
         
+        self.provider_settings = Button(
+            "Configure …",
+            user_event_callback=self.user_clicked_configure_button,
+        )
+        self.provider_settings.grid_into(
+            self.save_controls, row=0, column=3, pady=10, padx=10, sticky="w"
+        )
+
         self.start_stop_button = Button(
             "Start", user_event_callback=self.user_clicked_startstop
         )
@@ -144,7 +160,7 @@ class MicroscopeApp(App):
             column=1,
             pady=10,
             padx=10,
-            sticky="w"
+            sticky="e"
         )
 
         self.number_of_images_average = IntEntry(value=30, width=5)
@@ -156,35 +172,9 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w"
         )
+        
     def user_changed_camera(self, popup, index):
         self.change_provider()
-
-    def build_control_interface(self):
-        self.window.widget.grid_columnconfigure(0, weight=1)
-        self.window.widget.grid_columnconfigure(1, weight=1)
-
-        self.controls = Box(
-            label="Image Creation Controls", width=500, height=100
-        )
-
-        self.controls.grid_into(
-            self.window, column=1, row=1, pady=10, padx=10, sticky="nse"
-        )
-        self.controls.widget.grid_propagate(False)
-
-        self.controls.widget.grid_rowconfigure(0, weight=1)
-        self.controls.widget.grid_rowconfigure(1, weight=1)
-
-        Label("Scan configuration").grid_into(
-            self.controls, row=0, column=0, pady=10, padx=10, sticky="e"
-        )
-        self.scan_settings = Button(
-            "Configure …",
-            user_event_callback=self.user_clicked_configure_button,
-        )
-        self.scan_settings.grid_into(
-            self.controls, row=0, column=1, pady=10, padx=10, sticky="w"
-        )
 
     def build_sutter_interface(self):
         self.sutter = Box(label="Sutter", width=500, height=200)
@@ -435,13 +425,13 @@ class MicroscopeApp(App):
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
-        properties_description = []
-        configuration = {}
-        if self.provider is not None:
-            properties_description = self.provider.properties_description
-            configuration = self.provider.configuration
+
+        if self.provider._is_running.value:
             self.stop_capture()
             restart_after = True
+
+        properties_description = self.provider.properties_description
+        configuration = self.provider.configuration
 
         diag = ConfigurationDialog(title="Configuration", properties_description=properties_description, configuration=configuration)
         reply = diag.run()

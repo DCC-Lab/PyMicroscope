@@ -38,18 +38,15 @@ class OpenCVImageProvider(ImageProvider):
     def available_devices(cls):
         if cls._available_devices is None:
             cls._available_devices = []
-            try:
-                index = 0
-                while True:
-                    cap = cv2.VideoCapture(index)
-                    if not cap.read()[0]:
-                        break
-                    else:
-                        cls._available_devices.append(index)
+            index = 0
+            while True:
+                cap = cv2.VideoCapture(index)                                
+                if cap.isOpened():
+                    cls._available_devices.append(index)
                     cap.release()
                     index += 1
-            except Exception as err:
-                print(err)
+                else:
+                    break
 
         return cls._available_devices
 

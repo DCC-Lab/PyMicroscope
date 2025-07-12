@@ -28,21 +28,20 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         Verify that the DebugRemoteImageProvider can be instantiated.
         """
         available_devices = []
-        try:
-            index = 0
-            while True:
-                cap = cv2.VideoCapture(index)
-                if not cap.read()[0]:
-                    break
-                else:
-                    available_devices.append(index)
+        index = 0
+        while True:
+            cap = cv2.VideoCapture(index)                                
+            if cap.isOpened():
+                available_devices.append(index)
                 cap.release()
                 index += 1
-        except Exception as err:
-            print(err)
+            else:
+                break
 
+        print(available_devices)
         self.assertTrue(len(available_devices) > 0)
-
+        
+        
     # def test020_init_running_debug_provider(self) -> None:
     #     """
     #     Start and stop the debug provider to verify lifecycle.
