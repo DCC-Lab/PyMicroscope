@@ -7,6 +7,10 @@ import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
+from tkinter import filedialog
+from pathlib import Path
+
+
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
 )
@@ -27,6 +31,8 @@ class MicroscopeApp(App):
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
         self.save_queue = None
+        self.images_directory = Path("~/Desktop").expanduser()
+        self.images_template = "Image-{date}-{time}-{i}.tif"
 
         self.shape = (480, 640, 3)
         self.provider = None
@@ -118,7 +124,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=130
+            label="Image Acquisition", width=500, height=150
         )
 
         self.save_controls.grid_into(
@@ -165,6 +171,8 @@ class MicroscopeApp(App):
             pady=10,
             padx=10,
         )
+        self.bind_properties("is_camera_running", self.save_button, "is_enabled")
+        
         Label("Images to average: ").grid_into(
             self.save_controls, row=2, column=1, pady=10, padx=10, sticky="e"
         )
@@ -174,10 +182,38 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
+        self.choose_directory_button = Button("Directory …", user_event_callback=self.user_clicked_choose_directory)
+        self.choose_directory_button.grid_into(
+            self.save_controls, row=3, column=0, pady=10, padx=10, sticky="e"
+        )
+        
+        label = Label("(directory)")
+        label.grid_into(
+            self.save_controls, row=3, column=1, pady=10, padx=10, sticky="e"
+        )
+        self.bind_properties("images_directory", label, "value_variable")
+
+        label = Label("(template)")
+        label.grid_into(
+            self.save_controls, row=3, column=2, pady=10, padx=10, sticky="e"
+        )
+        self.bind_properties("images_template", label, "value_variable")
+
+        self.number_of_images_average = IntEntry(value=30, width=5)
+        self.number_of_images_average.grid_into(
+            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
+        )
+
+    def user_clicked_choose_directory(self, button, event):
+        self.images_directory = filedialog.askdirectory(title="Select a destination for images:", initialdir=self.images_directory)
+        
+        if self.images_directory == "":
+            self.images_directory = "/tmp"
+                        
     def user_clicked_save(self, button, event):
         n_images = self.number_of_images_average.value
         
-        task = SaveTask(n_images=n_images)
+        task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
         self.save_queue = task.queue
         task.start()
     
