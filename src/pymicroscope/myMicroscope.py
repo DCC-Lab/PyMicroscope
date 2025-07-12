@@ -107,33 +107,25 @@ class MicroscopeApp(App):
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.save_controls.widget.grid_propagate(False)
-
-        Label("Source: ").grid_into(
-            self.save_controls,
-            row=0,
-            column=1,
-            pady=10,
-            padx=10,
-            sticky="e"
-        )
         
         self.camera_popup = PopupMenu(list(self.cameras.keys()), user_callback=self.user_changed_camera)
         self.camera_popup.grid_into(self.save_controls,
             row=0,
-            column=2,
+            column=1,
             pady=10,
             padx=10,
             sticky="w"
             )
         self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
         self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
+        self.change_provider()
         
         self.provider_settings = Button(
             "Configure …",
             user_event_callback=self.user_clicked_configure_button,
         )
         self.provider_settings.grid_into(
-            self.save_controls, row=0, column=3, pady=10, padx=10, sticky="w"
+            self.save_controls, row=0, column=2, pady=10, padx=10, sticky="w"
         )
 
         self.start_stop_button = Button(
@@ -510,6 +502,17 @@ class MicroscopeApp(App):
             self.start_capture(diag.configuration)
 
     def change_provider(self, configuration={}):
+        self.release_provider()
+                    
+        self.image_queue = Queue()
+        selected_camera_name = self.camera_popup.value_variable.get()
+        CameraType = self.cameras[selected_camera_name]["type"]
+        args = self.cameras[selected_camera_name]["args"]
+        kwargs = self.cameras[selected_camera_name]["kwargs"]
+        self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
+        self.provider.start_synchronously()
+
+    def release_provider(self):
         if self.provider is not None:
             self.provider.stop_capture()
             self.provider.terminate()
@@ -517,16 +520,7 @@ class MicroscopeApp(App):
             self.empty_queue(self.image_queue)
             self.start_stop_button.label = "Start"
             self.is_camera_running = False
-            
-        if self.provider is None:
-            self.image_queue = Queue()
-            selected_camera_name = self.camera_popup.value_variable.get()
-            CameraType = self.cameras[selected_camera_name]["type"]
-            args = self.cameras[selected_camera_name]["args"]
-            kwargs = self.cameras[selected_camera_name]["kwargs"]
-            self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
-            self.provider.start_synchronously()
-
+        
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
             self.change_provider()
@@ -593,9 +587,7 @@ class MicroscopeApp(App):
 
     def quit(self):
         try:
-            if self.provider is not None:
-                self.stop_capture()
-                self.provider.terminate()
+            self.release_provider()
         except Exception as err:
             pass
 
