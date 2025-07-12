@@ -80,6 +80,13 @@ class MicroscopeApp(App):
             }
 
     def cleanup(self):
+        if self.preview_queue is not None:
+            self.preview_queue.close()
+            self.preview_queue.join_thread()
+        
+        if self.preview_queue is not None:
+            self.preview_queue.close()
+            self.preview_queue.join_thread()
         pass
 
     def build_interface(self):
@@ -545,7 +552,12 @@ class MicroscopeApp(App):
     def change_provider(self, configuration={}):
         self.release_provider()
 
+        if self.image_queue is not None:
+            self.image_queue.close()
+            self.image_queue.join_thread()
+        
         self.image_queue = Queue()
+            
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
         args = self.cameras[selected_camera_name]["args"]
@@ -561,6 +573,8 @@ class MicroscopeApp(App):
             self.provider.terminate()
             self.provider = None
             self.empty_queue(self.image_queue)
+            self.image_queue.close()
+            self.image_queue.join_thread()
             self.start_stop_button.label = "Start"
             self.is_camera_running = False
 
