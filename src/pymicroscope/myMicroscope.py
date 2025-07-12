@@ -9,7 +9,11 @@ import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
-from pymicroscope.utils.configurable import Configurable, ConfigurableProperty, ConfigurationDialog
+from pymicroscope.utils.configurable import (
+    Configurable,
+    ConfigurableProperty,
+    ConfigurationDialog,
+)
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -28,9 +32,15 @@ class MicroscopeApp(App):
 
         self.shape = (480, 640, 3)
         self.provider = None
-        self.cameras = {"Debug":{"type":DebugImageProvider, "args":(), "kwargs":{"size":self.shape}}}
+        self.cameras = {
+            "Debug": {
+                "type": DebugImageProvider,
+                "args": (),
+                "kwargs": {"size": self.shape},
+            }
+        }
         self.is_camera_running = False
-        
+
         self.vms_controller = VMSController()
         try:
             self.vms_controller.initialize()
@@ -48,7 +58,7 @@ class MicroscopeApp(App):
         self.build_interface()
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
-        
+
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
@@ -61,12 +71,16 @@ class MicroscopeApp(App):
             self.root.createcommand("tk::mac::Quit", self.quit)
         except TclError:
             pass  # Not on macOS or already defined
-       
+
     def background_get_cameras(self):
         devices = OpenCVImageProvider.available_devices()
         for device in devices:
-            self.cameras[f"OpenCV camera #{device}"] = {"type":OpenCVImageProvider, "args":(), "kwargs":{"camera_index":device}}
-            
+            self.cameras[f"OpenCV camera #{device}"] = {
+                "type": OpenCVImageProvider,
+                "args": (),
+                "kwargs": {"camera_index": device},
+            }
+
     def cleanup(self):
         pass
 
@@ -94,7 +108,6 @@ class MicroscopeApp(App):
             sticky="nw",
         )
 
-
     def build_cameras_menu(self):
         self.background_get_cameras()
 
@@ -102,24 +115,24 @@ class MicroscopeApp(App):
         self.save_controls = Box(
             label="Image Acquisition", width=500, height=130
         )
-        
+
         self.save_controls.grid_into(
             self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
         )
         self.save_controls.widget.grid_propagate(False)
-        
-        self.camera_popup = PopupMenu(list(self.cameras.keys()), user_callback=self.user_changed_camera)
-        self.camera_popup.grid_into(self.save_controls,
-            row=0,
-            column=1,
-            pady=10,
-            padx=10,
-            sticky="w"
-            )
+
+        self.camera_popup = PopupMenu(
+            list(self.cameras.keys()), user_callback=self.user_changed_camera
+        )
+        self.camera_popup.grid_into(
+            self.save_controls, row=0, column=1, pady=10, padx=10, sticky="w"
+        )
         self.camera_popup.value_variable.set(list(self.cameras.keys())[0])
-        self.bind_properties("is_camera_running", self.camera_popup, "is_disabled")
+        self.bind_properties(
+            "is_camera_running", self.camera_popup, "is_disabled"
+        )
         self.change_provider()
-        
+
         self.provider_settings = Button(
             "Configure …",
             user_event_callback=self.user_clicked_configure_button,
@@ -148,24 +161,14 @@ class MicroscopeApp(App):
             padx=10,
         )
         Label("Images to average: ").grid_into(
-            self.save_controls,
-            row=2,
-            column=1,
-            pady=10,
-            padx=10,
-            sticky="e"
+            self.save_controls, row=2, column=1, pady=10, padx=10, sticky="e"
         )
 
         self.number_of_images_average = IntEntry(value=30, width=5)
         self.number_of_images_average.grid_into(
-            self.save_controls,
-            row=2,
-            column=2,
-            pady=10,
-            padx=10,
-            sticky="w"
+            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
-        
+
     def user_changed_camera(self, popup, index):
         self.change_provider()
 
@@ -193,7 +196,7 @@ class MicroscopeApp(App):
             initial_z_value = 0
             z_image_number = 1
 
-        self.parameters : dict[str, Optional[Tuple[int,int,int]]] = {
+        self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
             "Upper right corner": None,
             "Lower left corner": None,
@@ -249,12 +252,7 @@ class MicroscopeApp(App):
         )
         self.z_image_number_entry = IntEntry(value=z_image_number, width=5)
         self.z_image_number_entry.grid_into(
-            self.sutter,
-            row=3,
-            column=2,
-            pady=2,
-            padx=2,
-            sticky="w"
+            self.sutter, row=3, column=2, pady=2, padx=2, sticky="w"
         )
 
         self.apply_upper_left_button = Button(
@@ -314,7 +312,8 @@ class MicroscopeApp(App):
         )
 
         self.start_map_aquisition = Button(
-            "Start Map", user_event_callback=self.aquisition_image,
+            "Start Map",
+            user_event_callback=self.aquisition_image,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
@@ -329,7 +328,8 @@ class MicroscopeApp(App):
         )
 
         self.clear_map_aquisition = Button(
-            "Clear", user_event_callback=self.user_clicked_saving_position,
+            "Clear",
+            user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.clear_map_aquisition.grid_into(
             self.sutter,
@@ -342,7 +342,6 @@ class MicroscopeApp(App):
         self.bind_properties(
             "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
-
 
     def user_clicked_saving_position(self, even, button):
         if button.label == "Clear":
@@ -381,7 +380,7 @@ class MicroscopeApp(App):
             if upper_left_corner[1] < upper_right_corner[1]:
                 ajusted_position = (
                     upper_right_corner[0],
-                    upper_left_corner[1],                        
+                    upper_left_corner[1],
                     upper_right_corner[2],
                 )
                 self.parameters["Upper right corner"] = ajusted_position
@@ -397,7 +396,7 @@ class MicroscopeApp(App):
             if upper_right_corner[0] < lower_right_corner[0]:
                 ajusted_position = (
                     upper_right_corner[0],
-                    lower_right_corner[1],                        
+                    lower_right_corner[1],
                     lower_right_corner[2],
                 )
                 self.parameters["Lower right corner"] = ajusted_position
@@ -405,7 +404,7 @@ class MicroscopeApp(App):
             if lower_left_corner[1] > lower_right_corner[1]:
                 ajusted_position = (
                     lower_left_corner[0],
-                    lower_right_corner[1],                        
+                    lower_right_corner[1],
                     lower_left_corner[2],
                 )
                 self.parameters["Lower left corner"] = ajusted_position
@@ -413,7 +412,7 @@ class MicroscopeApp(App):
             if lower_left_corner[1] < lower_right_corner[1]:
                 ajusted_position = (
                     lower_right_corner[0],
-                    lower_left_corner[1],                        
+                    lower_left_corner[1],
                     lower_right_corner[2],
                 )
                 self.parameters["Lower right corner"] = ajusted_position
@@ -421,7 +420,7 @@ class MicroscopeApp(App):
             if upper_left_corner[0] > lower_left_corner[0]:
                 ajusted_position = (
                     upper_left_corner[0],
-                    lower_left_corner[1],                        
+                    lower_left_corner[1],
                     lower_left_corner[2],
                 )
                 self.parameters["Lower left corner"] = ajusted_position
@@ -429,37 +428,45 @@ class MicroscopeApp(App):
             if upper_left_corner[0] < lower_left_corner[0]:
                 ajusted_position = (
                     lower_left_corner[0],
-                    upper_left_corner[1],                        
+                    upper_left_corner[1],
                     upper_left_corner[2],
                 )
                 self.parameters["Upper left corner"] = ajusted_position
 
             for parameter, z in self.parameters:
                 z_values_comparaison = z[2]
-            
+
                 if len(set(z_values_comparaison)) != 1:
                     ajusted_position = (
                         z[0],
-                        z[1],                        
+                        z[1],
                         max(z_values_comparaison),
                     )
                     self.parameters[parameter] = ajusted_position
 
-            
-
         else:
             raise ValueError("Some initial parameters are missing")
-        
+
     def aquisition_image(self, even, button):
         if all(x is not None for x in self.parameters.values()):
             self.ajuste_map_imaging
             x_pixels_value_per_image = int(1000)
             y_pixels_value_per_image = int(500)
-            microstep_pixel = int(0.16565) #for a zoom 2x
-            x_microstep_value_per_image = x_pixels_value_per_image*microstep_pixel
-            y_microstep_value_per_image = y_pixels_value_per_image*microstep_pixel
+            microstep_pixel = int(0.16565)  # for a zoom 2x
+            x_microstep_value_per_image = (
+                x_pixels_value_per_image * microstep_pixel
+            )
+            y_microstep_value_per_image = (
+                y_pixels_value_per_image * microstep_pixel
+            )
             self.sutter_device.moveTo(self.parameters["Upper left corner"])
-            self.sutter_device.doMoveBy((x_microstep_value_per_image*number_of_x_pictures, y_microstep_value_per_image, -1))
+            self.sutter_device.doMoveBy(
+                (
+                    x_microstep_value_per_image * number_of_x_pictures,
+                    y_microstep_value_per_image,
+                    -1,
+                )
+            )
             # the initial value need to be upper because we start with a domoveby in the for boucle
 
             upper_left_corner = self.parameters["Upper left corner"]
@@ -467,21 +474,46 @@ class MicroscopeApp(App):
             lower_right_corner = self.parameters["Lower right corner"]
 
             # a 10% ajustement between each image to match them
-            number_of_x_pictures = math.ceil((upper_right_corner[0]-upper_left_corner[0]) / (x_microstep_value_per_image - 0.1*x_microstep_value_per_image))
-            number_of_y_pictures = math.ceil((upper_right_corner[1]- lower_right_corner[1]) / (y_microstep_value_per_image - 0.1*y_microstep_value_per_image))
+            number_of_x_pictures = math.ceil(
+                (upper_right_corner[0] - upper_left_corner[0])
+                / (
+                    x_microstep_value_per_image
+                    - 0.1 * x_microstep_value_per_image
+                )
+            )
+            number_of_y_pictures = math.ceil(
+                (upper_right_corner[1] - lower_right_corner[1])
+                / (
+                    y_microstep_value_per_image
+                    - 0.1 * y_microstep_value_per_image
+                )
+            )
             number_of_z_pictures = self.z_image_number_entry.value
-
 
             for z in range(number_of_z_pictures):
                 self.sutter_device.doMoveBy((0, 0, 1))
                 for y in range(number_of_y_pictures):
-                    self.sutter_device.doMoveBy((-x_microstep_value_per_image*number_of_x_pictures, -y_microstep_value_per_image + 0.1*y_microstep_value_per_image, 0)) #for the moment, need a dy movement
-                    '''Take a picture'''
-                    '''Save'''
+                    self.sutter_device.doMoveBy(
+                        (
+                            -x_microstep_value_per_image * number_of_x_pictures,
+                            -y_microstep_value_per_image
+                            + 0.1 * y_microstep_value_per_image,
+                            0,
+                        )
+                    )  # for the moment, need a dy movement
+                    """Take a picture"""
+                    """Save"""
                     for x in range(number_of_x_pictures):
-                        self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1*x_microstep_value_per_image, 0, 0)) #for the moment, need a dx movement
-                        '''Take a picture'''
-                        '''Save'''
+                        self.sutter_device.doMoveBy(
+                            (
+                                x_microstep_value_per_image
+                                - 0.1 * x_microstep_value_per_image,
+                                0,
+                                0,
+                            )
+                        )  # for the moment, need a dx movement
+                        """Take a picture"""
+                        """Save"""
 
             print(self.sutter_device.position())
 
@@ -495,21 +527,27 @@ class MicroscopeApp(App):
         properties_description = self.provider.properties_description
         configuration = self.provider.configuration
 
-        diag = ConfigurationDialog(title="Configuration", properties_description=properties_description, configuration=configuration)
+        diag = ConfigurationDialog(
+            title="Configuration",
+            properties_description=properties_description,
+            configuration=configuration,
+        )
         reply = diag.run()
-        
+
         if restart_after:
             self.start_capture(diag.configuration)
 
     def change_provider(self, configuration={}):
         self.release_provider()
-                    
+
         self.image_queue = Queue()
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
         args = self.cameras[selected_camera_name]["args"]
         kwargs = self.cameras[selected_camera_name]["kwargs"]
-        self.provider = CameraType(queue=self.image_queue, configuration=configuration, *args, **kwargs)
+        self.provider = CameraType(
+            queue=self.image_queue, configuration=configuration, *args, **kwargs
+        )
         self.provider.start_synchronously()
 
     def release_provider(self):
@@ -520,16 +558,16 @@ class MicroscopeApp(App):
             self.empty_queue(self.image_queue)
             self.start_stop_button.label = "Start"
             self.is_camera_running = False
-        
+
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
             self.change_provider()
-            
+
         if self.provider.is_running:
             self.stop_capture()
         else:
             self.start_capture()
-        
+
     def start_capture(self, configuration={}):
         self.provider.start_capture(configuration)
         self.is_camera_running = True
@@ -539,7 +577,7 @@ class MicroscopeApp(App):
         self.provider.stop_capture()
         self.is_camera_running = False
         self.start_stop_button.label = "Start"
-        
+
     def empty_queue(self, queue):
         try:
             while queue.get(timeout=0.1) is not None:
@@ -551,12 +589,12 @@ class MicroscopeApp(App):
         img_array = None
         try:
             img_array = self.image_queue.get(timeout=0.001)
-            
+
             with suppress(Full):
                 self.preview_queue.put_nowait(img_array)
-            
+
             while img_array is not None:
-                img_array = self.image_queue.get(timeout=0.001)        
+                img_array = self.image_queue.get(timeout=0.001)
         except Empty:
             pass
 
@@ -567,11 +605,11 @@ class MicroscopeApp(App):
             self.image.update_display(pil_image)
         except Empty:
             pass
-        
+
     def microscope_run_loop(self):
         self.handle_new_image()
         self.update_preview()
-        
+
         self.after(20, self.microscope_run_loop)
 
     def about(self):
