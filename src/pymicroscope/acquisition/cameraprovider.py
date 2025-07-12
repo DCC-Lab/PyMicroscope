@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from typing import Any, Optional
+import time
 
 from pymicroscope.acquisition.imageprovider import ImageProvider
 from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
@@ -31,7 +32,7 @@ class OpenCVImageProvider(ImageProvider):
         kwargs['configuration'] = configuration
 
         super().__init__(*args, **kwargs)
-        self.cap: Optional[cv2.VideoCapture] = None
+    
         
     @classmethod
     def available_devices(cls):
@@ -51,20 +52,6 @@ class OpenCVImageProvider(ImageProvider):
                 print(err)
 
         return cls._available_devices
-
-    def start_capture(self):
-        if not self.is_running:
-            try:
-                self.cap = cv2.VideoCapture(self.configuration['camera_index'])
-            except Exception as err:
-                print(err)
-                self.cap = None
-
-    def stop_capture(self):
-        if self.is_running:
-            self.capture.release()
-            self.capture = None
-
 
     def capture_image(self) -> np.ndarray:
         if not self.cap or not self.cap.isOpened():
@@ -87,3 +74,19 @@ class OpenCVImageProvider(ImageProvider):
             frame = cv2.resize(frame, (target_size[1], target_size[0]))
 
         return frame
+    
+    def run(self):
+        self.cap = cv2.VideoCapture(self.configuration['camera_index'])
+
+        # Wait until camera is ready
+        timeout = 5  # seconds
+        start_time = time.time()
+
+        while True:
+            ret, frame = self.cap.read()
+            if ret:
+                break
+            if time.time() - start_time > timeout:
+                raise TimeoutError("Camera not ready after waiting {} seconds".format(timeout))
+            time.sleep(0.1)  # avoid tight loop
+        super().run()

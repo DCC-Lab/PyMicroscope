@@ -108,7 +108,7 @@ class MicroscopeApp(App):
         )
         self.save_controls.widget.grid_propagate(False)
 
-        self.camera_popup = PopupMenu(list(self.cameras.keys()))
+        self.camera_popup = PopupMenu(list(self.cameras.keys()), user_callback=self.user_changed_camera)
         self.camera_popup.grid_into(self.save_controls,
             row=0,
             column=2,
@@ -156,6 +156,8 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w"
         )
+    def user_changed_camera(self, popup, index):
+        self.change_provider()
 
     def build_control_interface(self):
         self.window.widget.grid_columnconfigure(0, weight=1)
@@ -447,7 +449,7 @@ class MicroscopeApp(App):
         if restart_after:
             self.start_capture(diag.configuration)
 
-    def new_provider(self, configuration={}):
+    def change_provider(self, configuration={}):
         if self.provider is not None:
             self.provider.stop_capture()
             self.provider.terminate()
@@ -467,7 +469,7 @@ class MicroscopeApp(App):
 
     def user_clicked_startstop(self, event, button):
         if self.provider is None:
-            self.new_provider()
+            self.change_provider()
             
         if self.provider.is_running:
             self.stop_capture()
@@ -475,11 +477,9 @@ class MicroscopeApp(App):
             self.start_capture()
         
     def start_capture(self, configuration={}):
-        
         self.provider.start_capture(configuration)
         self.is_camera_running = True
         self.start_stop_button.label = "Stop"
-
 
     def stop_capture(self):
         self.provider.stop_capture()
