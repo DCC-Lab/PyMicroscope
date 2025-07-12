@@ -64,8 +64,9 @@ class SaveTask(TerminableProcess):
                         print(f"{index} images saved")
                         stacked = np.stack(img_arrays).astype(np.float64)
                         mean_img = np.mean(stacked, axis=0)
-                        pil_image = PILImage.fromarray(mean_img.astype(np.uint8), mode="RGB")                            
-                        filepath = self.root_dir / Path('test-{date}-{time}-avg.tiff'.format(**params))
+                        pil_image = PILImage.fromarray(mean_img.astype(np.uint8), mode="RGB")
+                        params['i'] = "avg"                     
+                        filepath = self.root_dir / Path(self.template.format(**params))
                         pil_image.save(filepath)
                         
                         must_terminate_now = True

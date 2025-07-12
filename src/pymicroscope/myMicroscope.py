@@ -193,11 +193,11 @@ class MicroscopeApp(App):
         )
         self.bind_properties("images_directory", label, "value_variable")
 
-        label = Label("(template)")
-        label.grid_into(
+        entry = Entry()
+        entry.grid_into(
             self.save_controls, row=3, column=2, pady=10, padx=10, sticky="e"
         )
-        self.bind_properties("images_template", label, "value_variable")
+        self.bind_properties("images_template", entry, "value_variable")
 
         self.number_of_images_average = IntEntry(value=30, width=5)
         self.number_of_images_average.grid_into(
