@@ -1,6 +1,4 @@
 from mytk import *
-from tkinter import filedialog
-from collections import deque
 import signal
 from contextlib import suppress
 from typing import Tuple, Optional
@@ -10,10 +8,9 @@ import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
 from pymicroscope.utils.configurable import (
-    Configurable,
-    ConfigurableProperty,
     ConfigurationDialog,
 )
+from pymicroscope.savetask import SaveTask
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -29,6 +26,7 @@ class MicroscopeApp(App):
 
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
+        self.save_queue = None
 
         self.shape = (480, 640, 3)
         self.provider = None
@@ -152,7 +150,7 @@ class MicroscopeApp(App):
             padx=10,
         )
 
-        self.save_button = Button("Save …")
+        self.save_button = Button("Save …", user_event_callback=self.user_clicked_save)
         self.save_button.grid_into(
             self.save_controls,
             row=2,
@@ -169,6 +167,13 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
+    def user_clicked_save(self, button, event):
+        n_images = self.number_of_images_average.value
+        
+        task = SaveTask(n_images=n_images)
+        self.save_queue = task.queue
+        task.start()
+    
     def user_changed_camera(self, popup, index):
         self.change_provider()
 
@@ -179,12 +184,12 @@ class MicroscopeApp(App):
         )
         self.sutter.widget.grid_propagate(False)
 
-        if not self.sutter_device.doInitializeDevice:  # we don't konw now
+        if not self.sutter_device.initializeDevice:  # we don't konw now
             Dialog.showerror(
                 title="sutter controller is not connected or found",
                 message="Check that the controller is connected to the computer",
             )
-            position = self.sutter_device.doGetPosition()
+            position = self.sutter_device.getPosition()
             initial_x_value = position[0]
             initial_y_value = position[1]
             initial_z_value = position[2]
@@ -593,6 +598,12 @@ class MicroscopeApp(App):
             with suppress(Full):
                 self.preview_queue.put_nowait(img_array)
 
+            if self.save_queue is not None:
+                try:
+                    self.save_queue.put_nowait(img_array)
+                except Full as err:
+                    self.save_queue = None # Task has reference
+                    
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)
         except Empty:
