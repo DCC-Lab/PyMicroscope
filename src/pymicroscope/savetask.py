@@ -1,3 +1,4 @@
+import os
 import time
 from queue import Queue, Empty, Full
 from multiprocessing import Queue
@@ -5,12 +6,18 @@ from contextlib import suppress
 from pathlib import Path
 import numpy as np
 from datetime import datetime
-
+import platform
 from PIL import Image as PILImage
 
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
 from threading import Thread
 
+def beep():
+    if platform.system() == 'Darwin':
+        os.system("afplay /System/Library/Sounds/Glass.aiff")
+    else:
+        print('\a')
+        
 class SaveTask(TerminableProcess):
     def __init__(self, n_images, root_dir=None, template=None, save_individual_files=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -69,6 +76,7 @@ class SaveTask(TerminableProcess):
                         filepath = self.root_dir / Path(self.template.format(**params))
                         pil_image.save(filepath)
                         
+                        beep()
                         must_terminate_now = True
                     else:
                         time.sleep(0.01)
