@@ -1,6 +1,4 @@
 from mytk import *
-from tkinter import filedialog
-from collections import deque
 import signal
 from contextlib import suppress
 from typing import Tuple, Optional
@@ -9,11 +7,14 @@ import numpy as np
 import threading as Th
 from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
+from tkinter import filedialog
+from pathlib import Path
+
+
 from pymicroscope.utils.configurable import (
-    Configurable,
-    ConfigurableProperty,
     ConfigurationDialog,
 )
+from pymicroscope.savetask import SaveTask
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -29,6 +30,9 @@ class MicroscopeApp(App):
 
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
+        self.save_queue = None
+        self.images_directory = Path("~/Desktop").expanduser()
+        self.images_template = "Image-{date}-{time}-{i}.tif"
 
         self.shape = (480, 640, 3)
         self.provider = None
@@ -82,6 +86,13 @@ class MicroscopeApp(App):
             }
 
     def cleanup(self):
+        if self.preview_queue is not None:
+            self.preview_queue.close()
+            self.preview_queue.join_thread()
+        
+        if self.preview_queue is not None:
+            self.preview_queue.close()
+            self.preview_queue.join_thread()
         pass
 
     def build_interface(self):
@@ -113,7 +124,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=130
+            label="Image Acquisition", width=500, height=150
         )
 
         self.save_controls.grid_into(
@@ -152,7 +163,7 @@ class MicroscopeApp(App):
             padx=10,
         )
 
-        self.save_button = Button("Save …")
+        self.save_button = Button("Save …", user_event_callback=self.user_clicked_save)
         self.save_button.grid_into(
             self.save_controls,
             row=2,
@@ -160,6 +171,8 @@ class MicroscopeApp(App):
             pady=10,
             padx=10,
         )
+        self.bind_properties("is_camera_running", self.save_button, "is_enabled")
+        
         Label("Images to average: ").grid_into(
             self.save_controls, row=2, column=1, pady=10, padx=10, sticky="e"
         )
@@ -169,6 +182,41 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
+        self.choose_directory_button = Button("Directory …", user_event_callback=self.user_clicked_choose_directory)
+        self.choose_directory_button.grid_into(
+            self.save_controls, row=3, column=0, pady=10, padx=10, sticky="e"
+        )
+        
+        label = Label("(directory)")
+        label.grid_into(
+            self.save_controls, row=3, column=1, pady=10, padx=10, sticky="e"
+        )
+        self.bind_properties("images_directory", label, "value_variable")
+
+        entry = Entry()
+        entry.grid_into(
+            self.save_controls, row=3, column=2, pady=10, padx=10, sticky="e"
+        )
+        self.bind_properties("images_template", entry, "value_variable")
+
+        self.number_of_images_average = IntEntry(value=30, width=5)
+        self.number_of_images_average.grid_into(
+            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
+        )
+
+    def user_clicked_choose_directory(self, button, event):
+        self.images_directory = filedialog.askdirectory(title="Select a destination for images:", initialdir=self.images_directory)
+        
+        if self.images_directory == "":
+            self.images_directory = "/tmp"
+                        
+    def user_clicked_save(self, button, event):
+        n_images = self.number_of_images_average.value
+        
+        task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
+        self.save_queue = task.queue
+        task.start()
+    
     def user_changed_camera(self, popup, index):
         self.change_provider()
 
@@ -179,12 +227,12 @@ class MicroscopeApp(App):
         )
         self.sutter.widget.grid_propagate(False)
 
-        if not self.sutter_device.doInitializeDevice:  # we don't konw now
+        if not self.sutter_device.initializeDevice:  # we don't konw now
             Dialog.showerror(
                 title="sutter controller is not connected or found",
                 message="Check that the controller is connected to the computer",
             )
-            position = self.sutter_device.doGetPosition()
+            position = self.sutter_device.getPosition()
             initial_x_value = position[0]
             initial_y_value = position[1]
             initial_z_value = position[2]
@@ -540,7 +588,12 @@ class MicroscopeApp(App):
     def change_provider(self, configuration={}):
         self.release_provider()
 
+        if self.image_queue is not None:
+            self.image_queue.close()
+            self.image_queue.join_thread()
+        
         self.image_queue = Queue()
+            
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
         args = self.cameras[selected_camera_name]["args"]
@@ -556,6 +609,8 @@ class MicroscopeApp(App):
             self.provider.terminate()
             self.provider = None
             self.empty_queue(self.image_queue)
+            self.image_queue.close()
+            self.image_queue.join_thread()
             self.start_stop_button.label = "Start"
             self.is_camera_running = False
 
@@ -593,6 +648,12 @@ class MicroscopeApp(App):
             with suppress(Full):
                 self.preview_queue.put_nowait(img_array)
 
+            if self.save_queue is not None:
+                try:
+                    self.save_queue.put_nowait(img_array)
+                except Full as err:
+                    self.save_queue = None # Task has reference
+                    
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)
         except Empty:
