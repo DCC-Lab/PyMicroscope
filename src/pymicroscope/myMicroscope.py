@@ -9,6 +9,7 @@ from queue import Queue, Empty, Full
 from multiprocessing import RLock, shared_memory, Queue
 from tkinter import filedialog
 from pathlib import Path
+from threading import Thread
 
 
 from pymicroscope.utils.configurable import (
@@ -215,7 +216,12 @@ class MicroscopeApp(App):
         
         task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
         self.save_queue = task.queue
-        task.start()
+        
+        if True:
+            th = Thread(target=task.hook)
+            th.start()
+        else:  
+            task.start()
     
     def user_changed_camera(self, popup, index):
         self.change_provider()

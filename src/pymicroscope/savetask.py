@@ -10,7 +10,6 @@ import platform
 from PIL import Image as PILImage
 
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
-from threading import Thread
 
 def beep():
     if platform.system() == 'Darwin':
@@ -40,42 +39,28 @@ class SaveTask(TerminableProcess):
         except Empty:
             pass
 
+    def cleanup(self):
+        self.empty_queue(self.queue)
+        self.queue.close()
+        self.queue.join_thread()                           
+        
+    def hook(self):
+        while True:
+            if self.queue.full():
+                self.save()                        
+                break
+            else:
+                time.sleep(0.01)
+
+        beep()
+        self.cleanup()
+        
     def run(self):
         with self.syncing_context() as must_terminate_now:
             while not must_terminate_now:
                 try:
                     if self.queue.full():
-                        print("Queue is ready for saving")       
-
-                        index = 0
-                        img_arrays = []
-                        
-                        now = datetime.now()
-
-                        date_str = now.strftime("%Y%m%d")
-                        time_str = now.strftime("%H%M%S")
-                        params = {"date":date_str, "time":time_str}
-
-                        while index < self.n_images:
-                            img_array = self.queue.get()
-                            img_arrays.append(img_array)
-                            
-                            if self.save_individual_files:
-                                pil_image = PILImage.fromarray(img_array, mode="RGB")                            
-                                params["i"]= index
-                                filepath = self.root_dir / Path(self.template.format(**params))
-                                pil_image.save(filepath)
-                                print(f"Saving {filepath}")                                
-                            index = index+1
-                            
-                        print(f"{index} images saved")
-                        stacked = np.stack(img_arrays).astype(np.float64)
-                        mean_img = np.mean(stacked, axis=0)
-                        pil_image = PILImage.fromarray(mean_img.astype(np.uint8), mode="RGB")
-                        params['i'] = "avg"                     
-                        filepath = self.root_dir / Path(self.template.format(**params))
-                        pil_image.save(filepath)
-                        
+                        self.save()                        
                         beep()
                         must_terminate_now = True
                     else:
@@ -84,7 +69,32 @@ class SaveTask(TerminableProcess):
                 except Exception as err:
                     self.log.error(f"Error in ImageProvider run loop : {err}")
 
-            self.empty_queue(self.queue)
-            self.queue.close()
-            self.queue.join_thread()                           
+            self.cleanup()
+    
+    def save(self):
+        index = 0
+        img_arrays = []
         
+        now = datetime.now()
+        date_str = now.strftime("%Y%m%d")
+        time_str = now.strftime("%H%M%S")
+        params = {"date":date_str, "time":time_str}
+
+        while index < self.n_images:
+            img_array = self.queue.get()
+            img_arrays.append(img_array)
+            
+            if self.save_individual_files:
+                pil_image = PILImage.fromarray(img_array, mode="RGB")                            
+                params["i"]= index
+                filepath = self.root_dir / Path(self.template.format(**params))
+                pil_image.save(filepath)
+                print(f"Saving {filepath}")                                
+            index = index+1
+            
+        stacked = np.stack(img_arrays).astype(np.float64)
+        mean_img = np.mean(stacked, axis=0)
+        pil_image = PILImage.fromarray(mean_img.astype(np.uint8), mode="RGB")
+        params['i'] = "avg"                     
+        filepath = self.root_dir / Path(self.template.format(**params))
+        pil_image.save(filepath)
