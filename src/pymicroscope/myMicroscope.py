@@ -21,8 +21,9 @@ from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
+from pymicroscope.sutterconfigdialog import SutterConfigDialog
+from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
-
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -50,13 +51,40 @@ class MicroscopeApp(App):
             self.vms_controller.initialize()
         except Exception as err:
             pass  # vms_controller.is_accessible == False
-
+        
         self.sutter_device = SutterDevice()
         try:
             self.sutter_device.initializeDevice()
         except Exception as err:
             pass  # sutter_device.is_accessible == False
+
+        if not self.sutter_device.initializeDevice:  # we don't konw now
+            Dialog.showerror(
+                title="sutter controller is not connected or found",
+                message="Check that the controller is connected to the computer",
+            )
+            position = self.sutter_device.getPosition()
+            self.initial_x_value = position[0]
+            self.initial_y_value = position[1]
+            self.initial_z_value = position[2]
+            self.z_image_number = 1
+
+        else:
+            self.initial_x_value = 0
+            self.initial_y_value = 0
+            self.initial_z_value = 0
+            self.z_image_number = 1
+
+        self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
+            "Upper left corner": None,
+            "Upper right corner": None,
+            "Lower left corner": None,
+            "Lower right corner": None,
+        }
+
         self.can_start_map = False
+
+        self.sutter_config_dialog = SutterConfigDialog(self)
 
         self.app_setup()
         self.build_interface()
@@ -219,37 +247,13 @@ class MicroscopeApp(App):
     
     def user_changed_camera(self, popup, index):
         self.change_provider()
-
+    
     def build_sutter_interface(self):
         self.sutter = Box(label="Position", width=500, height=250)
         self.sutter.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
         self.sutter.widget.grid_propagate(False)
-
-        if not self.sutter_device.initializeDevice:  # we don't konw now
-            Dialog.showerror(
-                title="sutter controller is not connected or found",
-                message="Check that the controller is connected to the computer",
-            )
-            position = self.sutter_device.getPosition()
-            initial_x_value = position[0]
-            initial_y_value = position[1]
-            initial_z_value = position[2]
-            z_image_number = 1
-
-        else:
-            initial_x_value = 0
-            initial_y_value = 0
-            initial_z_value = 0
-            z_image_number = 1
-
-        self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
-            "Upper left corner": None,
-            "Upper right corner": None,
-            "Lower left corner": None,
-            "Lower right corner": None,
-        }
 
         Label("sutter position").grid_into(
             self.sutter,
@@ -263,19 +267,19 @@ class MicroscopeApp(App):
         Label("x :").grid_into(
             self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(initial_x_value).grid_into(
+        Label(self.initial_x_value).grid_into(
             self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
             self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
-        Label(initial_y_value).grid_into(
+        Label(self.initial_y_value).grid_into(
             self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
             self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
-        Label(initial_z_value).grid_into(
+        Label(self.initial_z_value).grid_into(
             self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
@@ -298,10 +302,11 @@ class MicroscopeApp(App):
             padx=2,
             sticky="e",
         )
-        self.z_image_number_entry = IntEntry(value=z_image_number, width=5)
+        self.z_image_number_entry = IntEntry(value=self.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
             self.sutter, row=3, column=2, pady=2, padx=2, sticky="w"
         )
+        self.z_image_number = self.z_image_number_entry.value
 
         self.apply_upper_left_button = Button(
             "Upper left corner",
@@ -361,7 +366,7 @@ class MicroscopeApp(App):
 
         self.start_map_aquisition = Button(
             "Start Map",
-            user_event_callback=self.aquisition_image,
+            user_event_callback=self.user_clicked_aquisition_image,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
@@ -409,161 +414,8 @@ class MicroscopeApp(App):
                 x is not None for x in self.parameters.values()
             )
 
-    def ajuste_map_imaging(self):
-        if all(x is not None for x in self.parameters.values()):
-            upper_left_corner = self.parameters["Upper left corner"]
-            upper_right_corner = self.parameters["Upper right corner"]
-            lower_left_corner = self.parameters["Lower left corner"]
-            lower_right_corner = self.parameters["Lower right corner"]
-
-            # ajuste image for making a square
-            if upper_left_corner[1] > upper_right_corner[1]:
-                ajusted_position = (
-                    upper_left_corner[0],
-                    upper_right_corner[1],
-                    upper_left_corner[2],
-                )
-                self.parameters["Upper left corner"] = ajusted_position
-
-            if upper_left_corner[1] < upper_right_corner[1]:
-                ajusted_position = (
-                    upper_right_corner[0],
-                    upper_left_corner[1],
-                    upper_right_corner[2],
-                )
-                self.parameters["Upper right corner"] = ajusted_position
-
-            if upper_right_corner[0] > lower_right_corner[0]:
-                ajusted_position = (
-                    lower_right_corner[0],
-                    upper_right_corner[1],
-                    upper_right_corner[2],
-                )
-                self.parameters["Upper right corner"] = ajusted_position
-
-            if upper_right_corner[0] < lower_right_corner[0]:
-                ajusted_position = (
-                    upper_right_corner[0],
-                    lower_right_corner[1],
-                    lower_right_corner[2],
-                )
-                self.parameters["Lower right corner"] = ajusted_position
-
-            if lower_left_corner[1] > lower_right_corner[1]:
-                ajusted_position = (
-                    lower_left_corner[0],
-                    lower_right_corner[1],
-                    lower_left_corner[2],
-                )
-                self.parameters["Lower left corner"] = ajusted_position
-
-            if lower_left_corner[1] < lower_right_corner[1]:
-                ajusted_position = (
-                    lower_right_corner[0],
-                    lower_left_corner[1],
-                    lower_right_corner[2],
-                )
-                self.parameters["Lower right corner"] = ajusted_position
-
-            if upper_left_corner[0] > lower_left_corner[0]:
-                ajusted_position = (
-                    upper_left_corner[0],
-                    lower_left_corner[1],
-                    lower_left_corner[2],
-                )
-                self.parameters["Lower left corner"] = ajusted_position
-
-            if upper_left_corner[0] < lower_left_corner[0]:
-                ajusted_position = (
-                    lower_left_corner[0],
-                    upper_left_corner[1],
-                    upper_left_corner[2],
-                )
-                self.parameters["Upper left corner"] = ajusted_position
-
-            for parameter, z in self.parameters:
-                z_values_comparaison = z[2]
-
-                if len(set(z_values_comparaison)) != 1:
-                    ajusted_position = (
-                        z[0],
-                        z[1],
-                        max(z_values_comparaison),
-                    )
-                    self.parameters[parameter] = ajusted_position
-
-        else:
-            raise ValueError("Some initial parameters are missing")
-
-    def aquisition_image(self, even, button):
-        if all(x is not None for x in self.parameters.values()):
-            self.ajuste_map_imaging
-            x_pixels_value_per_image = int(1000)
-            y_pixels_value_per_image = int(500)
-            microstep_pixel = int(0.16565)  # for a zoom 2x
-            x_microstep_value_per_image = (
-                x_pixels_value_per_image * microstep_pixel
-            )
-            y_microstep_value_per_image = (
-                y_pixels_value_per_image * microstep_pixel
-            )
-            self.sutter_device.moveTo(self.parameters["Upper left corner"])
-            self.sutter_device.doMoveBy(
-                (
-                    x_microstep_value_per_image * number_of_x_pictures,
-                    y_microstep_value_per_image,
-                    -1,
-                )
-            )
-            # the initial value need to be upper because we start with a domoveby in the for boucle
-
-            upper_left_corner = self.parameters["Upper left corner"]
-            upper_right_corner = self.parameters["Upper right corner"]
-            lower_right_corner = self.parameters["Lower right corner"]
-
-            # a 10% ajustement between each image to match them
-            number_of_x_pictures = math.ceil(
-                (upper_right_corner[0] - upper_left_corner[0])
-                / (
-                    x_microstep_value_per_image
-                    - 0.1 * x_microstep_value_per_image
-                )
-            )
-            number_of_y_pictures = math.ceil(
-                (upper_right_corner[1] - lower_right_corner[1])
-                / (
-                    y_microstep_value_per_image
-                    - 0.1 * y_microstep_value_per_image
-                )
-            )
-            number_of_z_pictures = self.z_image_number_entry.value
-
-            for z in range(number_of_z_pictures):
-                self.sutter_device.doMoveBy((0, 0, 1))
-                for y in range(number_of_y_pictures):
-                    self.sutter_device.doMoveBy(
-                        (
-                            -x_microstep_value_per_image * number_of_x_pictures,
-                            -y_microstep_value_per_image
-                            + 0.1 * y_microstep_value_per_image,
-                            0,
-                        )
-                    )  # for the moment, need a dy movement
-                    """Take a picture"""
-                    """Save"""
-                    for x in range(number_of_x_pictures):
-                        self.sutter_device.doMoveBy(
-                            (
-                                x_microstep_value_per_image
-                                - 0.1 * x_microstep_value_per_image,
-                                0,
-                                0,
-                            )
-                        )  # for the moment, need a dx movement
-                        """Take a picture"""
-                        """Save"""
-
-            print(self.sutter_device.position())
+    def user_clicked_aquisition_image(self, event, button):
+        self.sutter_config_dialog.aquisition_image()
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
