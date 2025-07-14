@@ -11,7 +11,6 @@ class SutterConfigDialog():
         self.z_image_number = self.sutter_config.z_image_number
         self.user_clicked_save = self.sutter_config.user_clicked_save
 
-
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
             upper_left_corner = self.parameters["Upper left corner"]
@@ -98,6 +97,7 @@ class SutterConfigDialog():
         else:
             raise ValueError("Some initial parameters are missing")
 
+            
     def aquisition_image(self):
         if all(x is not None for x in self.parameters.values()):
             self.ajuste_map_imaging()
@@ -153,7 +153,7 @@ class SutterConfigDialog():
                     )  # for the moment, need a dy movement
                     """Take a picture"""
                     """Save"""
-                    #self.user_clicked_save()
+                    self.user_clicked_save()
 
                     for x in range(number_of_x_pictures):
                         self.sutter_device.moveBy(
@@ -166,8 +166,8 @@ class SutterConfigDialog():
                         )  # for the moment, need a dx movement
                         """Take a picture"""
                         """Save"""
-                        #self.user_clicked_save()
+                        self.user_clicked_save()
 
-            #print(self.sutter_device.position())
         
-    print("hello")
+        else:
+            print("some parameter are None")

@@ -52,7 +52,9 @@ class MicroscopeApp(App):
         except Exception as err:
             pass  # vms_controller.is_accessible == False
         
+        #self.sutter_device = SutterDevice(serialNumber="debug")
         self.sutter_device = SutterDevice()
+
         try:
             self.sutter_device.initializeDevice()
         except Exception as err:
@@ -415,7 +417,10 @@ class MicroscopeApp(App):
             )
 
     def user_clicked_aquisition_image(self, event, button):
-        self.sutter_config_dialog.aquisition_image()
+        if self.sutter_device.initializeDevice() is not None:
+            self.sutter_config_dialog.aquisition_image()
+        else:
+            raise Exception("No sutter device found")
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
