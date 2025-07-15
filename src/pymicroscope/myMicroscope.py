@@ -51,42 +51,14 @@ class MicroscopeApp(App):
             self.vms_controller.initialize()
         except Exception as err:
             pass  # vms_controller.is_accessible == False
-        
-        #self.sutter_device = SutterDevice(serialNumber="debug")
-        self.sutter_device = SutterDevice()
 
-        try:
-            self.sutter_device.initializeDevice()
-        except Exception as err:
-            pass  # sutter_device.is_accessible == False
 
-        if not self.sutter_device.initializeDevice:  # we don't konw now
-            Dialog.showerror(
-                title="sutter controller is not connected or found",
-                message="Check that the controller is connected to the computer",
-            )
-            position = self.sutter_device.getPosition()
-            self.initial_x_value = position[0]
-            self.initial_y_value = position[1]
-            self.initial_z_value = position[2]
-            self.z_image_number = 1
+        self.upper_left_clicked = False
+        self.upper_right_clicked= False
+        self.lower_left_clicked = False
+        self.lower_right_clicked = False
 
-        else:
-            self.initial_x_value = 0
-            self.initial_y_value = 0
-            self.initial_z_value = 0
-            self.z_image_number = 1
-
-        self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
-            "Upper left corner": None,
-            "Upper right corner": None,
-            "Lower left corner": None,
-            "Lower right corner": None,
-        }
-
-        self.can_start_map = False
-
-        self.sutter_config_dialog = SutterConfigDialog(self)
+        self.sutter_config_dialog = SutterConfigDialog()
 
         self.app_setup()
         self.build_interface()
@@ -241,6 +213,9 @@ class MicroscopeApp(App):
             self.images_directory = "/tmp"
                         
     def user_clicked_save(self, button, event):
+        self.save()
+
+    def save(self):
         n_images = self.number_of_images_average.value
         
         task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
@@ -269,19 +244,19 @@ class MicroscopeApp(App):
         Label("x :").grid_into(
             self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(self.initial_x_value).grid_into(
+        Label(self.sutter_config_dialog.initial_x_value).grid_into(
             self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
             self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
-        Label(self.initial_y_value).grid_into(
+        Label(self.sutter_config_dialog.initial_y_value).grid_into(
             self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
             self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
-        Label(self.initial_z_value).grid_into(
+        Label(self.sutter_config_dialog.initial_z_value).grid_into(
             self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
@@ -304,7 +279,7 @@ class MicroscopeApp(App):
             padx=2,
             sticky="e",
         )
-        self.z_image_number_entry = IntEntry(value=self.z_image_number, width=5)
+        self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
             self.sutter, row=3, column=2, pady=2, padx=2, sticky="w"
         )
@@ -384,7 +359,7 @@ class MicroscopeApp(App):
 
         self.clear_map_aquisition = Button(
             "Clear",
-            user_event_callback=self.user_clicked_saving_position,
+            user_event_callback=self.user_clicked_clear,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.clear_map_aquisition.grid_into(
             self.sutter,
@@ -399,28 +374,73 @@ class MicroscopeApp(App):
         )
 
     def user_clicked_saving_position(self, even, button):
-        if button.label == "Clear":
-            for p in self.parameters:
-                self.parameters[p] = None
-                self.can_start_map = False
+        self.saving_position(button.label)
 
-        else:
-            position = (0, 0, 0)
+    def saving_position(self, corner):
+
+        if corner == "Upper left corner":
             try:
-                position = self.sutter_device.doGetPosition()
+                self.sutter_config_dialog.saving_position()
+                self.upper_left_clicked = True
+
             except Exception as err:
                 pass
 
-            self.parameters[button.label] = position
-            self.start_map_aquisition.is_enabled = all(
-                x is not None for x in self.parameters.values()
-            )
+        elif corner == "Upper right corner":
+            try:
+                self.sutter_config_dialog.saving_position()
+                self.upper_right_clicked= True
+                
+            except Exception as err:
+                pass
+
+        elif corner == "Lower left corner":
+            try:
+                self.sutter_config_dialog.saving_position()
+                self.lower_left_clicked = True
+
+            except Exception as err:
+                pass
+
+        elif corner == "Lower right corner":
+            try:
+                self.sutter_config_dialog.saving_position()
+                self.lower_right_clicked = True
+
+            except Exception as err:
+                pass
+        
+        if all(self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked):
+            self.bind_properties(
+            "can_start_map", self.clear_map_aquisition, "is_enabled"
+        )
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_enabled"
+        )
+        '''event!!!'''
+
+    def user_clicked_clear(self):
+        self.upper_left_clicked = False
+        self.upper_right_clicked= False
+        self.lower_left_clicked = False
+        self.lower_right_clicked = False
+
+        #appeler fonctiion de sutter pour clear ces paramètres
+        self.sutter_config_dialog.clear()
+
+        self.bind_properties(
+            "can_start_map", self.clear_map_aquisition, "is_disabled"
+        )
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_disabled"
+        )
+        
 
     def user_clicked_aquisition_image(self, event, button):
-        if self.sutter_device.initializeDevice() is not None:
-            self.sutter_config_dialog.aquisition_image()
-        else:
-            raise Exception("No sutter device found")
+        #if self.sutter_device.doInitializeDevice() is not None:
+        self.sutter_config_dialog.aquisition_image()
+        #else:
+        #    raise Exception("No sutter device found")
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False

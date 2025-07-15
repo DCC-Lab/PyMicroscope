@@ -1,15 +1,66 @@
 from mytk import *
 import math
+from typing import Tuple, Optional
+from hardwarelibrary.motion import SutterDevice
 
 
 class SutterConfigDialog():
-    def __init__(self, sutter_config, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sutter_config = sutter_config
-        self.sutter_device = self.sutter_config.sutter_device
-        self.parameters = self.sutter_config.parameters
-        self.z_image_number = self.sutter_config.z_image_number
-        self.user_clicked_save = self.sutter_config.user_clicked_save
+    def __init__(self):
+        
+        self.sutter_device = SutterDevice(serialNumber="debug")
+        #self.sutter_device = SutterDevice()
+
+        try:
+            self.sutter_device.doInitializeDevice()
+        except Exception as err:
+            pass  # sutter_device.is_accessible == False
+
+        if self.sutter_device is not None:  # we don't konw now
+            Dialog.showerror(
+                title="sutter controller is not connected or found",
+                message="Check that the controller is connected to the computer",
+            )
+            position = self.sutter_device.doGetPosition()
+            self.initial_x_value = position[0]
+            self.initial_y_value = position[1]
+            self.initial_z_value = position[2]
+        else:
+            self.initial_x_value = 0
+            self.initial_y_value = 0
+            self.initial_z_value = 0
+
+        self.z_image_number = 1
+
+        self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
+            "Upper left corner": None,
+            "Upper right corner": None,
+            "Lower left corner": None,
+            "Lower right corner": None,
+        }
+
+        self.can_start_map = False
+
+    def saving_position(self, corner):
+        
+        if corner == "Clear":
+            for p in self.parameters:
+                self.parameters[p] = None
+                self.can_start_map = False
+
+        else:
+            position = (0, 0, 0)
+            try:
+                position = self.sutter_device.doGetPosition()
+            except Exception as err:
+                pass
+
+            self.parameters[corner] = position
+
+    def clear(self):
+        pass
+    
+    def get_position(self):
+        pass
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -110,8 +161,8 @@ class SutterConfigDialog():
             y_microstep_value_per_image = (
                 y_pixels_value_per_image * microstep_pixel
             )
-            self.sutter_device.moveTo(self.parameters["Upper left corner"])
-            self.sutter_device.moveBy(
+            self.sutter_device.doMoveTo(self.parameters["Upper left corner"])
+            self.sutter_device.doMoveBy(
                 (
                     x_microstep_value_per_image * number_of_x_pictures,
                     y_microstep_value_per_image,
@@ -141,9 +192,9 @@ class SutterConfigDialog():
             )
 
             for z in range(self.z_image_number):
-                self.sutter_device.moveBy((0, 0, 1))
+                self.sutter_device.doMoveBy((0, 0, 1))
                 for y in range(number_of_y_pictures):
-                    self.sutter_device.moveBy(
+                    self.sutter_device.doMoveBy(
                         (
                             -x_microstep_value_per_image * number_of_x_pictures,
                             -y_microstep_value_per_image
@@ -153,10 +204,11 @@ class SutterConfigDialog():
                     )  # for the moment, need a dy movement
                     """Take a picture"""
                     """Save"""
-                    self.user_clicked_save()
+                    #microscope = MicroscopeApp()
+                    #microscope.save()
 
                     for x in range(number_of_x_pictures):
-                        self.sutter_device.moveBy(
+                        self.sutter_device.doMoveBy(
                             (
                                 x_microstep_value_per_image
                                 - 0.1 * x_microstep_value_per_image,
@@ -166,7 +218,7 @@ class SutterConfigDialog():
                         )  # for the moment, need a dx movement
                         """Take a picture"""
                         """Save"""
-                        self.user_clicked_save()
+                        #microscope.save()
 
         
         else:
