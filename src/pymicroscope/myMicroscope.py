@@ -99,12 +99,11 @@ class MicroscopeApp(App):
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
 
-        self.background_get_cameras()
-        self.build_cameras_menu()
-        self.build_start_stop_interface()
         self.build_imageview_interface()
         self.build_sutter_interface()
-
+        self.build_cameras_menu()
+        self.build_start_stop_interface()
+        
     def build_imageview_interface(self):
         array = np.zeros(self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
