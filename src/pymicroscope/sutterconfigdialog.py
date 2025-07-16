@@ -20,16 +20,19 @@ class SutterConfigDialog():
                 title="sutter controller is not connected or found",
                 message="Check that the controller is connected to the computer",
             )
-            position = self.sutter_device.doGetPosition()
-            self.initial_x_value = position[0]
-            self.initial_y_value = position[1]
-            self.initial_z_value = position[2]
+            self.position = self.sutter_device.doGetPosition()
+            self.initial_x_value = self.position[0]
+            self.initial_y_value = self.position[1]
+            self.initial_z_value = self.position[2]
         else:
             self.initial_x_value = 0
             self.initial_y_value = 0
             self.initial_z_value = 0
 
+        #valeur a accrocher
         self.z_image_number = 1
+        self.microstep_pixel = int(0.16565)
+        self.z_range = 1     
 
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
@@ -41,26 +44,14 @@ class SutterConfigDialog():
         self.can_start_map = False
 
     def saving_position(self, corner):
-        
-        if corner == "Clear":
-            for p in self.parameters:
-                self.parameters[p] = None
-                self.can_start_map = False
-
+        if self.sutter_device is not None:
+            self.parameters[corner] = self.position
         else:
-            position = (0, 0, 0)
-            try:
-                position = self.sutter_device.doGetPosition()
-            except Exception as err:
-                pass
-
-            self.parameters[corner] = position
-
-    def clear(self):
-        pass
+            raise ValueError("No position found")
     
-    def get_position(self):
-        pass
+    def clear(self):
+        for p in self.parameters:
+                self.parameters[p] = None
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -151,15 +142,15 @@ class SutterConfigDialog():
             
     def aquisition_image(self):
         if all(x is not None for x in self.parameters.values()):
-            self.ajuste_map_imaging()
+            #self.ajuste_map_imaging()
             x_pixels_value_per_image = int(1000)
             y_pixels_value_per_image = int(500)
-            microstep_pixel = int(0.16565)  # for a zoom 2x
+            
             x_microstep_value_per_image = (
-                x_pixels_value_per_image * microstep_pixel
+                x_pixels_value_per_image * self.microstep_pixel
             )
             y_microstep_value_per_image = (
-                y_pixels_value_per_image * microstep_pixel
+                y_pixels_value_per_image * self.microstep_pixel
             )
             self.sutter_device.doMoveTo(self.parameters["Upper left corner"])
             self.sutter_device.doMoveBy(
@@ -191,7 +182,7 @@ class SutterConfigDialog():
                 )
             )
 
-            for z in range(self.z_image_number):
+            for z in range(self.z_image_number*self.z_range*self.microstep_pixel):
                 self.sutter_device.doMoveBy((0, 0, 1))
                 for y in range(number_of_y_pictures):
                     self.sutter_device.doMoveBy(

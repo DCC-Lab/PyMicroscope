@@ -59,6 +59,7 @@ class MicroscopeApp(App):
         self.lower_right_clicked = False
 
         self.sutter_config_dialog = SutterConfigDialog()
+        self.can_start_map = False
 
         self.app_setup()
         self.build_interface()
@@ -353,9 +354,7 @@ class MicroscopeApp(App):
             padx=2,
             sticky="e",
         )
-        self.bind_properties(
-            "can_start_map", self.start_map_aquisition, "is_enabled"
-        )
+        self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
 
         self.clear_map_aquisition = Button(
             "Clear",
@@ -369,9 +368,7 @@ class MicroscopeApp(App):
             padx=2,
             sticky="e",
         )
-        self.bind_properties(
-            "can_start_map", self.clear_map_aquisition, "is_enabled"
-        )
+        self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
 
     def user_clicked_saving_position(self, even, button):
         self.saving_position(button.label)
@@ -380,7 +377,7 @@ class MicroscopeApp(App):
 
         if corner == "Upper left corner":
             try:
-                self.sutter_config_dialog.saving_position()
+                self.sutter_config_dialog.saving_position(corner)
                 self.upper_left_clicked = True
 
             except Exception as err:
@@ -388,7 +385,7 @@ class MicroscopeApp(App):
 
         elif corner == "Upper right corner":
             try:
-                self.sutter_config_dialog.saving_position()
+                self.sutter_config_dialog.saving_position(corner)
                 self.upper_right_clicked= True
                 
             except Exception as err:
@@ -396,7 +393,7 @@ class MicroscopeApp(App):
 
         elif corner == "Lower left corner":
             try:
-                self.sutter_config_dialog.saving_position()
+                self.sutter_config_dialog.saving_position(corner)
                 self.lower_left_clicked = True
 
             except Exception as err:
@@ -404,36 +401,31 @@ class MicroscopeApp(App):
 
         elif corner == "Lower right corner":
             try:
-                self.sutter_config_dialog.saving_position()
+                self.sutter_config_dialog.saving_position(corner)
                 self.lower_right_clicked = True
 
             except Exception as err:
                 pass
         
-        if all(self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked):
-            self.bind_properties(
-            "can_start_map", self.clear_map_aquisition, "is_enabled"
-        )
-        self.bind_properties(
-            "can_start_map", self.start_map_aquisition, "is_enabled"
-        )
+        if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
+            self.can_start_map = True
+            
+            #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
+            #self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
         '''event!!!'''
 
-    def user_clicked_clear(self):
+    def user_clicked_clear(self, even, button):
         self.upper_left_clicked = False
         self.upper_right_clicked= False
         self.lower_left_clicked = False
         self.lower_right_clicked = False
+        self.can_start_map = False
 
         #appeler fonctiion de sutter pour clear ces paramètres
         self.sutter_config_dialog.clear()
 
-        self.bind_properties(
-            "can_start_map", self.clear_map_aquisition, "is_disabled"
-        )
-        self.bind_properties(
-            "can_start_map", self.start_map_aquisition, "is_disabled"
-        )
+        #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_disabled")
+        #self.bind_properties("can_start_map", self.start_map_aquisition, "is_disabled")
         
 
     def user_clicked_aquisition_image(self, event, button):
