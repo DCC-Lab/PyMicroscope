@@ -241,6 +241,9 @@ class MicroscopeApp(App):
             self.images_directory = "/tmp"
                         
     def user_clicked_save(self, button, event):
+        self.save()
+        
+    def save(self):
         n_images = self.number_of_images_average.value
         
         task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
