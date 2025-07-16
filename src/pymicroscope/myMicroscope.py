@@ -271,20 +271,57 @@ class MicroscopeApp(App):
             sticky="w",
         )
 
-        Label("Nomber of z image :").grid_into(
+        Label("microstep/pixel :").grid_into(
             self.sutter,
             row=3,
             column=0,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="e",
+            sticky="nse",
+        )
+
+        #revoir, mettre en float value
+        self.microstep_pixel_entry = IntEntry(value=self.sutter_config_dialog.microstep_pixel, width=5)
+        self.microstep_pixel_entry.grid_into(
+            self.sutter, row=3, column=2, pady=2, padx=2, sticky="nsw"
+        )
+        #problème demander a dan
+        self.microstep_pixel = self.microstep_pixel_entry.value
+
+        Label("Nomber of z image :").grid_into(
+            self.sutter,
+            row=4,
+            column=0,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="nse",
         )
         self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
-            self.sutter, row=3, column=2, pady=2, padx=2, sticky="w"
+            self.sutter, row=4, column=2, pady=2, padx=2, sticky="nsw"
         )
-        self.z_image_number = self.z_image_number_entry.value
+        #problème demander a dan
+        self.z_image = self.z_image_number_entry
+
+        Label("z range :").grid_into(
+            self.sutter,
+            row=4,
+            column=3,
+            pady=2,
+            padx=2,
+            sticky="nse",
+        )
+
+        self.z_range_entry = IntEntry(value=self.sutter_config_dialog.z_range, width=5)
+        self.z_range_entry.grid_into(
+            self.sutter, row=4, column=4, pady=2, padx=2, sticky="nsw"
+        )
+        #problème demander a dan
+        self.z_range = self.z_range_entry.value
+
+
 
         self.apply_upper_left_button = Button(
             "Upper left corner",
@@ -292,7 +329,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
             self.sutter,
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             pady=3,
@@ -306,7 +343,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
             self.sutter,
-            row=4,
+            row=5,
             column=2,
             columnspan=2,
             pady=3,
@@ -320,7 +357,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
             self.sutter,
-            row=5,
+            row=6,
             column=2,
             columnspan=2,
             pady=2,
@@ -334,7 +371,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_left_button.grid_into(
             self.sutter,
-            row=5,
+            row=6,
             column=0,
             columnspan=2,
             pady=2,
@@ -348,7 +385,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
-            row=4,
+            row=5,
             column=5,
             pady=2,
             padx=2,
@@ -362,7 +399,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.clear_map_aquisition.grid_into(
             self.sutter,
-            row=5,
+            row=6,
             column=5,
             pady=2,
             padx=2,
