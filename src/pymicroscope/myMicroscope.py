@@ -271,7 +271,7 @@ class MicroscopeApp(App):
             sticky="w",
         )
 
-        Label("microstep/pixel :").grid_into(
+        Label("Facteur [um/px] :").grid_into(
             self.sutter,
             row=3,
             column=0,
@@ -289,7 +289,7 @@ class MicroscopeApp(App):
         #problème demander a dan
         self.microstep_pixel = self.microstep_pixel_entry.value
 
-        Label("Nomber of z image :").grid_into(
+        Label("Number of z images :").grid_into(
             self.sutter,
             row=4,
             column=0,
@@ -305,7 +305,7 @@ class MicroscopeApp(App):
         #problème demander a dan
         self.z_image = self.z_image_number_entry
 
-        Label("z range :").grid_into(
+        Label("z step :").grid_into(
             self.sutter,
             row=4,
             column=3,
