@@ -67,6 +67,9 @@ class MicroscopeApp(App):
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
 
+
+        # NotificationCenter().addObserver(self,  self.update_sutter_position, LinearMotionNotification.didGetPosition, self.sutter)
+        
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
