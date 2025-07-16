@@ -276,7 +276,7 @@ class MicroscopeApp(App):
             sticky="w",
         )
 
-        Label("Facteur [um/px] :").grid_into(
+        Label("Facteur :").grid_into(
             self.sutter,
             row=3,
             column=0,
@@ -289,10 +289,19 @@ class MicroscopeApp(App):
         #revoir, mettre en float value
         self.microstep_pixel_entry = IntEntry(value=self.sutter_config_dialog.microstep_pixel, width=5)
         self.microstep_pixel_entry.grid_into(
-            self.sutter, row=3, column=2, pady=2, padx=2, sticky="nsw"
+            self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.microstep_pixel = self.microstep_pixel_entry.value
+
+        Label("um/px").grid_into(
+            self.sutter,
+            row=3,
+            column=3,
+            pady=2,
+            padx=0,
+            sticky="nsw",
+        )
 
         Label("Number of z images :").grid_into(
             self.sutter,
@@ -305,7 +314,7 @@ class MicroscopeApp(App):
         )
         self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
-            self.sutter, row=4, column=2, pady=2, padx=2, sticky="nsw"
+            self.sutter, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.z_image = self.z_image_number_entry
@@ -313,7 +322,7 @@ class MicroscopeApp(App):
         Label("z step :").grid_into(
             self.sutter,
             row=4,
-            column=3,
+            column=4,
             pady=2,
             padx=2,
             sticky="nse",
@@ -321,10 +330,18 @@ class MicroscopeApp(App):
 
         self.z_range_entry = IntEntry(value=self.sutter_config_dialog.z_range, width=5)
         self.z_range_entry.grid_into(
-            self.sutter, row=4, column=4, pady=2, padx=2, sticky="nsw"
+            self.sutter, row=4, column=5, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.z_range = self.z_range_entry.value
+        Label("um").grid_into(
+            self.sutter,
+            row=4,
+            column=6,
+            pady=2,
+            padx=0,
+            sticky="nsw",
+        )
 
 
 
@@ -392,9 +409,10 @@ class MicroscopeApp(App):
             self.sutter,
             row=5,
             column=5,
+            columnspan=2,
             pady=2,
             padx=2,
-            sticky="e",
+            sticky="nse",
         )
         self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
 
@@ -406,9 +424,10 @@ class MicroscopeApp(App):
             self.sutter,
             row=6,
             column=5,
+            columnspan=2,
             pady=2,
             padx=2,
-            sticky="e",
+            sticky="nse",
         )
         self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
 
