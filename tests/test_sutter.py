@@ -7,6 +7,7 @@ import binascii
 import time
 from hardwarelibrary.motion import sutterdevice
 from hardwarelibrary.communication.serialport import SerialPort
+from pymicroscope.myMicroscope import MicroscopeApp
 
 
 
@@ -49,6 +50,14 @@ class Sutter(unittest.TestCase):
         #    print(f"Port: {port}, Description: {desc}, HWID: {hwid}")
 
         #self.assertTrue(len(ports_list) > 0)
+    @unittest.SkipTest
+    def test002_parameter(self):
+        microscope_app = MicroscopeApp()
+        print(microscope_app.parameters)
+        print(type(microscope_app.parameters))
+
+
+
     
 
 
