@@ -23,6 +23,8 @@ from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.sutterconfigdialog import SutterConfigDialog
+from pymicroscope.actions import ExperimentalActionManager, ActionMove
+
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
 
@@ -46,14 +48,15 @@ class MicroscopeApp(App):
             }
         }
         self.is_camera_running = False
-
+        self.experiment_manager = ExperimentalActionManager()
+        
         self.vms_controller = VMSController()
         try:
             self.vms_controller.initialize()
         except Exception as err:
             pass  # vms_controller.is_accessible == False
 
-
+        
         self.upper_left_clicked = False
         self.upper_right_clicked= False
         self.lower_left_clicked = False
@@ -491,9 +494,13 @@ class MicroscopeApp(App):
 
     def user_clicked_aquisition_image(self, event, button):
         #if self.sutter_device.doInitializeDevice() is not None:
-        self.sutter_config_dialog.aquisition_image()
-        #else:
-        #    raise Exception("No sutter device found")
+        positions = self.sutter_config_dialog.aquisition_image()
+        
+        for position in positions:
+            self.experiment_manager.add_action(ActionMove(position, self.sutter))
+            
+        self.experiment_manager.perform_all_actions()
+
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
