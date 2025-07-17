@@ -23,7 +23,7 @@ from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.sutterconfigdialog import SutterConfigDialog
-from pymicroscope.actions import ExperimentalActionManager, ActionMove
+from pymicroscope.experiment.actions import ExperimentalActionManager, ActionMove
 
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
