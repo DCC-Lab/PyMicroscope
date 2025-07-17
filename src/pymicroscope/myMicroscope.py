@@ -22,8 +22,8 @@ from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.position_and_mapcontroller import Sutter, MapController
-from pymicroscope.experiment.actions import ExperimentManager, ActionMove
+from pymicroscope.position_and_mapcontroller import Position, MapController
+from pymicroscope.experiment.actions import ExperimentManager, ActionMove, ActionClear, ActionMoveBy
 
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
@@ -62,6 +62,7 @@ class MicroscopeApp(App):
         self.lower_left_clicked = False
         self.lower_right_clicked = False
 
+        self.position = Position(SutterDevice)
         self.map_controller = MapController()
         self.can_start_map = False
 
@@ -253,19 +254,19 @@ class MicroscopeApp(App):
         Label("x :").grid_into(
             self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(self.sutter_config_dialog.initial_x_value).grid_into(
+        Label(self.position.device.position[0]).grid_into(
             self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
             self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
-        Label(self.sutter_config_dialog.initial_y_value).grid_into(
+        Label(self.position.device.position[1]).grid_into(
             self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
             self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
-        Label(self.sutter_config_dialog.initial_z_value).grid_into(
+        Label(self.position.device.position[2]).grid_into(
             self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
@@ -441,7 +442,7 @@ class MicroscopeApp(App):
 
         if corner == "Upper left corner":
             try:
-                self.map_controller.saving_position(corner)
+                self.map_controller.corner_parameter(corner)
                 self.upper_left_clicked = True
 
             except Exception as err:
@@ -449,7 +450,7 @@ class MicroscopeApp(App):
 
         elif corner == "Upper right corner":
             try:
-                self.map_controller.saving_position(corner)
+                self.map_controller.corner_parameter(corner)
                 self.upper_right_clicked= True
                 
             except Exception as err:
@@ -457,7 +458,7 @@ class MicroscopeApp(App):
 
         elif corner == "Lower left corner":
             try:
-                self.map_controller.saving_position(corner)
+                self.map_controller.corner_parameter(corner)
                 self.lower_left_clicked = True
 
             except Exception as err:
@@ -465,7 +466,7 @@ class MicroscopeApp(App):
 
         elif corner == "Lower right corner":
             try:
-                self.map_controller.saving_position(corner)
+                self.map_controller.corner_parameter(corner)
                 self.lower_right_clicked = True
 
             except Exception as err:
@@ -484,9 +485,10 @@ class MicroscopeApp(App):
         self.lower_left_clicked = False
         self.lower_right_clicked = False
         self.can_start_map = False
+        value_to_clear = self.map_controller.parameters
 
         #appeler fonctiion de sutter pour clear ces paramètres
-        self.sutter_config_dialog.clear()
+        ActionClear(value_to_clear)
 
         #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_disabled")
         #self.bind_properties("can_start_map", self.start_map_aquisition, "is_disabled")
@@ -494,7 +496,7 @@ class MicroscopeApp(App):
 
     def user_clicked_aquisition_image(self, event, button):
         #if self.sutter_device.doInitializeDevice() is not None:
-        positions = self.sutter_config_dialog.aquisition_image()
+        positions = self.map_controller.aquisition_position_image()
         
         for position in positions:
             self.experiment_manager.add_action(ActionMove(position, self.sutter))

@@ -67,8 +67,6 @@ class ActionMoveBy(Action):
     def perform(self) -> Any | None:
         self.device.moveInMicronsBy(self.d_position)
 
-
-
 class ActionCapture(Action):
     def __init__(self, n_images, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -79,6 +77,13 @@ class ActionSave(Action):
     def __init__(self, filepath:Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.filepath = filepath
+
+class ActionClear(Action):
+    def __init__(self, filepath:Path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filepath = filepath
+        for file in self.filepath:
+                self.filepath[file] = None
         
         
 class ExperimentManager:

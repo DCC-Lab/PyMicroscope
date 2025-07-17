@@ -3,14 +3,18 @@ import math
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
 from hardwarelibrary.motion import LinearMotionDevice
+from typing import Any
+from pymicroscope.experiment.actions import ExperimentManager, ActionMove, ActionClear, ActionMoveBy
 
 class Position():
     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.device:LinearMotionDevice = linear_motion_device
+        self.positions_list = []
 
     def perform(self) -> Any | None:
-        self.device.position()
+        self.positions_list.append(self.device.position())
+
     
     #def __init__(self):
     #    self.sutter_device = SutterDevice(serialNumber="debug")
@@ -21,22 +25,13 @@ class Position():
     #    except Exception as err:
     #        pass  # sutter_device.is_accessible == False
 
-
-class MapController(Sutter):
-    def __init__(self):
-        self.position = self.sutter_device.doGetPosition()
-        positions_list = []
-        self.initial_x_value = self.position[0]
-        self.initial_y_value = self.position[1]
-        self.initial_z_value = self.position[2]
-        self.initial_x_value = 0
-        self.initial_y_value = 0
-        self.initial_z_value = 0
-
+class MapController(Position):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         #valeur a accrocher
         self.z_image_number = 1
         self.microstep_pixel = int(0.16565)
-        self.z_range = 1     
+        self.z_range = 1    
 
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
@@ -47,15 +42,8 @@ class MapController(Sutter):
 
         self.can_start_map = False
 
-    def saving_position(self, corner):
-        if self.sutter_device is not None:
-            self.parameters[corner] = self.position
-        else:
-            raise ValueError("No position found")
-    
-    def clear(self):
-        for p in self.parameters:
-                self.parameters[p] = None
+    def corner_parameter(self, corner):
+        self.parameters[corner] = self.device.position()
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -144,7 +132,7 @@ class MapController(Sutter):
             raise ValueError("Some initial parameters are missing")
 
             
-    def aquisition_image(self):
+    def aquisition_position_image(self):
         if all(x is not None for x in self.parameters.values()):
             #self.ajuste_map_imaging()
             x_pixels_value_per_image = int(1000)
@@ -156,14 +144,9 @@ class MapController(Sutter):
             y_microstep_value_per_image = (
                 y_pixels_value_per_image * self.microstep_pixel
             )
-            self.sutter_device.doMoveTo(self.parameters["Upper left corner"])
-            self.sutter_device.doMoveBy(
-                (
-                    x_microstep_value_per_image * number_of_x_pictures,
-                    y_microstep_value_per_image,
-                    -1,
-                )
-            )
+            #placement
+            #ActionMove(self.parameters["Upper left corner"])
+            #ActionMoveBy(( x_microstep_value_per_image * number_of_x_pictures, y_microstep_value_per_image, -1,))
             # the initial value need to be upper because we start with a domoveby in the for boucle
 
             upper_left_corner = self.parameters["Upper left corner"]
@@ -187,32 +170,24 @@ class MapController(Sutter):
             )
 
             for z in range(self.z_image_number*self.z_range*self.microstep_pixel):
-                self.sutter_device.doMoveBy((0, 0, 1))
+                z_value = z
+                #self.sutter_device.doMoveBy((0, 0, 1))
                 for y in range(number_of_y_pictures):
-                    self.sutter_device.doMoveBy(
-                        (
-                            -x_microstep_value_per_image * number_of_x_pictures,
-                            -y_microstep_value_per_image
-                            + 0.1 * y_microstep_value_per_image,
-                            0,
-                        )
-                    )  # for the moment, need a dy movement
+                    y_value = y
+                    #self.sutter_device.doMoveBy((-x_microstep_value_per_image * number_of_x_pictures, -y_microstep_value_per_image + 0.1 * y_microstep_value_per_image, 0,))
+                      # for the moment, need a dy movement
                     """Take a picture"""
                     """Save"""
                     #microscope = MicroscopeApp()
                     #microscope.save()
 
                     for x in range(number_of_x_pictures):
-                        self.sutter_device.doMoveBy(
-                            (
-                                x_microstep_value_per_image
-                                - 0.1 * x_microstep_value_per_image,
-                                0,
-                                0,
-                            )
-                        )  # for the moment, need a dx movement
-                        """Take a picture"""
-                        """Save"""
+                        x_value = x
+                        self.positions_list.append((x_value, y_value, z_value))
+
+            return self.positions_list
+
+                        #self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1 * x_microstep_value_per_image, 0, 0,))  # for the moment, need a dx movement
                         #microscope.save()
 
         
