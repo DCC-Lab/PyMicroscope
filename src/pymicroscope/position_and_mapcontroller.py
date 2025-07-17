@@ -2,32 +2,36 @@ from mytk import *
 import math
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
+from hardwarelibrary.motion import LinearMotionDevice
 
+class Position():
+    def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.device:LinearMotionDevice = linear_motion_device
 
-class SutterConfigDialog():
-    def __init__(self):
-        
-        self.sutter_device = SutterDevice(serialNumber="debug")
+    def perform(self) -> Any | None:
+        self.device.position()
+    
+    #def __init__(self):
+    #    self.sutter_device = SutterDevice(serialNumber="debug")
         #self.sutter_device = SutterDevice()
 
-        try:
-            self.sutter_device.doInitializeDevice()
-        except Exception as err:
-            pass  # sutter_device.is_accessible == False
+    #    try:
+    #        self.sutter_device.doInitializeDevice()
+    #    except Exception as err:
+    #        pass  # sutter_device.is_accessible == False
 
-        if self.sutter_device is not None:  # we don't konw now
-            Dialog.showerror(
-                title="sutter controller is not connected or found",
-                message="Check that the controller is connected to the computer",
-            )
-            self.position = self.sutter_device.doGetPosition()
-            self.initial_x_value = self.position[0]
-            self.initial_y_value = self.position[1]
-            self.initial_z_value = self.position[2]
-        else:
-            self.initial_x_value = 0
-            self.initial_y_value = 0
-            self.initial_z_value = 0
+
+class MapController(Sutter):
+    def __init__(self):
+        self.position = self.sutter_device.doGetPosition()
+        positions_list = []
+        self.initial_x_value = self.position[0]
+        self.initial_y_value = self.position[1]
+        self.initial_z_value = self.position[2]
+        self.initial_x_value = 0
+        self.initial_y_value = 0
+        self.initial_z_value = 0
 
         #valeur a accrocher
         self.z_image_number = 1
