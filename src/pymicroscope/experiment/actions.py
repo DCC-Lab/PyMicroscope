@@ -58,6 +58,17 @@ class ActionMove(Action):
     def perform(self) -> Any | None:
         self.device.moveInMicronsTo(self.position)
 
+class ActionMoveBy(Action):
+    def __init__(self, d_position:list[int], linear_motion_device:LinearMotionDevice, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.d_position:list[int] = d_position
+        self.device:LinearMotionDevice = linear_motion_device
+        
+    def perform(self) -> Any | None:
+        self.device.moveInMicronsBy(self.d_position)
+
+
+
 class ActionCapture(Action):
     def __init__(self, n_images, *args, **kwargs):
         super().__init__(*args, **kwargs)

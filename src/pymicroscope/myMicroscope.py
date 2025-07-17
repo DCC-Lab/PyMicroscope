@@ -22,7 +22,7 @@ from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.sutterconfigdialog import SutterConfigDialog
+from pymicroscope.position_and_mapcontroller import Sutter, MapController
 from pymicroscope.experiment.actions import ExperimentManager, ActionMove
 
 from typing import Tuple, Optional
@@ -62,7 +62,7 @@ class MicroscopeApp(App):
         self.lower_left_clicked = False
         self.lower_right_clicked = False
 
-        self.sutter_config_dialog = SutterConfigDialog()
+        self.map_controller = MapController()
         self.can_start_map = False
 
         self.app_setup()
@@ -290,7 +290,7 @@ class MicroscopeApp(App):
         )
 
         #revoir, mettre en float value
-        self.microstep_pixel_entry = IntEntry(value=self.sutter_config_dialog.microstep_pixel, width=5)
+        self.microstep_pixel_entry = IntEntry(value=self.map_controller.microstep_pixel, width=5)
         self.microstep_pixel_entry.grid_into(
             self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
@@ -315,7 +315,7 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
+        self.z_image_number_entry = IntEntry(value=self.map_controller.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
             self.sutter, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
@@ -331,7 +331,7 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        self.z_range_entry = IntEntry(value=self.sutter_config_dialog.z_range, width=5)
+        self.z_range_entry = IntEntry(value=self.map_controller.z_range, width=5)
         self.z_range_entry.grid_into(
             self.sutter, row=4, column=5, pady=2, padx=2, sticky="ns"
         )
@@ -441,7 +441,7 @@ class MicroscopeApp(App):
 
         if corner == "Upper left corner":
             try:
-                self.sutter_config_dialog.saving_position(corner)
+                self.map_controller.saving_position(corner)
                 self.upper_left_clicked = True
 
             except Exception as err:
@@ -449,7 +449,7 @@ class MicroscopeApp(App):
 
         elif corner == "Upper right corner":
             try:
-                self.sutter_config_dialog.saving_position(corner)
+                self.map_controller.saving_position(corner)
                 self.upper_right_clicked= True
                 
             except Exception as err:
@@ -457,7 +457,7 @@ class MicroscopeApp(App):
 
         elif corner == "Lower left corner":
             try:
-                self.sutter_config_dialog.saving_position(corner)
+                self.map_controller.saving_position(corner)
                 self.lower_left_clicked = True
 
             except Exception as err:
@@ -465,7 +465,7 @@ class MicroscopeApp(App):
 
         elif corner == "Lower right corner":
             try:
-                self.sutter_config_dialog.saving_position(corner)
+                self.map_controller.saving_position(corner)
                 self.lower_right_clicked = True
 
             except Exception as err:
