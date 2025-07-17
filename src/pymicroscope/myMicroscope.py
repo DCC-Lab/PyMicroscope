@@ -23,7 +23,7 @@ from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.sutterconfigdialog import SutterConfigDialog
-from pymicroscope.experiment.actions import ExperimentalActionManager, ActionMove
+from pymicroscope.experiment.actions import ExperimentManager, ActionMove
 
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
@@ -48,7 +48,7 @@ class MicroscopeApp(App):
             }
         }
         self.is_camera_running = False
-        self.experiment_manager = ExperimentalActionManager()
+        self.experiment_manager = ExperimentManager()
         
         self.vms_controller = VMSController()
         try:
