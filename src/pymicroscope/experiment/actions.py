@@ -18,24 +18,24 @@ class Action:
 
 @dataclass
 class ExperimentStep:
-    prepare:list[Action]
-    perform:list[Action]
-    finalize:list[Action]
+    prepare_actions:list[Action] = None
+    perform_actions:list[Action] = None
+    finalize_actions:list[Action] = None
     
-    def perform_step(self):
-        if self.prepare is not None:
+    def perform(self):
+        if self.prepare_actions is not None:
             result = None
-            for action in self.prepare:
+            for action in self.prepare_actions:
                 result = action.perform(inputs=result)
 
-        if self.perform is not None:
+        if self.perform_actions is not None:
             result = None
-            for action in self.perform:
+            for action in self.perform_actions:
                 result = action.perform(result=result)
                 
-        if self.finalize is not None:
+        if self.finalize_actions is not None:
             result = None
-            for action in self.finalize:
+            for action in self.finalize_actions:
                 result = action.perform(result=result)
 
             
@@ -91,7 +91,7 @@ class ExperimentManager:
         self.steps:list[ExperimentStep] = []
 
     def add_action(self, action:Action):
-        self.steps.append( ExperimentStep(prepare=None, perform=[Action], finalize=None))
+        self.steps.append( ExperimentStep(perform_actions=[Action]))
     
     def add_actions(self, actions:list[Action]):
         for action in actions:
