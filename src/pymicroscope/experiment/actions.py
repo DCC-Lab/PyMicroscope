@@ -10,6 +10,7 @@ import numpy as np
 
 from hardwarelibrary.motion import LinearMotionDevice
 
+
 class Action:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -131,6 +132,14 @@ class ActionSave(Action):
         params["i"] = "avg"
         filepath = self.root_dir / Path(self.template.format(**params))
         pil_image.save(filepath)
+
+
+class ActionClear(Action):
+    def __init__(self, filepath: Path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filepath = filepath
+        for file in self.filepath:
+            self.filepath[file] = None
 
 
 class ExperimentStep:
