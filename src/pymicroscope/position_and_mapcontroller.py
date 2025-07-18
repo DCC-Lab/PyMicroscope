@@ -4,7 +4,8 @@ from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
 from hardwarelibrary.motion import LinearMotionDevice
 from typing import Any
-from pymicroscope.experiment.actions import Experiment, ActionMove, ActionClear, ActionMoveBy
+from pymicroscope.experiment.actions import ActionMove, ActionClear, ActionMoveBy
+from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 
 class Position():
     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
