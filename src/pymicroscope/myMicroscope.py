@@ -322,8 +322,7 @@ class MicroscopeApp(App):
         self.z_image_number_entry.grid_into(
             self.sutter, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
-        #problème demander a dan
-        self.z_image = self.z_image_number_entry
+        self.map_controller.bind_properties("z_image_number", self.z_image_number_entry, "value_variable")
 
         Label("z step :").grid_into(
             self.sutter,
@@ -338,8 +337,8 @@ class MicroscopeApp(App):
         self.z_range_entry.grid_into(
             self.sutter, row=4, column=5, pady=2, padx=2, sticky="ns"
         )
-        #problème demander a dan
-        self.z_range = self.z_range_entry.value
+        self.map_controller.bind_properties("z_range", self.z_range_entry, "value_variable")
+
         Label("um").grid_into(
             self.sutter,
             row=4,
@@ -445,11 +444,6 @@ class MicroscopeApp(App):
          self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
-        self.upper_left_clicked = False
-        self.upper_right_clicked= False
-        self.lower_left_clicked = False
-        self.lower_right_clicked = False
-        self.can_start_map = False
         value_to_clear = self.map_controller.parameters
 
         #appeler fonctiion de sutter pour clear ces paramètres

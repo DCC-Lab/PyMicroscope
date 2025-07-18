@@ -1,40 +1,7 @@
 from mytk import *
 import math
 from typing import Tuple, Optional
-from hardwarelibrary.motion import SutterDevice
-from hardwarelibrary.motion import LinearMotionDevice
 from typing import Any
-from pymicroscope.experiment.actions import ActionMove, ActionClear, ActionMoveBy
-from pymicroscope.experiment.experiments import Experiment, ExperimentStep
-
-
-
-
-
-
-
-# class Position():
-#     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.device = linear_motion_device
-#         self.positions_list = []
-#         self.position: Tuple[int, int, int] = self.device.position()
-
-#     def perform(self, place_to_go) -> Any | None:
-#         self.positions_list.append(place_to_go)
-    
-#     def list_of_position(self):
-#         return self.positions_list
-
-    
-    #def __init__(self):
-    #    self.sutter_device = SutterDevice(serialNumber="debug")
-        #self.sutter_device = SutterDevice()
-
-    #    try:
-    #        self.sutter_device.doInitializeDevice()
-    #    except Exception as err:
-    #        pass  # sutter_device.is_accessible == False
 
 class MapController(Bindable):
     def __init__(self, device, *args, **kwargs):
@@ -55,13 +22,31 @@ class MapController(Bindable):
     def create_positions_for_map(self):
         ## Faire le calcul pour vrai avec corner1m cprner2 corner3 corbner4...
         # Utiliser self.parameters and self.z_imageNUmber, self.micvrostep......
-        
-        
-        return [ (0,0,0), (0,100,0), (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0) ]
+        positions_list = []
 
+        corner1 = self.parameters["Upper left corner"]
+        corner2 = self.parameters["Upper right corner"]
+        corner3 = self.parameters["Lower left corner"]
+        corner4 = self.parameters["Lower right corner"]
 
-    # def corner_parameter(self, corner):
-    #     self.parameters[corner] = self.position
+        x_image_dimension = 1000*self.microstep_pixel
+        y_image_dimension = 500*self.microstep_pixel
+        z_image_dimension = self.z_range*self.microstep_pixel
+
+        number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (x_image_dimension - 0.1 * x_image_dimension))
+        number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (y_image_dimension - 0.1 * y_image_dimension))
+        
+        for z in range(self.z_image_number):
+                 z_position = z*z_image_dimension
+                 for y in range(number_of_y_image):
+                     y_position = y*y_image_dimension*0.9
+                     for x in range(number_of_x_image):
+                         x_position = x*x_image_dimension*0.9
+                         positions_list.append((x_position, y_position, z_position))
+
+        return positions_list
+        
+        #return [ (0,0,0), (0,100,0), (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0) ]
 
     # def ajuste_map_imaging(self):
     #     if all(x is not None for x in self.parameters.values()):
@@ -148,58 +133,3 @@ class MapController(Bindable):
 
     #     else:
     #         raise ValueError("Some initial parameters are missing")
-
-            
-    # def aquisition_position_image(self):
-    #     if all(x is not None for x in self.parameters.values()):
-    #         #self.ajuste_map_imaging()
-    #         x_pixels_value_per_image = int(1000)
-    #         y_pixels_value_per_image = int(500)
-            
-    #         x_microstep_value_per_image = (
-    #             x_pixels_value_per_image * self.microstep_pixel
-    #         )
-    #         y_microstep_value_per_image = (
-    #             y_pixels_value_per_image * self.microstep_pixel
-    #         )
-
-    #         upper_left_corner = self.parameters["Upper left corner"]
-    #         upper_right_corner = self.parameters["Upper right corner"]
-    #         lower_right_corner = self.parameters["Lower right corner"]
-
-    #         # a 10% ajustement between each image to match them
-    #         number_of_x_pictures = math.ceil(
-    #             (upper_right_corner[0] - upper_left_corner[0])
-    #             / (
-    #                 x_microstep_value_per_image
-    #                 - 0.1 * x_microstep_value_per_image
-    #             )
-    #         )
-    #         number_of_y_pictures = math.ceil(
-    #             (upper_right_corner[1] - lower_right_corner[1])
-    #             / (
-    #                 y_microstep_value_per_image
-    #                 - 0.1 * y_microstep_value_per_image
-    #             )
-    #         )
-
-    #         for z in range(self.z_image_number*self.z_range*self.microstep_pixel):
-    #             z_value = z
-    #             #self.sutter_device.doMoveBy((0, 0, 1))
-    #             for y in range(number_of_y_pictures):
-    #                 y_value = y
-    #                 #self.sutter_device.doMoveBy((-x_microstep_value_per_image * number_of_x_pictures, -y_microstep_value_per_image + 0.1 * y_microstep_value_per_image, 0,))
-    #                   # for the moment, need a dy movement
-    #                 """Take a picture"""
-    #                 """Save"""
-    #                 #microscope = MicroscopeApp()
-    #                 #microscope.save()
-
-    #                 for x in range(number_of_x_pictures):
-    #                     x_value = x
-    #                     self.perform((x_value, y_value, z_value))
-
-    #         return self.list_of_position
-
-    #                     #self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1 * x_microstep_value_per_image, 0, 0,))  # for the moment, need a dx movement
-    #                     #microscope.save()
