@@ -36,27 +36,27 @@ from pymicroscope.experiment.experiments import Experiment, ExperimentStep
     #    except Exception as err:
     #        pass  # sutter_device.is_accessible == False
 
-class MapController:
-    def __init__(self, *args, **kwargs):
+class MapController(Bindable):
+    def __init__(self, device, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.device = device
 
-        # self.z_image_number = 1
-        # self.microstep_pixel = int(0.16565)
-        # self.z_range = 1
+        self.z_image_number = 1
+        self.microstep_pixel = int(0.16565)
+        self.z_range = 1
 
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
             "Upper right corner": None,
             "Lower left corner": None,
             "Lower right corner": None,
-            "z_range": 1,
-            "microstep_pixel":10, 
-            "nz":10
         }
 
     def create_positions_for_map(self):
         ## Faire le calcul pour vrai avec corner1m cprner2 corner3 corbner4...
-        # Utiliser self.parameters
+        # Utiliser self.parameters and self.z_imageNUmber, self.micvrostep......
+        
+        
         return [ (0,0,0), (0,100,0), (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0) ]
 
 

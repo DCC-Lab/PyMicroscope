@@ -16,7 +16,7 @@ from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.position_and_mapcontroller import Position, MapController
+from pymicroscope.position_and_mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 
@@ -58,7 +58,6 @@ class MicroscopeApp(App):
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
         self.device = SutterDevice(serialNumber="debug")
-        self.position = Position(self.device)
         
         self.map_controller = MapController(self.device)
         
@@ -264,19 +263,19 @@ class MicroscopeApp(App):
         Label("x :").grid_into(
             self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.position[0]).grid_into(
+        Label("0").grid_into(
             self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
             self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.position[1]).grid_into(
+        Label("0").grid_into(
             self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
             self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.position[2]).grid_into(
+        Label("0").grid_into(
             self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
@@ -300,14 +299,12 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        #revoir, mettre en float value
         self.microstep_pixel_entry = IntEntry(value = float(self.map_controller.microstep_pixel), width=5)
         self.microstep_pixel_entry.grid_into(
             self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
-        #problème demander a dan
-        self.microstep_pixel = self.microstep_pixel_entry.value
-
+        self.map_controller.bind_properties("microstep_pixel", self.microstep_pixel_entry, "value_variable")
+        
         Label("um/px").grid_into(
             self.sutter,
             row=3,
@@ -447,7 +444,7 @@ class MicroscopeApp(App):
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
-        self.map_controller.parameters[corner_label] = self.device.getPositionInMicron()
+        self.map_controller.parameters[corner_label] = self.device.positionInMicrons()
         
         # if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
         #     self.can_start_map = True
