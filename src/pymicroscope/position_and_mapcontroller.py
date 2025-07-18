@@ -8,12 +8,16 @@ from pymicroscope.experiment.actions import Experiment, ActionMove, ActionClear,
 
 class Position():
     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.device:LinearMotionDevice = linear_motion_device
+        # super().__init__(*args, **kwargs)
+        self.device = linear_motion_device
         self.positions_list = []
+        self.position = self.device.position()
 
-    def perform(self) -> Any | None:
-        self.positions_list.append(self.device.position())
+    def perform(self, place_to_go) -> Any | None:
+        self.positions_list.append(place_to_go)
+    
+    def list_of_position(self):
+        return self.positions_list
 
     
     #def __init__(self):
@@ -25,10 +29,11 @@ class Position():
     #    except Exception as err:
     #        pass  # sutter_device.is_accessible == False
 
-class MapController(Position):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class MapController():
+    def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
+        #super().__init__(*args, **kwargs)
         #valeur a accrocher
+        self.position = Position(linear_motion_device)
         self.z_image_number = 1
         self.microstep_pixel = int(0.16565)
         self.z_range = 1    
@@ -40,10 +45,8 @@ class MapController(Position):
             "Lower right corner": None,
         }
 
-        self.can_start_map = False
-
     def corner_parameter(self, corner):
-        self.parameters[corner] = self.device.position()
+        self.parameters[corner] = self.position.position()
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -183,9 +186,9 @@ class MapController(Position):
 
                     for x in range(number_of_x_pictures):
                         x_value = x
-                        self.positions_list.append((x_value, y_value, z_value))
+                        self.position.perform((x_value, y_value, z_value))
 
-            return self.positions_list
+            return self.position.list_of_position
 
                         #self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1 * x_microstep_value_per_image, 0, 0,))  # for the moment, need a dx movement
                         #microscope.save()
