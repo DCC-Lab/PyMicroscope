@@ -219,14 +219,16 @@ class MicroscopeApp(App):
     def save_actions_current_settings(self) -> list[Action]:
         n_images = self.number_of_images_average.value        
 
-        starting = ActionChangeProperty(self.save_button, "is_disabled", True)        
+        starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
+        starting2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", True)        
         capture = ActionCapture(n_images=n_images)
         mean = ActionMean(source=capture)
         save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
         bell = ActionBell()
-        ending = ActionChangeProperty(self.save_button, "is_disabled", False)
+        ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
+        ending2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", False)
 
-        return  [starting, capture, mean, save, bell, ending], capture.queue
+        return  [starting1, starting2, capture, mean, save, bell, ending1, ending2], capture.queue
 
     def save(self):
         actions, capture_queue = self.save_actions_current_settings()
