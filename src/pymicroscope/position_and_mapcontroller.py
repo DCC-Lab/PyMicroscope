@@ -10,11 +10,15 @@ from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 class Position():
     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.device:LinearMotionDevice = linear_motion_device
+        self.device = linear_motion_device
         self.positions_list = []
+        self.position: Tuple[int, int, int] = self.device.position()
 
-    def perform(self) -> Any | None:
-        self.positions_list.append(self.device.position())
+    def perform(self, place_to_go) -> Any | None:
+        self.positions_list.append(place_to_go)
+    
+    def list_of_position(self):
+        return self.positions_list
 
     
     #def __init__(self):
@@ -41,10 +45,8 @@ class MapController(Position):
             "Lower right corner": None,
         }
 
-        self.can_start_map = False
-
     def corner_parameter(self, corner):
-        self.parameters[corner] = self.device.position()
+        self.parameters[corner] = self.position
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -184,9 +186,9 @@ class MapController(Position):
 
                     for x in range(number_of_x_pictures):
                         x_value = x
-                        self.positions_list.append((x_value, y_value, z_value))
+                        self.perform((x_value, y_value, z_value))
 
-            return self.positions_list
+            return self.list_of_position
 
                         #self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1 * x_microstep_value_per_image, 0, 0,))  # for the moment, need a dx movement
                         #microscope.save()

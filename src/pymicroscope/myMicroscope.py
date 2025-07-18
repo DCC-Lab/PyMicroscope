@@ -57,7 +57,6 @@ class MicroscopeApp(App):
         except Exception as err:
             pass  # vms_controller.is_accessible == False
 
-        
         self.upper_left_clicked = False
         self.upper_right_clicked= False
         self.lower_left_clicked = False
@@ -65,8 +64,9 @@ class MicroscopeApp(App):
 
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
-        self.position = None
-        self.map_controller = None
+        self.device = SutterDevice(serialNumber="debug")
+        self.position = Position(self.device)
+        self.map_controller = MapController(self.device)
         self.can_start_map = False
 
         self.app_setup()
@@ -110,7 +110,7 @@ class MicroscopeApp(App):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        # self.build_sutter_interface()
+        self.build_sutter_interface()
         self.build_cameras_menu()
         self.build_start_stop_interface()
         
@@ -263,19 +263,19 @@ class MicroscopeApp(App):
         Label("x :").grid_into(
             self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.device.position[0]).grid_into(
+        Label(self.position.position[0]).grid_into(
             self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
             self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.device.position[1]).grid_into(
+        Label(self.position.position[1]).grid_into(
             self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
             self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
         )
-        Label(self.position.device.position[2]).grid_into(
+        Label(self.position.position[2]).grid_into(
             self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
@@ -416,7 +416,7 @@ class MicroscopeApp(App):
 
         self.start_map_aquisition = Button(
             "Start Map",
-            user_event_callback=self.user_clicked_aquisition_image,
+            user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
@@ -453,33 +453,41 @@ class MicroscopeApp(App):
             try:
                 self.map_controller.corner_parameter(corner)
                 self.upper_left_clicked = True
+                print("#1 ok")
 
             except Exception as err:
-                pass
+                print(err)
+                print("#1 nonononon")
 
         elif corner == "Upper right corner":
             try:
                 self.map_controller.corner_parameter(corner)
                 self.upper_right_clicked= True
+                print("#2 ok")
                 
             except Exception as err:
-                pass
+                print(err)
+                print("#2 nononono")
 
         elif corner == "Lower left corner":
             try:
                 self.map_controller.corner_parameter(corner)
                 self.lower_left_clicked = True
+                print("#3 ok")
 
             except Exception as err:
-                pass
+                print(err)
+                print("#3 nononono")
 
         elif corner == "Lower right corner":
             try:
                 self.map_controller.corner_parameter(corner)
                 self.lower_right_clicked = True
+                print("#4 ok")
 
             except Exception as err:
-                pass
+                print(err)
+                print("#4 nononono")
         
         if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
             self.can_start_map = True
