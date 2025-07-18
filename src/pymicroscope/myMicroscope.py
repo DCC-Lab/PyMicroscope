@@ -395,7 +395,7 @@ class MicroscopeApp(App):
         self.apply_lower_left_button = Button(
             "Lower left corner",
             user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.apply_lower_left_button.grid_into(
             self.sutter,
             row=6,
@@ -409,7 +409,7 @@ class MicroscopeApp(App):
         self.start_map_aquisition = Button(
             "Start Map",
             user_event_callback=self.user_clicked_map_aquisition_image,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.start_map_aquisition.grid_into(
             self.sutter,
             row=5,
@@ -424,7 +424,7 @@ class MicroscopeApp(App):
         self.clear_map_aquisition = Button(
             "Clear",
             user_event_callback=self.user_clicked_clear,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.clear_map_aquisition.grid_into(
             self.sutter,
             row=6,
@@ -448,10 +448,7 @@ class MicroscopeApp(App):
 
         #appeler fonctiion de sutter pour clear ces paramètres
         ActionClear(value_to_clear)
-
-        #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_disabled")
-        #self.bind_properties("can_start_map", self.start_map_aquisition, "is_disabled")
-        
+        self.can_start_map = None
 
     def user_clicked_map_aquisition_image(self, event, button):
         positions = self.map_controller.create_positions_for_map()
