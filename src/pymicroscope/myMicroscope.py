@@ -24,6 +24,7 @@ from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import Position, MapController
 from pymicroscope.experiment.actions import *
+from pymicroscope.experiment.experiments import Experiment
 
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
