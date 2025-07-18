@@ -50,11 +50,6 @@ class MicroscopeApp(App):
         except Exception as err:
             pass  # vms_controller.is_accessible == False
 
-        self.upper_left_clicked = False
-        self.upper_right_clicked= False
-        self.lower_left_clicked = False
-        self.lower_right_clicked = False
-
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
         self.device = SutterDevice(serialNumber="debug")
@@ -446,8 +441,8 @@ class MicroscopeApp(App):
         corner_label = button.label
         self.map_controller.parameters[corner_label] = self.device.positionInMicrons()
         
-        # if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
-        #     self.can_start_map = True
+        if all(x is not None for x in self.map_controller.parameters.values()):
+         self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
         self.upper_left_clicked = False
