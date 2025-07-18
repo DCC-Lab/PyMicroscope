@@ -9,7 +9,7 @@ class MapController(Bindable):
         self.device = device
 
         self.z_image_number = 1
-        self.microstep_pixel = int(0.16565)
+        self.microstep_pixel = 0.16565
         self.z_range = 1
 
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
@@ -33,8 +33,8 @@ class MapController(Bindable):
         y_image_dimension = 500*self.microstep_pixel
         z_image_dimension = self.z_range*self.microstep_pixel
 
-        number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (x_image_dimension - 0.1 * x_image_dimension))
-        number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (y_image_dimension - 0.1 * y_image_dimension))
+        number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (0.9*x_image_dimension))
+        number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (0.9*y_image_dimension))
         
         for z in range(self.z_image_number):
                  z_position = z*z_image_dimension
