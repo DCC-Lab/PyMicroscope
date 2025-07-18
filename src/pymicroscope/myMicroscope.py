@@ -18,7 +18,7 @@ from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import Position, MapController
 from pymicroscope.experiment.actions import *
-from pymicroscope.experiment.experiments import Experiment
+from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 
 from hardwarelibrary.motion import SutterDevice
 
@@ -59,7 +59,9 @@ class MicroscopeApp(App):
         # self.map_controller = MapController()
         self.device = SutterDevice(serialNumber="debug")
         self.position = Position(self.device)
+        
         self.map_controller = MapController(self.device)
+        
         self.can_start_map = False
 
         self.app_setup()
@@ -216,7 +218,7 @@ class MicroscopeApp(App):
     def user_clicked_save(self, button, event):
         self.save()
 
-    def save_actions_current_settings(self) -> list[Action]:
+    def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
         n_images = self.number_of_images_average.value        
 
         starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
@@ -224,7 +226,11 @@ class MicroscopeApp(App):
         capture = ActionCapture(n_images=n_images)
         mean = ActionMean(source=capture)
         save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
-        bell = ActionBell()
+        if sound_bell:
+            bell = ActionBell()
+        else:
+            bell = ActionWait(delay=0)
+            
         ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
         ending2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", False)
 
@@ -440,55 +446,11 @@ class MicroscopeApp(App):
         self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
 
     def user_clicked_saving_position(self, even, button):
-        self.saving_position(button.label)
-
-    def saving_position(self, corner):
-
-        if corner == "Upper left corner":
-            try:
-                self.map_controller.corner_parameter(corner)
-                self.upper_left_clicked = True
-                print("#1 ok")
-
-            except Exception as err:
-                print(err)
-                print("#1 nonononon")
-
-        elif corner == "Upper right corner":
-            try:
-                self.map_controller.corner_parameter(corner)
-                self.upper_right_clicked= True
-                print("#2 ok")
-                
-            except Exception as err:
-                print(err)
-                print("#2 nononono")
-
-        elif corner == "Lower left corner":
-            try:
-                self.map_controller.corner_parameter(corner)
-                self.lower_left_clicked = True
-                print("#3 ok")
-
-            except Exception as err:
-                print(err)
-                print("#3 nononono")
-
-        elif corner == "Lower right corner":
-            try:
-                self.map_controller.corner_parameter(corner)
-                self.lower_right_clicked = True
-                print("#4 ok")
-
-            except Exception as err:
-                print(err)
-                print("#4 nononono")
+        corner_label = button.label
+        self.map_controller.parameters[corner_label] = self.device.getPositionInMicron()
         
-        if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
-            self.can_start_map = True
-            
-            #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
-            #self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
+        # if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
+        #     self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
         self.upper_left_clicked = False
@@ -506,14 +468,21 @@ class MicroscopeApp(App):
         
 
     def user_clicked_map_aquisition_image(self, event, button):
-        #if self.sutter_device.doInitializeDevice() is not None:
-        positions = self.map_controller.aquisition_position_image()
+        positions = self.map_controller.create_positions_for_map()
+
+        exp = Experiment()
+        
         for position in positions:
             move = ActionMove(position=position, linear_motion_device=self.sutter)
-            save = ActionSave()
-            action = [move, save]
-        
-            Experiment.from_actions(action).perform_in_background_thread()
+            save_actions, queue = self.save_actions_current_settings()
+            self.save_queue = queue
+            
+            actions = [move]
+            actions.extend(save_actions)
+            
+            exp.add_step( experiment_step=ExperimentStep(perform=actions))
+            
+        exp.perform_in_background_thread()
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
