@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import subprocess
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -15,12 +16,15 @@ from PIL import Image as PILImage
 from datetime import datetime
 
 class Action:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, source=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.source = source
         self.output = None
         
     def perform(self, results=None):
         start_time = time.time()
+
+        action_results = None
 
         action_results = self.do_perform(results)
         if action_results is None:
@@ -48,11 +52,11 @@ class ActionWait(Action):
 
 class ActionBell(Action):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__( *args, **kwargs)
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
-            os.system("afplay /System/Library/Sounds/Glass.aiff")
+            process = subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"])
         else:
             print("\a")
 
@@ -120,9 +124,8 @@ class ActionCapture(Action):
 
 
 class ActionMean(Action):
-    def __init__(self, source, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.source = source
         
     def do_perform(self, results=None) -> dict[str, Any] | None:
         img_arrays = self.source.output
@@ -136,7 +139,7 @@ class ActionMean(Action):
 
 
 class ActionSave(Action):
-    def __init__(self, source, root_dir=None, template=None, *args, **kwargs):
+    def __init__(self, root_dir=None, template=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root_dir = root_dir
         if self.root_dir is None:
@@ -145,7 +148,6 @@ class ActionSave(Action):
         self.template = template
         if template is None:
             self.template = "Image-{date}-{time}-{i:03d}.tif"
-        self.source = source
 
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
@@ -212,7 +214,7 @@ class Experiment:
     def __init__(self, *args, **kwargs):
         self.results = {}
         self.steps: list[ExperimentStep] = []
-        self.thread = None
+        self._thread = None
         
     def add_step(self, experiment_step):
         self.steps.append(experiment_step)
@@ -227,17 +229,20 @@ class Experiment:
     def perform(self) -> Any | None:
         print("Starting experiment")
         experiment_results = {}
+        start_time = time.time()
+        
         for i, step in enumerate(self.steps):
             results = step.perform()
             experiment_results[f"step-{i}"] = results
 
+        experiment_results['duration'] = time.time() - start_time
         print("Experiment done")
 
         return experiment_results
 
     def perform_in_background_thread(self):
-        self.thread = Thread(target=self.perform)
-        self.thread.start()
+        self._thread = Thread(target=self.perform)
+        self._thread.start()
 
     @classmethod
     def from_actions(cls, actions)  -> Experiment:
