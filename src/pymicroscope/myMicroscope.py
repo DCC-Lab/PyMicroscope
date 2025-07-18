@@ -465,6 +465,7 @@ class MicroscopeApp(App):
                 print("#2 ok")
                 
             except Exception as err:
+                print(err)
                 print("#2 nononono")
 
         elif corner == "Lower left corner":
@@ -474,6 +475,7 @@ class MicroscopeApp(App):
                 print("#3 ok")
 
             except Exception as err:
+                print(err)
                 print("#3 nononono")
 
         elif corner == "Lower right corner":
@@ -483,6 +485,7 @@ class MicroscopeApp(App):
                 print("#4 ok")
 
             except Exception as err:
+                print(err)
                 print("#4 nononono")
         
         if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):

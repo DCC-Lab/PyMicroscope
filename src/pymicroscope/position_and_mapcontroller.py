@@ -8,10 +8,10 @@ from pymicroscope.experiment.actions import Experiment, ActionMove, ActionClear,
 
 class Position():
     def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
-        # super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.device = linear_motion_device
         self.positions_list = []
-        self.position = self.device.position()
+        self.position: Tuple[int, int, int] = self.device.position()
 
     def perform(self, place_to_go) -> Any | None:
         self.positions_list.append(place_to_go)
@@ -29,11 +29,10 @@ class Position():
     #    except Exception as err:
     #        pass  # sutter_device.is_accessible == False
 
-class MapController():
-    def __init__(self, linear_motion_device:LinearMotionDevice, *args, **kwargs):
-        #super().__init__(*args, **kwargs)
+class MapController(Position):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         #valeur a accrocher
-        self.position = Position(linear_motion_device)
         self.z_image_number = 1
         self.microstep_pixel = int(0.16565)
         self.z_range = 1    
@@ -46,7 +45,7 @@ class MapController():
         }
 
     def corner_parameter(self, corner):
-        self.parameters[corner] = self.position.position()
+        self.parameters[corner] = self.position
 
     def ajuste_map_imaging(self):
         if all(x is not None for x in self.parameters.values()):
@@ -186,9 +185,9 @@ class MapController():
 
                     for x in range(number_of_x_pictures):
                         x_value = x
-                        self.position.perform((x_value, y_value, z_value))
+                        self.perform((x_value, y_value, z_value))
 
-            return self.position.list_of_position
+            return self.list_of_position
 
                         #self.sutter_device.doMoveBy((x_microstep_value_per_image - 0.1 * x_microstep_value_per_image, 0, 0,))  # for the moment, need a dx movement
                         #microscope.save()
