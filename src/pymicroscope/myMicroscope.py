@@ -415,7 +415,7 @@ class MicroscopeApp(App):
 
         self.start_map_aquisition = Button(
             "Start Map",
-            user_event_callback=self.user_clicked_saving_position,
+            user_event_callback=self.user_clicked_map_aquisition_image,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
             self.sutter,
@@ -493,7 +493,6 @@ class MicroscopeApp(App):
             
             #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
             #self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
-        '''event!!!'''
 
     def user_clicked_clear(self, even, button):
         self.upper_left_clicked = False
@@ -510,15 +509,14 @@ class MicroscopeApp(App):
         #self.bind_properties("can_start_map", self.start_map_aquisition, "is_disabled")
         
 
-    def user_clicked_aquisition_image(self, event, button):
+    def user_clicked_map_aquisition_image(self, event, button):
         #if self.sutter_device.doInitializeDevice() is not None:
         positions = self.map_controller.aquisition_position_image()
-        
         for position in positions:
-            self.experiment_manager.add_action(ActionMove(position, self.sutter))
-            
-        self.experiment_manager.perform_all_actions()
-
+        move = ActionMove(position=position, linear_motion_device=self.sutter)
+        save = ActionSave()
+        
+        Experiment.from_actions(actions).perform_in_background_thread()
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
