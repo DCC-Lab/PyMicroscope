@@ -1,21 +1,15 @@
 from mytk import *
 import signal
 from contextlib import suppress
-from typing import Tuple, Optional
-import math
 import numpy as np
-import threading as Th
 from queue import Queue, Empty, Full
-from multiprocessing import RLock, shared_memory, Queue
+from multiprocessing import Queue
 from tkinter import filedialog
 from pathlib import Path
-from threading import Thread
-
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
 )
-from pymicroscope.savetask import SaveTask
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
@@ -26,7 +20,6 @@ from pymicroscope.position_and_mapcontroller import Position, MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment
 
-from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
 
 class MicroscopeApp(App):
