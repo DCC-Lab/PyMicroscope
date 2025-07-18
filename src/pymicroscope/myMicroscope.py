@@ -23,7 +23,7 @@ from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import Position, MapController
-from pymicroscope.experiment.actions import ExperimentManager, ActionMove, ActionClear, ActionMoveBy
+from pymicroscope.experiment.actions import *
 
 from typing import Tuple, Optional
 from hardwarelibrary.motion import SutterDevice
@@ -48,7 +48,7 @@ class MicroscopeApp(App):
             }
         }
         self.is_camera_running = False
-        self.experiment_manager = ExperimentManager()
+
         
         self.vms_controller = VMSController()
         try:
@@ -62,8 +62,10 @@ class MicroscopeApp(App):
         self.lower_left_clicked = False
         self.lower_right_clicked = False
 
-        self.position = Position(SutterDevice)
-        self.map_controller = MapController()
+        # self.position = Position(SutterDevice)
+        # self.map_controller = MapController()
+        self.position = None
+        self.map_controller = None
         self.can_start_map = False
 
         self.app_setup()
@@ -107,7 +109,7 @@ class MicroscopeApp(App):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        self.build_sutter_interface()
+        # self.build_sutter_interface()
         self.build_cameras_menu()
         self.build_start_stop_interface()
         
@@ -220,18 +222,20 @@ class MicroscopeApp(App):
     def user_clicked_save(self, button, event):
         self.save()
 
+    def save_actions_current_settings(self) -> list[Action]:
+        n_images = self.number_of_images_average.value        
+        capture = ActionCapture(n_images=n_images)
+        mean = ActionMean(source=capture)
+        save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
+        bell = ActionBell()
+        return  [capture, mean, save, bell], capture.queue
+
     def save(self):
-        n_images = self.number_of_images_average.value
+        actions, capture_queue = self.save_actions_current_settings()
+        self.save_queue = capture_queue
         
-        task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
-        self.save_queue = task.queue
-        
-        if True:
-            th = Thread(target=task.hook)
-            th.start()
-        else:  
-            task.start()
-    
+        Experiment.from_actions(actions).perform_in_background_thread()
+
     def user_changed_camera(self, popup, index):
         self.change_provider()
     
@@ -590,7 +594,7 @@ class MicroscopeApp(App):
             if self.save_queue is not None:
                 try:
                     self.save_queue.put_nowait(img_array)
-                except Full as err:
+                except (Full, ValueError) as err:
                     self.save_queue = None # Task has reference
                     
             while img_array is not None:
