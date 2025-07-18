@@ -40,6 +40,23 @@ class Action:
             "You must implement the do_perform method in your class"
         )
 
+class ActionChangeProperty(Action):
+    def __init__(self, target, property_name, value, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.property_name = property_name
+        self.value = value
+    
+    def do_perform(self, results=None) -> dict[str, Any] | None:
+        old_value = getattr(self.target, self.property_name, None)
+        setattr(self.target, self.property_name, self.value)
+        
+        return {
+            "target": self.target,
+            "property": self.property_name,
+            "old_value": old_value,
+            "new_value": self.value
+        }    
 
 class ActionWait(Action):
     def __init__(self, delay, *args, **kwargs):
@@ -216,6 +233,10 @@ class Experiment:
         self.steps: list[ExperimentStep] = []
         self._thread = None
         
+    def finalize(self):
+        if self._thread is not None:
+            self._thread.join()
+        
     def add_step(self, experiment_step):
         self.steps.append(experiment_step)
 
@@ -227,7 +248,6 @@ class Experiment:
             self.add_single_action_step(action=action)
 
     def perform(self) -> Any | None:
-        print("Starting experiment")
         experiment_results = {}
         start_time = time.time()
         
@@ -236,7 +256,6 @@ class Experiment:
             experiment_results[f"step-{i}"] = results
 
         experiment_results['duration'] = time.time() - start_time
-        print("Experiment done")
 
         return experiment_results
 

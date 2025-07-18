@@ -48,7 +48,7 @@ class MicroscopeApp(App):
             }
         }
         self.is_camera_running = False
-
+        self.is_saving = False
         
         self.vms_controller = VMSController()
         try:
@@ -224,11 +224,15 @@ class MicroscopeApp(App):
 
     def save_actions_current_settings(self) -> list[Action]:
         n_images = self.number_of_images_average.value        
+
+        starting = ActionChangeProperty(self.save_button, "is_disabled", True)        
         capture = ActionCapture(n_images=n_images)
         mean = ActionMean(source=capture)
         save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
         bell = ActionBell()
-        return  [capture, mean, save, bell], capture.queue
+        ending = ActionChangeProperty(self.save_button, "is_disabled", False)
+
+        return  [starting, capture, mean, save, bell, ending], capture.queue
 
     def save(self):
         actions, capture_queue = self.save_actions_current_settings()
