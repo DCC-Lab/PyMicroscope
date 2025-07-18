@@ -295,7 +295,7 @@ class MicroscopeApp(App):
         )
 
         #revoir, mettre en float value
-        self.microstep_pixel_entry = IntEntry(value=self.map_controller.microstep_pixel, width=5)
+        self.microstep_pixel_entry = IntEntry(value = float(self.map_controller.microstep_pixel), width=5)
         self.microstep_pixel_entry.grid_into(
             self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
@@ -509,10 +509,11 @@ class MicroscopeApp(App):
         #if self.sutter_device.doInitializeDevice() is not None:
         positions = self.map_controller.aquisition_position_image()
         for position in positions:
-        move = ActionMove(position=position, linear_motion_device=self.sutter)
-        save = ActionSave()
+            move = ActionMove(position=position, linear_motion_device=self.sutter)
+            save = ActionSave()
+            action = [move, save]
         
-        Experiment.from_actions(actions).perform_in_background_thread()
+            Experiment.from_actions(action).perform_in_background_thread()
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
