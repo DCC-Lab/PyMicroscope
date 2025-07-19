@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from multiprocessing import Queue
 from threading import Thread
 
 class ExperimentStep:
@@ -40,6 +39,19 @@ class ExperimentStep:
 
         return self.results
 
+    def cleanup(self):
+        if self.prepare_actions is not None:
+            for i, action in enumerate(self.prepare_actions):
+                action.cleanup()
+
+        if self.perform_actions is not None:
+            for i, action in enumerate(self.perform_actions):
+                action.cleanup()
+
+        if self.finalize_actions is not None:
+            for i, action in enumerate(self.finalize_actions):
+                action.cleanup()
+
 
 class Experiment:        
     def __init__(self, *args, **kwargs):
@@ -71,8 +83,11 @@ class Experiment:
 
         experiment_results['duration'] = time.time() - start_time
 
+        for step in self.steps:
+            step.cleanup()
+        
         return experiment_results
-
+                
     def perform_in_background_thread(self):
         self._thread = Thread(target=self.perform)
         self._thread.start()

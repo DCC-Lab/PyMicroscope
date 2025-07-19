@@ -1,5 +1,6 @@
 import envtest  # setup environment for testing
 from pymicroscope.experiment.actions import *
+from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 import json
 
 

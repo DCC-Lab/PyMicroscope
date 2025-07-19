@@ -3,14 +3,11 @@ from __future__ import annotations
 import time
 import subprocess
 from pathlib import Path
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 import platform
 import os
 from multiprocessing import Queue
-from mytk.notificationcenter import Notification, NotificationCenter
 import numpy as np
-from threading import Thread
 from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
@@ -39,6 +36,10 @@ class Action:
         raise RuntimeError(
             "You must implement the do_perform method in your class"
         )
+        
+    def cleanup(self):
+        pass
+
 
 class ActionChangeProperty(Action):
     def __init__(self, target, property_name, value, *args, **kwargs):
@@ -70,13 +71,20 @@ class ActionWait(Action):
 class ActionBell(Action):
     def __init__(self, *args, **kwargs):
         super().__init__( *args, **kwargs)
-
+        self.process = None
+        
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
-            process = subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"])
+            self.process = subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"],
+                                            stdout=subprocess.DEVNULL,
+                                            stderr=subprocess.DEVNULL,
+                                            stdin=subprocess.DEVNULL,
+                                            start_new_session=True)
         else:
             print("\a")
-
+    
+    def cleanup(self):
+        self.process.wait()
 
 class ActionMove(Action):
     def __init__(
