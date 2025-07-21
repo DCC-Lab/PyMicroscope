@@ -461,9 +461,9 @@ class MicroscopeApp(App):
                 print("yep")
                 save_actions, queue = self.save_actions_current_settings()
                 self.save_queue = queue
-                actions = [move]
-                actions.extend(save_actions)
-                #exp.add_step( experiment_step=ExperimentStep(perform=actions))
+                actions =[move]
+                actions = actions + save_actions
+                exp.add_step(experiment_step=ExperimentStep(perform=actions))
             else:
                 wait = ActionWait(delay=0)
                 print("only one position was given")
@@ -471,11 +471,10 @@ class MicroscopeApp(App):
                 self.save_queue = queue
                 actions = [wait]
                 actions.extend(save_actions)
-                #exp.add_step(experiment_step=ExperimentStep(perform=actions))
+                exp.add_step(experiment_step=ExperimentStep(perform=actions))
 
-            #exp.perform_in_background_thread()
-
-            Experiment.from_actions(actions).perform_in_background_thread()
+        #exp.from_actions(actions).perform_in_background_thread()
+        exp.perform_in_background_thread()
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
