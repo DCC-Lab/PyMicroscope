@@ -53,7 +53,8 @@ class MapController(Bindable):
         
         #return positions_list
         
-        return [(0,0,0), (0,100,0), (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0)]
+        return [(0,0,0), (0,100,0)]
+                #, (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0)]
 
     # def ajuste_map_imaging(self):
     #     if all(x is not None for x in self.parameters.values()):

@@ -457,15 +457,20 @@ class MicroscopeApp(App):
         
         for position in positions:
             if len(positions) > 1:
-                action = ActionMove(position=position, linear_motion_device=self.device)
+                move = ActionMove(position=position, linear_motion_device=self.device)
+                print("yep")
+                wait1 = ActionWait(delay=3)
                 save_actions, queue = self.save_actions_current_settings()
+                wait2 = ActionWait(delay=3)
+                self.save_queue = queue
+                actions = [move, wait1, wait2]
             else:
-                action = ActionWait(delay=0)
+                wait = ActionWait(delay=0)
                 print("only one position was given")
                 save_actions, queue = self.save_actions_current_settings()
-            
-            self.save_queue = queue
-            actions = [action]
+                self.save_queue = queue
+                actions = [wait]
+
             actions.extend(save_actions)
             
             exp.add_step( experiment_step=ExperimentStep(perform=actions))
