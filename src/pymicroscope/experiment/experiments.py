@@ -102,3 +102,11 @@ class Experiment:
         exp = Experiment()
         exp.add_step(ExperimentStep(perform=actions))
         return exp
+
+    @classmethod
+    def from_many_function_calls(cls, function, fct_kwargs)  -> Experiment:
+        exp = Experiment()
+        for kwargs in fct_kwargs:
+            exp.add_step(ExperimentStep.from_function(function=function, fct_kwargs=kwargs))
+        return exp
+

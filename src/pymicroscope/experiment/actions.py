@@ -11,27 +11,29 @@ import numpy as np
 from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
+from threading import Thread
 
 class Action:
     def __init__(self, source=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.source = source
         self.output = None
-        
+        self.thread = None
+        self.action_results = None
+    
     def perform(self, results=None):
         start_time = time.time()
-
-        action_results = None
 
         action_results = self.do_perform(results)
         if action_results is None:
             action_results = {}
-
+        
         action_results["start_time"] = start_time
         action_results["duration"] = time.time() - start_time
-        action_results["action"] = self
-        return action_results
-
+        
+        self.action_results = action_results
+        return self.action_results
+        
     def do_perform(self, results=None) -> dict[str, Any] | None:
         raise RuntimeError(
             "You must implement the do_perform method in your class"
@@ -40,6 +42,16 @@ class Action:
     def cleanup(self):
         pass
 
+    def perform_in_background(self, results=None):
+        self.thread = Thread(target=self.perform, args=(results,))
+        self.thread.start()
+
+    def wait_for_completion(self):
+        if self.thread is not None:
+            self.thread.join()
+            
+        
+        
 
 class ActionChangeProperty(Action):
     def __init__(self, target, property_name, value, *args, **kwargs):
@@ -120,6 +132,22 @@ class ActionMoveBy(Action):
         return {"displacement": self.d_position}
 
 
+class ActionFunctionCall(Action):
+    def __init__(self, function, fct_args=None, fct_kwargs=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.function = function
+        if fct_args is None:
+            fct_args = ()
+        self.fct_args = fct_args
+        
+        if fct_kwargs is None:
+            fct_kwargs = {}
+        self.fct_kwargs = fct_kwargs
+                
+    def do_perform(self, results=None) -> dict[str, Any] | None:
+        self.action_results = self.function(*self.fct_args, **self.fct_kwargs)
+        return {"result":self.action_results}
+
 class ActionCapture(Action):
     def __init__(self, n_images, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -130,9 +158,6 @@ class ActionCapture(Action):
         index = 0
         img_arrays = []
 
-        if self.queue is None:
-            self.queue = results.get("save_queue")
-            
         if self.queue is None:
             raise RuntimeError("No save queue available")
 
@@ -149,7 +174,8 @@ class ActionCapture(Action):
 
 
 class ActionMean(Action):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, source, *args, **kwargs):
+        kwargs['source'] = source
         super().__init__(*args, **kwargs)
         
     def do_perform(self, results=None) -> dict[str, Any] | None:
@@ -164,7 +190,8 @@ class ActionMean(Action):
 
 
 class ActionSave(Action):
-    def __init__(self, root_dir=None, template=None, *args, **kwargs):
+    def __init__(self, source, root_dir=None, template=None, *args, **kwargs):
+        kwargs['source'] = source       
         super().__init__(*args, **kwargs)
         self.root_dir = root_dir
         if self.root_dir is None:
@@ -190,6 +217,7 @@ class ActionSave(Action):
         pil_image.save(filepath)
 
         self.output = filepath
+
 
 class ActionClear(Action):
     def __init__(self, filepath: Path, *args, **kwargs):
