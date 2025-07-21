@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 from threading import Thread
+from .actions import ActionFunctionCall
 
 class ExperimentStep:
     def __init__(
@@ -52,6 +53,10 @@ class ExperimentStep:
             for i, action in enumerate(self.finalize_actions):
                 action.cleanup()
 
+    @classmethod
+    def from_function(cls, function, fct_args = None, fct_kwargs = None)  -> ExperimentStep:
+        fct_call_action = ActionFunctionCall(function=function, fct_args=fct_args, fct_kwargs=fct_kwargs)
+        return ExperimentStep(perform=[fct_call_action])
 
 class Experiment:        
     def __init__(self, *args, **kwargs):
@@ -97,4 +102,3 @@ class Experiment:
         exp = Experiment()
         exp.add_step(ExperimentStep(perform=actions))
         return exp
-        
