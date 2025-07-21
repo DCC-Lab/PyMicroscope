@@ -456,11 +456,16 @@ class MicroscopeApp(App):
         exp = Experiment()
         
         for position in positions:
-            move = ActionMove(position=position, linear_motion_device=self.position)
-            save_actions, queue = self.save_actions_current_settings()
-            self.save_queue = queue
+            if len(positions) > 1:
+                action = ActionMove(position=position, linear_motion_device=self.device)
+                save_actions, queue = self.save_actions_current_settings()
+            else:
+                action = ActionWait(delay=0)
+                print("only one position was given")
+                save_actions, queue = self.save_actions_current_settings()
             
-            actions = [move]
+            self.save_queue = queue
+            actions = [action]
             actions.extend(save_actions)
             
             exp.add_step( experiment_step=ExperimentStep(perform=actions))

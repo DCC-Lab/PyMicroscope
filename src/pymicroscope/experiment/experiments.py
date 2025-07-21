@@ -4,7 +4,7 @@ import time
 from typing import Any
 from multiprocessing import Queue
 from threading import Thread
-#from pymicroscope.experiment.actions import Action
+from pymicroscope.experiment.actions import Action
 
 class ExperimentStep:
     def __init__(
