@@ -99,7 +99,7 @@ class MicroscopeApp(App):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        self.build_sutter_interface()
+        self.build_position_interface()
         self.build_cameras_menu()
         self.build_start_stop_interface()
         
@@ -239,15 +239,15 @@ class MicroscopeApp(App):
     def user_changed_camera(self, popup, index):
         self.change_provider()
     
-    def build_sutter_interface(self):
-        self.sutter = Box(label="Position", width=500, height=250)
-        self.sutter.grid_into(
+    def build_position_interface(self):
+        self.position = Box(label="Position", width=500, height=250)
+        self.position.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
-        self.sutter.widget.grid_propagate(False)
+        self.position.widget.grid_propagate(False)
 
-        Label("sutter position").grid_into(
-            self.sutter,
+        Label("instrument position").grid_into(
+            self.position,
             row=0,
             column=0,
             columnspan=2,
@@ -256,26 +256,26 @@ class MicroscopeApp(App):
             sticky="w",
         )
         Label("x :").grid_into(
-            self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
+            self.position, row=1, column=0, pady=10, padx=10, sticky="e"
         )
         Label("0").grid_into(
-            self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
+            self.position, row=1, column=1, pady=10, padx=10, sticky="w"
         )
         Label("y :").grid_into(
-            self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
+            self.position, row=1, column=2, pady=10, padx=10, sticky="e"
         )
         Label("0").grid_into(
-            self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
+            self.position, row=1, column=3, pady=10, padx=10, sticky="w"
         )
         Label("z :").grid_into(
-            self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
+            self.position, row=1, column=4, pady=10, padx=10, sticky="e"
         )
         Label("0").grid_into(
-            self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
+            self.position, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
         Label("Initial configuration").grid_into(
-            self.sutter,
+            self.position,
             row=2,
             column=0,
             columnspan=2,
@@ -285,7 +285,7 @@ class MicroscopeApp(App):
         )
 
         Label("Facteur :").grid_into(
-            self.sutter,
+            self.position,
             row=3,
             column=0,
             columnspan=2,
@@ -296,12 +296,12 @@ class MicroscopeApp(App):
 
         self.microstep_pixel_entry = IntEntry(value = float(self.map_controller.microstep_pixel), width=5)
         self.microstep_pixel_entry.grid_into(
-            self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties("microstep_pixel", self.microstep_pixel_entry, "value_variable")
         
         Label("um/px").grid_into(
-            self.sutter,
+            self.position,
             row=3,
             column=3,
             pady=2,
@@ -310,7 +310,7 @@ class MicroscopeApp(App):
         )
 
         Label("Number of z images :").grid_into(
-            self.sutter,
+            self.position,
             row=4,
             column=0,
             columnspan=2,
@@ -320,12 +320,12 @@ class MicroscopeApp(App):
         )
         self.z_image_number_entry = IntEntry(value=self.map_controller.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
-            self.sutter, row=4, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties("z_image_number", self.z_image_number_entry, "value_variable")
 
         Label("z step :").grid_into(
-            self.sutter,
+            self.position,
             row=4,
             column=4,
             pady=2,
@@ -335,12 +335,12 @@ class MicroscopeApp(App):
 
         self.z_range_entry = IntEntry(value=self.map_controller.z_range, width=5)
         self.z_range_entry.grid_into(
-            self.sutter, row=4, column=5, pady=2, padx=2, sticky="ns"
+            self.position, row=4, column=5, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties("z_range", self.z_range_entry, "value_variable")
 
         Label("um").grid_into(
-            self.sutter,
+            self.position,
             row=4,
             column=6,
             pady=2,
@@ -355,7 +355,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
-            self.sutter,
+            self.position,
             row=5,
             column=0,
             columnspan=2,
@@ -369,7 +369,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
-            self.sutter,
+            self.position,
             row=5,
             column=2,
             columnspan=2,
@@ -383,7 +383,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
-            self.sutter,
+            self.position,
             row=6,
             column=2,
             columnspan=2,
@@ -397,7 +397,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )
         self.apply_lower_left_button.grid_into(
-            self.sutter,
+            self.position,
             row=6,
             column=0,
             columnspan=2,
@@ -411,7 +411,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_map_aquisition_image,
         )
         self.start_map_aquisition.grid_into(
-            self.sutter,
+            self.position,
             row=5,
             column=5,
             columnspan=2,
@@ -426,7 +426,7 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_clear,
         )
         self.clear_map_aquisition.grid_into(
-            self.sutter,
+            self.position,
             row=6,
             column=5,
             columnspan=2,
@@ -446,7 +446,7 @@ class MicroscopeApp(App):
     def user_clicked_clear(self, even, button):
         value_to_clear = self.map_controller.parameters
 
-        #appeler fonctiion de sutter pour clear ces paramètres
+        #appeler fonctiion de position pour clear ces paramètres
         ActionClear(value_to_clear)
         self.can_start_map = None
 
@@ -456,7 +456,7 @@ class MicroscopeApp(App):
         exp = Experiment()
         
         for position in positions:
-            move = ActionMove(position=position, linear_motion_device=self.sutter)
+            move = ActionMove(position=position, linear_motion_device=self.position)
             save_actions, queue = self.save_actions_current_settings()
             self.save_queue = queue
             

@@ -28,22 +28,29 @@ class MapController(Bindable):
         corner2 = self.parameters["Upper right corner"]
         corner3 = self.parameters["Lower left corner"]
         corner4 = self.parameters["Lower right corner"]
+        print(corner1, corner2, corner3, corner4)
 
         x_image_dimension = 1000*self.microstep_pixel
         y_image_dimension = 500*self.microstep_pixel
         z_image_dimension = self.z_range*self.microstep_pixel
 
-        number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (0.9*x_image_dimension))
-        number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (0.9*y_image_dimension))
-        
-        for z in range(self.z_image_number):
-                 z_position = z*z_image_dimension
-                 for y in range(number_of_y_image):
-                     y_position = y*y_image_dimension*0.9
-                     for x in range(number_of_x_image):
-                         x_position = x*x_image_dimension*0.9
-                         positions_list.append((x_position, y_position, z_position))
+        if all(x != (0.0, 0.0, 0.0) for x in self.parameters.values()): 
+            number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (0.9*x_image_dimension))
+            number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (0.9*y_image_dimension))
+        else:
+             number_of_x_image = 1
+             number_of_y_image = 1
 
+
+        for z in range(self.z_image_number):
+                z_position = z*z_image_dimension
+                for y in range(number_of_y_image):
+                    y_position = y*y_image_dimension*0.9
+                    for x in range(number_of_x_image):
+                        x_position = x*x_image_dimension*0.9
+                        positions_list.append((x_position, y_position, z_position))
+
+        
         return positions_list
         
         #return [ (0,0,0), (0,100,0), (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0) ]
