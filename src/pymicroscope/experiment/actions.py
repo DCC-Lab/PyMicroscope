@@ -81,18 +81,18 @@ class ActionBell(Action):
 class ActionMove(Action):
     def __init__(
         self,
-        position: tuple[int, int, int],
+        position: tuple[int],
         linear_motion_device: LinearMotionDevice,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.position: tuple[int, int, int] = position
+        self.position: tuple[int] = position
         self.device: LinearMotionDevice = linear_motion_device
 
-    def do_perform(self, results=None) -> dict[str, Any] | None:
+    def do_perform(self, results=None) -> None:
         self.device.moveInMicronsTo(self.position)
-        return {"position": self.position}
+        print({"position": self.position})
 
 
 
