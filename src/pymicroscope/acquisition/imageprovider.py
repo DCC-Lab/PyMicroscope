@@ -1,47 +1,34 @@
-from abc import ABC, abstractmethod
 import time
 import math
-from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple
-from multiprocessing import RLock
+from typing import Protocol, Optional, Union, Type, Any, Callable, Tuple, Generic, TypeVar
+
 import numpy as np
-import base64
+from multiprocessing import Queue, Value
+from dataclasses import dataclass
 
-from Pyro5.api import expose, Daemon, locate_ns, Proxy, URI
+from mytk import Dialog
+from pymicroscope.utils.terminable import run_loop, TerminableProcess
+from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
+from pymicroscope.vmsconfigdialog import VMSConfigDialog
 
-from pymicroscope.utils.pyroprocess import PyroProcess
-from pymicroscope.utils.terminable import run_loop
-
-
-class ImageProviderClient:
-    """
-    Protocol for receiving images from an ImageProvider.
-    """
-
-    def __init__(self, callback=None, *args, **kwargs) -> None:
-        """
-        Initialize the image provider client
-
-        """
+class Controllable:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.callback = None
-        self.images = []
 
-    def new_image_captured(self, image: np.ndarray) -> None:
-        """
-        Called when a new image is captured.
+    def initialize(self):
+        pass
+    
+    def shutdown(self):
+        pass
+        
+    def start(self):
+        pass
 
-        Args:
-            image (np.ndarray): Captured image data.
-        """
-
-        if self.callback is not None:
-            self.callback(image)
-        else:
-            self.images.append(image)
-            self.images = self.images[-10:]
-
-
-class ImageProvider(ABC):
+    def stop(self):
+        pass
+    
+        
+class ImageProvider(TerminableProcess, Configurable):
     """
     Abstract base class defining the interface for image providers.
 
@@ -49,110 +36,94 @@ class ImageProvider(ABC):
     """
 
     def __init__(
-        self, properties: Optional[dict[str, Any]] = None, *args: Any, **kwargs: Any
+        self, queue:Optional[Queue] = None, *args: Any, **kwargs: Any
     ) -> None:
         """
         Initialize the image provider with optional client and properties.
 
+        Note: Process() is not cooperative and the MRO is incorrect.
+        I need to call the __init__() manuallty and remove the spurios arguments
+        
         Args:
             client: Object implementing ImageProviderClient.
             properties: Dictionary of configuration settings.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        super().__init__(log_name="imageprovider", *args, **kwargs)
-        self.properties: dict[str, Any] = {
-            "size": (480, 640),
-            "frame_rate": 10,
-            "channels": 3,
-        }
-        if properties:
-            self.properties.update(properties)
+        
+        prop_width = ConfigurableProperty(
+            name="width",
+            default_value=640,
+        )
+        prop_height = ConfigurableProperty(
+            name="height",
+            default_value=480,
+        )
 
-        self.is_running: bool = False
-        self._start_time: Optional[float] = None
-        self._last_image: Optional[float] = None
-        self.last_image_package: Optional[dict[str, Any]] = None
+        prop_frame_rate = ConfigurableProperty(
+            name="frame_rate",
+            default_value=30,
+        )
 
-        self._clients: list[ImageProviderClient] = []
+        properties_description = kwargs.pop("properties_description", [])
+        properties_description.extend([prop_width, prop_height,prop_frame_rate])
+        
+        configuration = {"frame_rate":30, "channels":3, "size":(480, 640)}
+        configuration.update(kwargs.pop("configuration", {}))
+        
+        Configurable.__init__(self, properties_description=properties_description, configuration=configuration)
+        
+        TerminableProcess.__init__(self, *args, **kwargs)
+
+        self._is_running = Value('b', False)
+        self._last_image = None
+        self.image_queue = queue
+    
+    @property
+    def is_running(self):
+        with self._is_running.get_lock():
+            return self._is_running.value != 0
+
+    @is_running.setter
+    def is_running(self, value):
+        with self._is_running.get_lock():
+            if value != 0:
+                self._is_running.value = True
+            else:
+                self._is_running.value = False
+    
+    @property
+    def width(self) -> int:
+        return self.configuration["width"]
+
+    def set_width(self, value: int) -> None:
+        self.configuration["width"] = value
 
     @property
-    def clients(self) -> list[ImageProviderClient]:
-        """Return the current client, if any."""
-        return self._clients
+    def height(self) -> int:
+        return self.configuration["height"]
 
-    def add_client(self, obj: ImageProviderClient) -> None:
-        """Set the client that will receive captured images."""
-        self._clients.append(obj)
-
-    def remove_client(self, obj: ImageProviderClient) -> None:
-        """Set the client that will receive captured images."""
-        self._clients.remove(obj)
-
-    @property
-    def size(self) -> Tuple[int, int]:
-        """Return the current image size (height, width)."""
-        return self.properties["size"]
-
-    def set_size(self, value: Tuple[int, int]) -> None:
-        """Set the image size (height, width)."""
-        self.properties["size"] = value
+    def set_height(self, value: int) -> None:
+        self.configuration["height"] = value
 
     @property
     def frame_rate(self) -> float:
         """Return the frame rate in Hz."""
-        return self.properties["frame_rate"]
+        return self.configuration["frame_rate"]
 
     def set_frame_rate(self, value: float) -> None:
         """Set the frame rate in Hz."""
-        self.properties["frame_rate"] = value
+        self.configuration["frame_rate"] = value
 
     @property
     def channels(self) -> int:
         """Return the number of image channels (e.g., 3 for RGB)."""
-        return self.properties["channels"]
+        return self.configuration["channels"]
 
     def set_channels(self, value: int) -> None:
         """Set the number of image channels."""
-        self.properties["channels"] = value
+        self.configuration["channels"] = value
 
-    def get_last_image(self) -> np.array:
-        data = self.last_image_package["data"]
-        dtype = self.last_image_package["dtype"]
-        shape = self.last_image_package["shape"]
-        return np.frombuffer(data, dtype=dtype).reshape(shape)
-
-    @staticmethod
-    def image_from_package(package: dict[str, Any]) -> Any:
-        data = base64.b64decode(package["data"])
-        dtype = package["dtype"]
-        shape = package["shape"]
-        return np.frombuffer(data, dtype=dtype).reshape(shape)
-
-    @staticmethod
-    def image_to_package(image):
-        return {
-            "data": base64.b64encode(image.tobytes()).decode("ascii"),
-            "shape": image.shape,
-            "dtype": str(image.dtype),
-        }
-
-    def get_last_packaged_image(self) -> dict[str, Any]:
-        return self.last_image_package
-
-    def capture_packaged_image(self) -> dict[str, Any]:
-        """
-        Capture an image and package it with metadata for transmission.
-
-        Returns:
-            A dictionary with 'data', 'shape', and 'dtype' keys.
-        """
-        image_array = self.capture_image()
-        self.last_image_package = ImageProvider.image_to_package(image_array)
-
-        return self.last_image_package
-
-    @abstractmethod
     def capture_image(self) -> np.ndarray:
         """
         Capture an image and return it as a NumPy array.
@@ -161,15 +132,17 @@ class ImageProvider(ABC):
         """
         pass
 
-    def start_capture(self) -> None:
+    def start_capture(self, configuration) -> None:
         """Mark the beginning of an image capture session."""
-        self.is_running = True
-        self._start_time = time.time()
+        with self._is_running.get_lock():
+            self._is_running.value = 1
+        
+        self.configuration.update(configuration)
 
     def stop_capture(self) -> None:
         """Stop the image capture session."""
-        self.is_running = False
-        self._start_time = None
+        with self._is_running.get_lock():
+            self._is_running.value = 0
 
     def set_configuration(self, properties: dict[str, Any]) -> None:
         """
@@ -178,7 +151,7 @@ class ImageProvider(ABC):
         Args:
             properties: Dictionary of property updates.
         """
-        self.properties.update(properties)
+        self.configuration.update(properties)
 
     def get_configuration(self) -> dict[str, Any]:
         """
@@ -187,7 +160,7 @@ class ImageProvider(ABC):
         Returns:
             Dictionary of configuration values.
         """
-        return self.properties
+        return self.configuration
 
     def run(self) -> None:
         """
@@ -196,143 +169,24 @@ class ImageProvider(ABC):
         Subclasses may override this.
         """
         with self.syncing_context() as must_terminate_now:
-            self.start_capture()
-
             while not must_terminate_now:
                 try:
-                    self.handle_remote_call_events()
-                    self.handle_pyro_events(daemon)
-
-                    img_tuple = self.capture_packaged_image()
-                    for client in self.clients:
-                        client.new_image_captured(img_tuple)
+                    with self._is_running.get_lock():
+                        if self._is_running.value:
+                            img_array = self.capture_image()
+                            self.image_queue.put(img_array)
                 except Exception as err:
-                    self.log.error("Error in ImageProvider run loop : {err}")
+                    self.log.error(f"Error in ImageProvider run loop : {err}")
+        
             self.stop_capture()
 
-
-@expose
-class RemoteImageProviderClient(PyroProcess, ImageProviderClient):
-    """
-    Protocol for receiving images from an ImageProvider.
-    """
-
-    def __init__(self, callback=None, *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize the image provider client
-
-        """
-        super().__init__(*args, **kwargs)
-        self.callback = callback
-        self.images = []
-
-    def new_image_captured(self, image: np.ndarray) -> None:
-        """
-        Called when a new image is captured.
-
-        Args:
-            image (np.ndarray): Captured image data.
-        """
-
-        if self.callback is not None:
-            self.callback(image)
-        else:
-            self.images.append(image)
-            self.images = self.images[-10:]
-
-
-@expose
-class RemoteImageProvider(ImageProvider, PyroProcess):
-    """
-    Image provider that exposes its interface over Pyro5.
-    """
-
-    def __init__(self, pyro_name: Optional[str], *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize and register a remote image provider.
-
-        Args:
-            pyro_name: Name used to register with Pyro name server.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-        """
-        super().__init__(pyro_name=pyro_name, *args, **kwargs)
-        self.lock = RLock()
-
-    def client_to_proxy(self, obj_or_name) -> Optional[ImageProviderClient]:
-        """
-        Dynamically resolve client from name or URI if needed.
-
-        Returns:
-            The client object or proxy, if available.
-        """
-        with self.lock:
-            if isinstance(obj_or_name, URI):
-                return PyroProcess.by_uri(obj_or_name)
-            elif isinstance(obj_or_name, str):
-                return PyroProcess.by_name(obj_or_name)
-
-            return obj_or_name
-
-    def add_client(self, obj_or_name: Union[ImageProviderClient, str, URI]) -> None:
-        """
-        Add client as an object, Pyro name, or URI.  If it is a name or a URI
-        we defer until the runloop to actually instantiate the object (i.e. it needs
-        to be instantiated on the right thread)
-
-        Args:
-            obj_or_name: Can be a client object, a Pyro name, or a Pyro URI.
-        """
-        with self.lock:
-            super().add_client(obj_or_name)
-
-    def set_frame_rate(self, value: float) -> None:
-        """
-        Set the frame rate of the image provider.
-
-        Args:
-            value: Frame rate in Hz.
-        """
-        super().set_frame_rate(value)
-
-    def run(self) -> None:
-        """
-        Main run loop with Pyro daemon registration and event handling.
-        """
-        with Daemon(host=self.get_local_ip()) as daemon:
-            with self.syncing_context() as must_terminate_now:
-                uri = daemon.register(self)
-                ns = self.locate_ns()
-                if ns is not None:
-                    ns.register(self.pyro_name, uri)
-
-                self.start_capture()
-
-                while not must_terminate_now:
-                    self.handle_remote_call_events()
-                    self.handle_pyro_events(daemon)
-
-                    img_tuple = self.capture_packaged_image()
-                    with self.lock:
-                        for client in self.clients:
-                            proxy = self.client_to_proxy(client)
-                            proxy.new_image_captured(img_tuple)
-
-                self.stop_capture()
-
-                ns = self.locate_ns()
-                if ns is not None:
-                    ns.remove(self.pyro_name)
-
-    def get_last_packaged_image(self) -> dict[str, Any]:
-        return super().get_last_packaged_image()
-
-
-class DebugRemoteImageProvider(RemoteImageProvider):
+class DebugImageProvider(ImageProvider):
     """
     An image provider that generates synthetic 8-bit images for testing.
     """
-
+    def __init__(self, size=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+                
     def capture_image(self) -> np.ndarray:
         """
         Generate an 8-bit random image of shape (size[0], size[1], channels),
@@ -346,8 +200,7 @@ class DebugRemoteImageProvider(RemoteImageProvider):
             >>> img.shape
             (256, 256, 3)
         """
-
-        img = self.generate_random_noise(self.size[0], self.size[1], self.channels)
+        img = self.generate_color_bars(self.height, self.width)
 
         frame_duration = 1 / self.frame_rate
 
@@ -356,9 +209,8 @@ class DebugRemoteImageProvider(RemoteImageProvider):
             and time.time() < self._last_image + frame_duration
         ):
             time.sleep(0.001)
-
         self._last_image = time.time()
-        self.log.debug("Image captured at %f", time.time() - self._start_time)
+        
         return img
 
     @staticmethod
@@ -418,17 +270,24 @@ class DebugRemoteImageProvider(RemoteImageProvider):
         img = np.zeros((height, width, 3), dtype=np.uint8)
 
         # Fill bars
+        fractional, integer = math.modf(time.time())
         for i, color in enumerate(colors):
-            img[:, i * bar_width : (i + 1) * bar_width, :] = color
+            img[:, i * bar_width : (i + 1) * bar_width, :] = color*fractional
 
         return img
-
-
+        
+        
+    
 if __name__ == "__main__":
-    import logging
+    print(ImageProvider.__mro__)
+    ImageProvider(properties_description=[])
+    # import logging
 
-    provider = DebugRemoteImageProvider(
-        log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
-    )
-    provider.start()
-    provider.join()
+    # # provider = DebugImageProvider(
+    # #     log_level=logging.DEBUG, pyro_name="ca.dccmlab.imageprovider.debug"
+    # # )
+    # provider = DebugImageProvider(
+    #     log_level=logging.DEBUG, queue=Queue()
+    # )
+    # provider.start_synchronously()
+    # provider.join()

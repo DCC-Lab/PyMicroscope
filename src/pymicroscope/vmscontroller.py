@@ -5,6 +5,7 @@ from serial.tools import list_ports
 import binascii
 import time
 
+
 # CONTROLLER_SERIAL_PATH = "/dev/cu.USA19QW3d1P1.1"
 CONTROLLER_SERIAL_PATH = "/dev/cu.usbserial-A907SJ89"
 
@@ -17,6 +18,7 @@ class VMSController:
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": 6,
             "WRITE_NUMBER_OF_LINES_PER_FRAME": 576,
         }
+        self.default_other_parameters = {"Number_Of_Faces_Of_Polygon": 36, "TMR1_Reload_Value": 60327, "PixelsPerLine": 1024}
 
         self.commands = {
             "READ_FIRMWARE_VERSION": {
@@ -79,45 +81,53 @@ class VMSController:
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_START"],
+                "minimum": 0,
+                "maximum": 65535,
             },
             "WRITE_DAC_INCREMENT": {
                 "command_code": 0x7A,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
+                "minimum": 0,
+                "maximum": 65535,
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters[
-                    "WRITE_NUMBER_OF_LINES_FOR_VSYNC"
-                ],
+                "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_FOR_VSYNC"],
+                "minimum": 1,
+                "maximum": 575,
             },
             "WRITE_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x7C,
                 "command_bytes_format": ">bh",
                 "response_bytes_format": "",
-                "parameter": self.default_write_parameters[
-                    "WRITE_NUMBER_OF_LINES_PER_FRAME"
-                ],
+                "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_PER_FRAME"],
+                "minimum": 36,
+                "maximum": 65520,
             },
         }
 
         self.port = None
-
+        self.is_accessible = False
+        
     def initialize(self):
-        self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
+        self.port = serial.Serial(
+            CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3
+        )
 
         version = self.send_command("READ_FIRMWARE_VERSION")
         if version[0] != 4:
             raise RuntimeError("Unrecognized firmware version on controller")
 
-        #print(self.build_info())
+        self.is_accessible = True
 
     def shutdown(self):
         if self.port is not None:
             self.port.close()
+        self.is_accessible = False
 
     def build_info(self):
         fw = self.send_command("READ_FIRMWARE_VERSION")
@@ -126,7 +136,7 @@ class VMSController:
         serial_number = self.send_command("READ_SN")
         build_time = self.send_command("READ_BUILD_TIME")
         build_date = self.send_command("READ_BUILD_DATE")
-        return f"VMS Controller : ({cid}, {cpn}, #{serial_number}), {fw[0]}.{fw[1]}.{fw[2]} [Build: {build_date}, {build_time}]\n"
+        return f"VMS Controller: CID: {cid[0]}, CPN: {cpn[0]}, Serial #: {serial_number},\nFireware version: {fw[0]}.{fw[1]}.{fw[2]} [Build: {b''.join(build_date).decode()}, {b''.join(build_time).decode()}]\n"
 
     def send_command(self, command_name, parameter=None):
         command_dict = self.commands[command_name]
@@ -141,16 +151,33 @@ class VMSController:
 
         self.port.write(payload)
         self.port.flush()
-        
 
         response_bytes_format = command_dict["response_bytes_format"]
         bytes_returned = struct.calcsize(response_bytes_format)
         unpacked_response = None
         if bytes_returned != 0:
             response_bytes = self.port.read(bytes_returned)
-            unpacked_response = struct.unpack(response_bytes_format, response_bytes)
+            unpacked_response = struct.unpack(
+                response_bytes_format, response_bytes
+            )
 
         return unpacked_response
+
+
+    def parameters_are_valid(self, parameters):
+        is_valid = {}
+
+        for parameter_name, values in parameters.items():
+            command_dict = self.commands[parameter_name]
+            minimum = command_dict["minimum"]
+            maximum = command_dict["maximum"]
+
+            if minimum < values < maximum:
+                is_valid[parameter_name] = None  # OK
+            else:
+                is_valid[parameter_name] = (minimum, maximum)  # Erreur
+
+        return is_valid
 
     @property
     def lines_per_frame(self):
@@ -183,3 +210,31 @@ class VMSController:
     @dac_increment.setter
     def dac_increment(self, value):
         self.send_command("WRITE_DAC_INCREMENT", value)
+
+    @property
+    def tmr1_reload_value(self):
+        return self.default_other_parameters["TMR1_Reload_Value"]
+    
+    @property
+    def polygone_rev_per_min(self):
+        tmr1_reload_value = self.default_other_parameters["TMR1_Reload_Value"]
+        polygon_clock_frequency = 5000000 / (65535 - tmr1_reload_value)
+        return round(polygon_clock_frequency / 2 * 60)
+    
+    @property
+    def hsync_frequency(self):
+        polygon_revolutions_per_minute = self.polygone_rev_per_min
+        number_of_faces_of_polygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
+        return round(polygon_revolutions_per_minute / 60 * number_of_faces_of_polygon)
+    
+    @property
+    def vsync_frequency(self):
+        hsync_frequency = self.hsync_frequency
+        number_of_lines_per_frame = self.lines_per_frame
+        return round(hsync_frequency / number_of_lines_per_frame)
+    
+    @property
+    def pixel_frequency(self):
+        pixels_per_line = self.default_other_parameters["PixelsPerLine"]
+        hsync_frequency = self.hsync_frequency
+        return round(pixels_per_line * hsync_frequency)

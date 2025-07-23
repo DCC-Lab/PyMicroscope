@@ -21,12 +21,14 @@ Example:
 from unittest import main, TestCase, skipIf, expectedFailure, SkipTest, skip
 import unittest  # to remove
 import os
+import sys
 
 os.environ["COVERAGE_PROCESS_START"] = ".coveragerc"
 
+path = os.path.join(os.path.dirname(__file__), "../src")
+sys.path.append(path)
 
 import io
-import sys
 import subprocess
 from http.server import (
     SimpleHTTPRequestHandler,
@@ -38,8 +40,6 @@ import time
 from queue import Full, Empty, Queue
 import psutil
 
-path = os.path.join(os.path.dirname(__file__), "../src")
-sys.path.append(path)
 
 from pymicroscope.utils import configured_log
 

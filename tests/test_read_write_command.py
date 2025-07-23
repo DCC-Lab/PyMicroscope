@@ -195,10 +195,10 @@ class TestReadWrite(unittest.TestCase):
         part_number = struct.unpack("b", data_bytes)[0]  # devrait être <h
         self.assertTrue(part_number == 0)
 
-        TMR1ReloadValueMinimum = 40535
-        TMR1ReloadValueMaximum = 60327
-        TMR1ReloadValueMostSignificantByte = part_number / 256
-        TMR1ReloadValueLeastSignificantByte = part_number % 256
+        #TMR1ReloadValueMinimum = 40535
+        #TMR1ReloadValueMaximum = 60327
+        #TMR1ReloadValueMostSignificantByte = part_number / 256
+        #TMR1ReloadValueLeastSignificantByte = part_number % 256
 
         polygonClockFrequency = 5000000 / (65535 - part_number)
         # self.assertTrue(polygonClockFrequency == pass)

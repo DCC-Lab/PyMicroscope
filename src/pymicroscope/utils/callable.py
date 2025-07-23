@@ -69,7 +69,6 @@ from typing import Any, Optional, Callable, Union, Tuple
 
 from pymicroscope.utils.terminable import TerminableProcess
 
-
 @dataclass
 class Reply:
     """
