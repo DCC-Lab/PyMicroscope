@@ -67,6 +67,9 @@ class MicroscopeApp(App):
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
 
+
+        # NotificationCenter().addObserver(self,  self.update_sutter_position, LinearMotionNotification.didGetPosition, self.sutter)
+        
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
@@ -127,7 +130,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
+            label="Image Acquisition", width=500, height=170
         )
 
         self.save_controls.grid_into(
@@ -232,42 +235,30 @@ class MicroscopeApp(App):
         self.change_provider()
     
     def build_sutter_interface(self):
-        self.sutter = Box(label="Position", width=500, height=250)
+        self.sutter = Box(label="Position", width=500, height=350)
         self.sutter.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
         self.sutter.widget.grid_propagate(False)
 
-        Label("sutter position").grid_into(
-            self.sutter,
-            row=0,
-            column=0,
-            columnspan=2,
-            pady=8,
-            padx=10,
-            sticky="w",
+        self.position = Box(label="Sample position", width=self.sutter.width-20)
+        self.position.grid_into(
+            self.sutter, row=0, column=0, pady=10, padx=10, sticky="nswe")
+    
+        Label("(x, y, z) :").grid_into(
+            self.position, row=0, column=0, pady=10, padx=10, sticky="e"
         )
-        Label("x :").grid_into(
-            self.sutter, row=1, column=0, pady=10, padx=10, sticky="e"
+        Label(f"({self.sutter_config_dialog.initial_x_value}, {self.sutter_config_dialog.initial_y_value}, {self.sutter_config_dialog.initial_z_value})").grid_into(
+            self.position, row=0, column=1, pady=10, padx=10, sticky="w"
         )
-        Label(self.sutter_config_dialog.initial_x_value).grid_into(
-            self.sutter, row=1, column=1, pady=10, padx=10, sticky="w"
-        )
-        Label("y :").grid_into(
-            self.sutter, row=1, column=2, pady=10, padx=10, sticky="e"
-        )
-        Label(self.sutter_config_dialog.initial_y_value).grid_into(
-            self.sutter, row=1, column=3, pady=10, padx=10, sticky="w"
-        )
-        Label("z :").grid_into(
-            self.sutter, row=1, column=4, pady=10, padx=10, sticky="e"
-        )
-        Label(self.sutter_config_dialog.initial_z_value).grid_into(
-            self.sutter, row=1, column=5, pady=10, padx=10, sticky="w"
+
+        self.config = Box(label="Position configuration", width=self.sutter.width-20)
+        self.config.grid_into(
+            self.sutter, row=1, column=0, pady=10, padx=10, sticky="nswe"
         )
 
         Label("Initial configuration").grid_into(
-            self.sutter,
+            self.config,
             row=2,
             column=0,
             columnspan=2,
@@ -277,7 +268,7 @@ class MicroscopeApp(App):
         )
 
         Label("Facteur :").grid_into(
-            self.sutter,
+            self.config,
             row=3,
             column=0,
             columnspan=2,
@@ -289,13 +280,13 @@ class MicroscopeApp(App):
         #revoir, mettre en float value
         self.microstep_pixel_entry = IntEntry(value=self.sutter_config_dialog.microstep_pixel, width=5)
         self.microstep_pixel_entry.grid_into(
-            self.sutter, row=3, column=2, pady=2, padx=2, sticky="ns"
+            self.config, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.microstep_pixel = self.microstep_pixel_entry.value
 
         Label("um/px").grid_into(
-            self.sutter,
+            self.config,
             row=3,
             column=3,
             pady=2,
@@ -304,7 +295,7 @@ class MicroscopeApp(App):
         )
 
         Label("Number of z images :").grid_into(
-            self.sutter,
+            self.config,
             row=4,
             column=0,
             columnspan=2,
@@ -314,15 +305,15 @@ class MicroscopeApp(App):
         )
         self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
         self.z_image_number_entry.grid_into(
-            self.sutter, row=4, column=2, pady=2, padx=2, sticky="ns"
+            self.config, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.z_image = self.z_image_number_entry
 
         Label("z step :").grid_into(
-            self.sutter,
-            row=4,
-            column=4,
+            self.config,
+            row=5,
+            column=1,
             pady=2,
             padx=2,
             sticky="nse",
@@ -330,14 +321,14 @@ class MicroscopeApp(App):
 
         self.z_range_entry = IntEntry(value=self.sutter_config_dialog.z_range, width=5)
         self.z_range_entry.grid_into(
-            self.sutter, row=4, column=5, pady=2, padx=2, sticky="ns"
+            self.config, row=5, column=2, pady=2, padx=2, sticky="ns"
         )
         #problème demander a dan
         self.z_range = self.z_range_entry.value
         Label("um").grid_into(
-            self.sutter,
-            row=4,
-            column=6,
+            self.config,
+            row=5,
+            column=3,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -350,8 +341,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
-            self.sutter,
-            row=5,
+            self.config,
+            row=6,
             column=0,
             columnspan=2,
             pady=3,
@@ -364,8 +355,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
-            self.sutter,
-            row=5,
+            self.config,
+            row=6,
             column=2,
             columnspan=2,
             pady=3,
@@ -378,8 +369,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
-            self.sutter,
-            row=6,
+            self.config,
+            row=7,
             column=2,
             columnspan=2,
             pady=2,
@@ -392,8 +383,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_left_button.grid_into(
-            self.sutter,
-            row=6,
+            self.config,
+            row=7,
             column=0,
             columnspan=2,
             pady=2,
@@ -406,8 +397,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_aquisition_image,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.start_map_aquisition.grid_into(
-            self.sutter,
-            row=5,
+            self.config,
+            row=6,
             column=5,
             columnspan=2,
             pady=2,
@@ -421,8 +412,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_clear,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.clear_map_aquisition.grid_into(
-            self.sutter,
-            row=6,
+            self.config,
+            row=7,
             column=5,
             columnspan=2,
             pady=2,
