@@ -130,7 +130,7 @@ class MicroscopeApp(App):
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
+            label="Image Acquisition", width=500, height=170
         )
 
         self.save_controls.grid_into(
@@ -245,23 +245,11 @@ class MicroscopeApp(App):
         self.position.grid_into(
             self.sutter, row=0, column=0, pady=10, padx=10, sticky="nswe")
     
-        Label("x :").grid_into(
+        Label("(x, y, z) :").grid_into(
             self.position, row=0, column=0, pady=10, padx=10, sticky="e"
         )
-        Label(self.sutter_config_dialog.initial_x_value).grid_into(
+        Label(f"({self.sutter_config_dialog.initial_x_value}, {self.sutter_config_dialog.initial_y_value}, {self.sutter_config_dialog.initial_z_value})").grid_into(
             self.position, row=0, column=1, pady=10, padx=10, sticky="w"
-        )
-        Label("y :").grid_into(
-            self.position, row=0, column=2, pady=10, padx=10, sticky="e"
-        )
-        Label(self.sutter_config_dialog.initial_y_value).grid_into(
-            self.position, row=0, column=3, pady=10, padx=10, sticky="w"
-        )
-        Label("z :").grid_into(
-            self.position, row=0, column=4, pady=10, padx=10, sticky="e"
-        )
-        Label(self.sutter_config_dialog.initial_z_value).grid_into(
-            self.position, row=0, column=5, pady=10, padx=10, sticky="w"
         )
 
         self.config = Box(label="Position configuration", width=self.sutter.width-20)
