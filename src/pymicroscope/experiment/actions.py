@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 import platform
 import os
-from multiprocessing import Queue
+from multiprocessing import Queue, JoinableQueue
 from mytk.notificationcenter import Notification, NotificationCenter
 import numpy as np
 from threading import Thread
@@ -117,6 +117,7 @@ class ActionCapture(Action):
     def __init__(self, n_images, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_images = n_images
+        #self.queue = JoinableQueue(maxsize=n_images)
         self.queue = Queue(maxsize=n_images)
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
@@ -134,8 +135,12 @@ class ActionCapture(Action):
             img_arrays.append(img_array)
             index = index + 1
 
+        #self.queue.put_nowait()
+
         self.queue.close()
         self.queue.join_thread()
+        #self.queue.task_done()
+        #self.queue.join()
         
         self.output = img_arrays
         return {"captured_frames": img_arrays}
