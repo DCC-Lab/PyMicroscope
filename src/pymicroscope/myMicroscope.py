@@ -6,6 +6,7 @@ from queue import Queue, Empty, Full
 from multiprocessing import Queue, JoinableQueue
 from tkinter import filedialog
 from pathlib import Path
+import threading
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -214,7 +215,7 @@ class MicroscopeApp(App):
         self.save()
 
     def save_actions_current_settings(self, sound_bell=True, one_image=True) -> list[Action]:
-        n_images = self.number_of_images_average.value        
+        n_images = self.number_of_images_average.value       
 
         if one_image:
             starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
