@@ -53,7 +53,7 @@ class MapController(Bindable):
         
         #return positions_list
         
-        return [(10, 0, 0), (100, 0, 0)]
+        return [(10, 0, 0), (100, 0, 0), (0, 100, 0), (100, 100, 0)]
                 #, (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0)]
 
     # def ajuste_map_imaging(self):

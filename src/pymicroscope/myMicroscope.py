@@ -6,6 +6,7 @@ from queue import Queue, Empty, Full
 from multiprocessing import Queue
 from tkinter import filedialog
 from pathlib import Path
+import threading
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -213,7 +214,7 @@ class MicroscopeApp(App):
         self.save()
 
     def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
-        n_images = self.number_of_images_average.value        
+        n_images = self.number_of_images_average.value       
 
         starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
         starting2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", True)        
@@ -454,7 +455,7 @@ class MicroscopeApp(App):
         positions = self.map_controller.create_positions_for_map()
 
         exp = Experiment()
-        
+            
         #save_actions, queue = self.save_actions_current_settings()
         
         for position in positions:
@@ -465,11 +466,9 @@ class MicroscopeApp(App):
             self.save_queue = queue
             actions.extend([move, wait])
             actions.extend(save_actions)
+            exp.from_actions(actions).perform_in_background_thread()
 
-            exp.add_step(experiment_step=ExperimentStep(perform=actions))
-        #exp.perform()
-        exp.perform_in_background_thread()
-
+        # exp.perform_in_background_thread()
 
         #exp.from_actions(actions).perform_in_background_thread()
             #exp.add_step(experiment_step=ExperimentStep(perform=actions))
