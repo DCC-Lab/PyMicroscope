@@ -3,7 +3,7 @@ import signal
 from contextlib import suppress
 import numpy as np
 from queue import Queue, Empty, Full
-from multiprocessing import Queue
+from multiprocessing import Queue, JoinableQueue
 from tkinter import filedialog
 from pathlib import Path
 import threading
@@ -30,6 +30,7 @@ class MicroscopeApp(App):
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
         self.save_queue = None
+        self.save_long_queue = None
         self.images_directory = Path("~/Desktop").expanduser()
         self.images_template = "Image-{date}-{time}-{i}.tif"
 
@@ -45,11 +46,11 @@ class MicroscopeApp(App):
         self.is_camera_running = False
         self.is_saving = False
         
-        self.vms_controller = VMSController()
-        try:
-            self.vms_controller.initialize()
-        except Exception as err:
-            pass  # vms_controller.is_accessible == False
+        #self.vms_controller = VMSController()
+        #try:
+        #    self.vms_controller.initialize()
+        #except Exception as err:
+         #   pass  # vms_controller.is_accessible == False
 
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
@@ -213,11 +214,15 @@ class MicroscopeApp(App):
     def user_clicked_save(self, button, event):
         self.save()
 
-    def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
+    def save_actions_current_settings(self, sound_bell=True, one_image=True) -> list[Action]:
         n_images = self.number_of_images_average.value       
 
-        starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
-        starting2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", True)        
+        if one_image:
+            starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
+            starting2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", True)   
+        else:
+            starting1 = ActionWait(delay=0)
+            starting2 = ActionWait(delay=0)
         capture = ActionCapture(n_images=n_images)
         mean = ActionMean(source=capture)
         save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
@@ -225,9 +230,12 @@ class MicroscopeApp(App):
             bell = ActionBell()
         else:
             bell = ActionWait(delay=0)
-            
-        ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
-        ending2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", False)
+        if one_image:
+            ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
+            ending2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", False)
+        else:
+            ending1 = ActionWait(delay=0)
+            ending2 = ActionWait(delay=0)
 
         return  [starting1, starting2, capture, mean, save, bell, ending1, ending2], capture.queue
 
@@ -452,23 +460,44 @@ class MicroscopeApp(App):
         self.can_start_map = None
 
     def user_clicked_map_aquisition_image(self, event, button):
-        positions = self.map_controller.create_positions_for_map()
+        self.save_map_experience()
 
+
+    def save_map_experience(self):
+        positions = self.map_controller.create_positions_for_map()
         exp = Experiment()
-            
-        #save_actions, queue = self.save_actions_current_settings()
+        #q = Queue()
+        #join_queue = JoinableQueue()
+        #actions = []
+        #save_actions, queue = self.save_actions_current_settings(sound_bell=False, one_image=False)
         
         for position in positions:
             actions = []
             move = ActionMove(position=position, linear_motion_device=self.device)
             wait = ActionWait(delay=1)
-            save_actions, queue = self.save_actions_current_settings()
-            self.save_queue = queue
-            actions.extend([move, wait])
+            save_actions, queue = self.save_actions_current_settings(sound_bell=False, one_image=False)
+            self.save_long_queue = queue
+            actions.extend([wait])
             actions.extend(save_actions)
-            exp.from_actions(actions).perform_in_background_thread()
+            #exp.from_actions(actions).perform_in_background_thread()
+        
+        #exp.from_actions(actions).perform_in_background_thread()
+            
 
-        # exp.perform_in_background_thread()
+            exp.add_step(experiment_step=ExperimentStep(perform=actions))
+        #exp.perform()
+        exp.perform_in_background_thread()
+        start_time = time.time()
+        #while time.time() - start_time < 3:
+            #time.sleep(0.001)
+            #pass
+        self.change_provider()
+
+        #actions, capture_queue = self.save_actions_current_settings()
+        #self.save_queue = capture_queue
+        
+        #Experiment.from_actions(actions).perform_in_background_thread()
+
 
         #exp.from_actions(actions).perform_in_background_thread()
             #exp.add_step(experiment_step=ExperimentStep(perform=actions))
@@ -562,6 +591,13 @@ class MicroscopeApp(App):
                     self.save_queue.put_nowait(img_array)
                 except (Full, ValueError) as err:
                     self.save_queue = None # Task has reference
+
+            
+            if self.save_long_queue is not None:
+                try:
+                    self.save_long_queue.put_nowait(img_array)
+                except (Full, ValueError) as err:
+                    self.save_long_queue = None # Task has reference
                     
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)

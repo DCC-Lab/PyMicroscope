@@ -28,7 +28,7 @@ class MapController(Bindable):
         corner2 = self.parameters["Upper right corner"]
         corner3 = self.parameters["Lower left corner"]
         corner4 = self.parameters["Lower right corner"]
-        print(corner1, corner2, corner3, corner4)
+        #print(corner1, corner2, corner3, corner4)
 
         x_image_dimension = 1000*self.microstep_pixel
         y_image_dimension = 500*self.microstep_pixel
