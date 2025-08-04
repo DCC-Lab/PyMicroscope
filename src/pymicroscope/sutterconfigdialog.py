@@ -142,7 +142,6 @@ class SutterConfigDialog():
             
     def aquisition_image(self):
         if all(x is not None for x in self.parameters.values()):
-            #self.ajuste_map_imaging()
             x_pixels_value_per_image = int(1000)
             y_pixels_value_per_image = int(500)
             
