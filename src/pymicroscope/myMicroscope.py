@@ -55,7 +55,7 @@ class MicroscopeApp(App):
 
 
         self.upper_left_clicked = False
-        self.upper_right_clicked= False
+        self.upper_right_clicked = False
         self.lower_left_clicked = False
         self.lower_right_clicked = False
 
@@ -205,10 +205,6 @@ class MicroscopeApp(App):
         )
         self.bind_properties("images_template", entry, "value_variable")
 
-        self.number_of_images_average = IntEntry(value=30, width=5)
-        self.number_of_images_average.grid_into(
-            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
-        )
 
     def user_clicked_choose_directory(self, button, event):
         self.images_directory = filedialog.askdirectory(title="Select a destination for images:", initialdir=self.images_directory)
