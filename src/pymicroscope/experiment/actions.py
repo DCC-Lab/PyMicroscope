@@ -4,17 +4,17 @@ import time
 import os
 import subprocess
 from pathlib import Path
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 import platform
 from enum import Enum
-from multiprocessing import Queue, JoinableQueue
 from mytk.notificationcenter import Notification, NotificationCenter
+import os
+from multiprocessing import Queue
 import numpy as np
-from threading import Thread
 from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
+from threading import Thread
 
 
 class Action:
@@ -22,11 +22,11 @@ class Action:
         super().__init__(*args, **kwargs)
         self.source = source
         self.output = None
+        self.thread = None
+        self.action_results = None
 
     def perform(self, results=None):
         start_time = time.time()
-
-        action_results = None
 
         action_results = self.do_perform(results)
         if action_results is None:
@@ -34,13 +34,25 @@ class Action:
 
         action_results["start_time"] = start_time
         action_results["duration"] = time.time() - start_time
-        action_results["action"] = self
-        return action_results
+
+        self.action_results = action_results
+        return self.action_results
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         raise RuntimeError(
             "You must implement the do_perform method in your class"
         )
+
+    def cleanup(self):
+        pass
+
+    def perform_in_background(self, results=None):
+        self.thread = Thread(target=self.perform, args=(results,))
+        self.thread.start()
+
+    def wait_for_completion(self):
+        if self.thread is not None:
+            self.thread.join()
 
 
 class ActionChangeProperty(Action):
@@ -86,23 +98,23 @@ class ActionSound(Action):
         SOSUMI = "Sosumi"
         SUBMARINE = "Submarine"
         TAP = "Tink"
-        
-    def __init__(self, sound_name:MacOSSound=MacOSSound.FROG, *args, **kwargs):
+
+    def __init__(
+        self, sound_name: MacOSSound = MacOSSound.FROG, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
 
         self.sound_file = f"/System/Library/Sounds/{sound_name.value}.aiff"
         if not os.path.exists(self.sound_file):
             self.sound_file = f"/System/Library/Sounds/Frog.aiff"
-            
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
             print(self.sound_file)
-            process = subprocess.Popen(
-                ["afplay", self.sound_file]
-            )
+            process = subprocess.Popen(["afplay", self.sound_file])
         else:
             print("\a")
+
 
 class ActionMove(Action):
     def __init__(
@@ -136,6 +148,25 @@ class ActionMoveBy(Action):
     def do_perform(self, results=None) -> dict[str, Any] | None:
         self.device.moveInMicronsBy(self.d_position)
         return {"displacement": self.d_position}
+
+
+class ActionFunctionCall(Action):
+    def __init__(
+        self, function, fct_args=None, fct_kwargs=None, *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.function = function
+        if fct_args is None:
+            fct_args = ()
+        self.fct_args = fct_args
+
+        if fct_kwargs is None:
+            fct_kwargs = {}
+        self.fct_kwargs = fct_kwargs
+
+    def do_perform(self, results=None) -> dict[str, Any] | None:
+        self.action_results = self.function(*self.fct_args, **self.fct_kwargs)
+        return {"result": self.action_results}
 
 
 class ActionCapture(Action):
@@ -172,7 +203,8 @@ class ActionCapture(Action):
 
 
 class ActionMean(Action):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, source, *args, **kwargs):
+        kwargs["source"] = source
         super().__init__(*args, **kwargs)
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
@@ -187,7 +219,8 @@ class ActionMean(Action):
 
 
 class ActionSave(Action):
-    def __init__(self, root_dir=None, template=None, *args, **kwargs):
+    def __init__(self, source, root_dir=None, template=None, *args, **kwargs):
+        kwargs["source"] = source
         super().__init__(*args, **kwargs)
         self.root_dir = root_dir
         if self.root_dir is None:
