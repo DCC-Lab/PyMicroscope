@@ -15,12 +15,13 @@ from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
 
+
 class Action:
     def __init__(self, source=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.source = source
         self.output = None
-        
+
     def perform(self, results=None):
         start_time = time.time()
 
@@ -40,23 +41,25 @@ class Action:
             "You must implement the do_perform method in your class"
         )
 
+
 class ActionChangeProperty(Action):
     def __init__(self, target, property_name, value, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.target = target
         self.property_name = property_name
         self.value = value
-    
+
     def do_perform(self, results=None) -> dict[str, Any] | None:
         old_value = getattr(self.target, self.property_name, None)
         setattr(self.target, self.property_name, self.value)
-        
+
         return {
             "target": self.target,
             "property": self.property_name,
             "old_value": old_value,
-            "new_value": self.value
-        }    
+            "new_value": self.value,
+        }
+
 
 class ActionWait(Action):
     def __init__(self, delay, *args, **kwargs):
@@ -69,11 +72,13 @@ class ActionWait(Action):
 
 class ActionBell(Action):
     def __init__(self, *args, **kwargs):
-        super().__init__( *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
-            process = subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"])
+            process = subprocess.Popen(
+                ["afplay", "/System/Library/Sounds/Glass.aiff"]
+            )
         else:
             print("\a")
 
@@ -95,7 +100,6 @@ class ActionMove(Action):
         print({"position": self.position})
 
 
-
 class ActionMoveBy(Action):
     def __init__(
         self,
@@ -114,11 +118,11 @@ class ActionMoveBy(Action):
 
 
 class ActionCapture(Action):
-    def __init__(self, n_images, *args, **kwargs):
+    def __init__(self, n_images, app, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_images = n_images
-        #self.queue = JoinableQueue(maxsize=n_images)
         self.queue = Queue(maxsize=n_images)
+        self.app = app
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         index = 0
@@ -126,22 +130,22 @@ class ActionCapture(Action):
 
         if self.queue is None:
             self.queue = results.get("save_queue")
-            
+
         if self.queue is None:
             raise RuntimeError("No save queue available")
 
-        while index < self.n_images:
+        self.app.register_queue(self.queue)
+
+        while len(img_arrays) < self.n_images:
             img_array = self.queue.get()
             img_arrays.append(img_array)
             index = index + 1
 
-        #self.queue.put_nowait()
-
         self.queue.close()
         self.queue.join_thread()
-        #self.queue.task_done()
-        #self.queue.join()
-        
+
+        self.app.unregister_queue()
+
         self.output = img_arrays
         return {"captured_frames": img_arrays}
 
@@ -149,7 +153,7 @@ class ActionCapture(Action):
 class ActionMean(Action):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
     def do_perform(self, results=None) -> dict[str, Any] | None:
         img_arrays = self.source.output
 
@@ -167,11 +171,10 @@ class ActionSave(Action):
         self.root_dir = root_dir
         if self.root_dir is None:
             self.root_dir = Path("/tmp").expanduser()
-        
+
         self.template = template
         if template is None:
             self.template = "Image-{date}-{time}-{i:03d}.tif"
-
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         img_array = self.source.output
@@ -181,13 +184,14 @@ class ActionSave(Action):
         now = datetime.now()
         date_str = now.strftime("%Y%m%d")
         time_str = now.strftime("%H%M%S")
-        params = {"date":date_str, "time":time_str}
+        params = {"date": date_str, "time": time_str}
 
-        params['i'] = "avg"                     
+        params["i"] = "avg"
         filepath = self.root_dir / Path(self.template.format(**params))
         pil_image.save(filepath)
 
         self.output = filepath
+
 
 class ActionClear(Action):
     def __init__(self, filepath: Path, *args, **kwargs):
@@ -195,5 +199,3 @@ class ActionClear(Action):
         self.filepath = filepath
         for file in self.filepath:
             self.filepath[file] = None
-
-
