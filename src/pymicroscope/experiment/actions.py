@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import time
+import os
 import subprocess
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional
 import platform
-import os
+from enum import Enum
 from multiprocessing import Queue, JoinableQueue
 from mytk.notificationcenter import Notification, NotificationCenter
 import numpy as np
@@ -70,18 +71,38 @@ class ActionWait(Action):
         time.sleep(self.delay)
 
 
-class ActionBell(Action):
-    def __init__(self, *args, **kwargs):
+class ActionSound(Action):
+    class MacOSSound(str, Enum):
+        BLOW = "Blow"
+        BOTTLE = "Bottle"
+        FROG = "Frog"
+        FUNK = "Funk"
+        GLASS = "Glass"
+        HERO = "Hero"
+        MORSE = "Morse"
+        PING = "Ping"
+        POP = "Pop"
+        PURR = "Purr"
+        SOSUMI = "Sosumi"
+        SUBMARINE = "Submarine"
+        TAP = "Tink"
+        
+    def __init__(self, sound_name:MacOSSound=MacOSSound.FROG, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.sound_file = f"/System/Library/Sounds/{sound_name.value}.aiff"
+        if not os.path.exists(self.sound_file):
+            self.sound_file = f"/System/Library/Sounds/Frog.aiff"
+            
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
+            print(self.sound_file)
             process = subprocess.Popen(
-                ["afplay", "/System/Library/Sounds/Glass.aiff"]
+                ["afplay", self.sound_file]
             )
         else:
             print("\a")
-
 
 class ActionMove(Action):
     def __init__(

@@ -23,6 +23,7 @@ from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 
 from hardwarelibrary.motion import SutterDevice
 
+
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -30,7 +31,6 @@ class MicroscopeApp(App):
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
         self.save_queue = None
-        self.save_long_queue = None
         self.images_directory = Path("~/Desktop").expanduser()
         self.images_template = "Image-{date}-{time}-{i}.tif"
 
@@ -45,19 +45,19 @@ class MicroscopeApp(App):
         }
         self.is_camera_running = False
         self.is_saving = False
-        
-        #self.vms_controller = VMSController()
-        #try:
+
+        # self.vms_controller = VMSController()
+        # try:
         #    self.vms_controller.initialize()
-        #except Exception as err:
-         #   pass  # vms_controller.is_accessible == False
+        # except Exception as err:
+        #   pass  # vms_controller.is_accessible == False
 
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
         self.device = SutterDevice(serialNumber="debug")
-        
+
         self.map_controller = MapController(self.device)
-        
+
         self.can_start_map = False
 
         self.app_setup()
@@ -91,11 +91,6 @@ class MicroscopeApp(App):
         if self.preview_queue is not None:
             self.preview_queue.close()
             self.preview_queue.join_thread()
-        
-        if self.preview_queue is not None:
-            self.preview_queue.close()
-            self.preview_queue.join_thread()
-        pass
 
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
@@ -104,7 +99,7 @@ class MicroscopeApp(App):
         self.build_position_interface()
         self.build_cameras_menu()
         self.build_start_stop_interface()
-        
+
     def build_imageview_interface(self):
         array = np.zeros(self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
@@ -164,7 +159,9 @@ class MicroscopeApp(App):
             padx=10,
         )
 
-        self.save_button = Button("Save …", user_event_callback=self.user_clicked_save)
+        self.save_button = Button(
+            "Save …", user_event_callback=self.user_clicked_save
+        )
         self.save_button.grid_into(
             self.save_controls,
             row=2,
@@ -172,8 +169,10 @@ class MicroscopeApp(App):
             pady=10,
             padx=10,
         )
-        self.bind_properties("is_camera_running", self.save_button, "is_enabled")
-        
+        self.bind_properties(
+            "is_camera_running", self.save_button, "is_enabled"
+        )
+
         Label("Images to average: ").grid_into(
             self.save_controls, row=2, column=1, pady=10, padx=10, sticky="e"
         )
@@ -183,11 +182,14 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
-        self.choose_directory_button = Button("Directory …", user_event_callback=self.user_clicked_choose_directory)
+        self.choose_directory_button = Button(
+            "Directory …",
+            user_event_callback=self.user_clicked_choose_directory,
+        )
         self.choose_directory_button.grid_into(
             self.save_controls, row=3, column=0, pady=10, padx=10, sticky="e"
         )
-        
+
         label = Label("(directory)")
         label.grid_into(
             self.save_controls, row=3, column=1, pady=10, padx=10, sticky="e"
@@ -206,48 +208,61 @@ class MicroscopeApp(App):
         )
 
     def user_clicked_choose_directory(self, button, event):
-        self.images_directory = filedialog.askdirectory(title="Select a destination for images:", initialdir=self.images_directory)
-        
+        self.images_directory = filedialog.askdirectory(
+            title="Select a destination for images:",
+            initialdir=self.images_directory,
+        )
+
         if self.images_directory == "":
             self.images_directory = "/tmp"
-                        
+
     def user_clicked_save(self, button, event):
         self.save()
 
-    def save_actions_current_settings(self, sound_bell=True, one_image=True) -> list[Action]:
-        n_images = self.number_of_images_average.value       
+    def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
+        n_images = self.number_of_images_average.value
 
-        if one_image:
-            starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)        
-            starting2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", True)   
-        else:
-            starting1 = ActionWait(delay=0)
-            starting2 = ActionWait(delay=0)
-        capture = ActionCapture(n_images=n_images)
+        starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)
+        starting2 = ActionChangeProperty(
+            self.number_of_images_average, "is_disabled", True
+        )
+
+        capture = ActionCapture(n_images=n_images, app=self)
         mean = ActionMean(source=capture)
-        save = ActionSave(source=mean, root_dir=self.images_directory, template=self.images_template)
+        save = ActionSave(
+            source=mean,
+            root_dir=self.images_directory,
+            template=self.images_template,
+        )
         if sound_bell:
-            bell = ActionBell()
+            bell = ActionSound(ActionSound.MacOSSound.GLASS)
         else:
             bell = ActionWait(delay=0)
-        if one_image:
-            ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
-            ending2 = ActionChangeProperty(self.number_of_images_average, "is_disabled", False)
-        else:
-            ending1 = ActionWait(delay=0)
-            ending2 = ActionWait(delay=0)
 
-        return  [starting1, starting2, capture, mean, save, bell, ending1, ending2], capture.queue
+        ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
+        ending2 = ActionChangeProperty(
+            self.number_of_images_average, "is_disabled", False
+        )
+
+        return [
+            starting1,
+            starting2,
+            capture,
+            mean,
+            save,
+            bell,
+            ending1,
+            ending2,
+        ]
 
     def save(self):
-        actions, capture_queue = self.save_actions_current_settings()
-        self.save_queue = capture_queue
-        
+        actions = self.save_actions_current_settings()
+
         Experiment.from_actions(actions).perform_in_background_thread()
 
     def user_changed_camera(self, popup, index):
         self.change_provider()
-    
+
     def build_position_interface(self):
         self.position = Box(label="Position", width=500, height=250)
         self.position.grid_into(
@@ -303,12 +318,16 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        self.microstep_pixel_entry = IntEntry(value = float(self.map_controller.microstep_pixel), width=5)
+        self.microstep_pixel_entry = IntEntry(
+            value=float(self.map_controller.microstep_pixel), width=5
+        )
         self.microstep_pixel_entry.grid_into(
             self.position, row=3, column=2, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties("microstep_pixel", self.microstep_pixel_entry, "value_variable")
-        
+        self.map_controller.bind_properties(
+            "microstep_pixel", self.microstep_pixel_entry, "value_variable"
+        )
+
         Label("um/px").grid_into(
             self.position,
             row=3,
@@ -327,11 +346,15 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.z_image_number_entry = IntEntry(value=self.map_controller.z_image_number, width=5)
+        self.z_image_number_entry = IntEntry(
+            value=self.map_controller.z_image_number, width=5
+        )
         self.z_image_number_entry.grid_into(
             self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties("z_image_number", self.z_image_number_entry, "value_variable")
+        self.map_controller.bind_properties(
+            "z_image_number", self.z_image_number_entry, "value_variable"
+        )
 
         Label("z step :").grid_into(
             self.position,
@@ -342,11 +365,15 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        self.z_range_entry = IntEntry(value=self.map_controller.z_range, width=5)
+        self.z_range_entry = IntEntry(
+            value=self.map_controller.z_range, width=5
+        )
         self.z_range_entry.grid_into(
             self.position, row=4, column=5, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties("z_range", self.z_range_entry, "value_variable")
+        self.map_controller.bind_properties(
+            "z_range", self.z_range_entry, "value_variable"
+        )
 
         Label("um").grid_into(
             self.position,
@@ -356,8 +383,6 @@ class MicroscopeApp(App):
             padx=0,
             sticky="nsw",
         )
-
-
 
         self.apply_upper_left_button = Button(
             "Upper left corner",
@@ -428,7 +453,9 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_enabled"
+        )
 
         self.clear_map_aquisition = Button(
             "Clear",
@@ -443,65 +470,57 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
+        self.bind_properties(
+            "can_start_map", self.clear_map_aquisition, "is_enabled"
+        )
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
-        self.map_controller.parameters[corner_label] = self.device.positionInMicrons()
-        
+        self.map_controller.parameters[
+            corner_label
+        ] = self.device.positionInMicrons()
+
         if all(x is not None for x in self.map_controller.parameters.values()):
-         self.can_start_map = True
+            self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
         value_to_clear = self.map_controller.parameters
 
-        #appeler fonctiion de position pour clear ces paramètres
+        # appeler fonctiion de position pour clear ces paramètres
         ActionClear(value_to_clear)
         self.can_start_map = None
 
     def user_clicked_map_aquisition_image(self, event, button):
         self.save_map_experience()
 
-
     def save_map_experience(self):
         positions = self.map_controller.create_positions_for_map()
         exp = Experiment()
-        #q = Queue()
-        #join_queue = JoinableQueue()
-        #actions = []
-        #save_actions, queue = self.save_actions_current_settings(sound_bell=False, one_image=False)
-        
+
         for position in positions:
-            actions = []
-            move = ActionMove(position=position, linear_motion_device=self.device)
-            wait = ActionWait(delay=1)
-            save_actions, queue = self.save_actions_current_settings(sound_bell=False, one_image=False)
-            self.save_long_queue = queue
-            actions.extend([wait])
-            actions.extend(save_actions)
-            #exp.from_actions(actions).perform_in_background_thread()
-        
-        #exp.from_actions(actions).perform_in_background_thread()
-            
+            prepare_actions = []
+            move = ActionMove(
+                position=position, linear_motion_device=self.device
+            )
+            beep1 = ActionSound()
+            prepare_actions.extend([move, beep1])
 
-            exp.add_step(experiment_step=ExperimentStep(perform=actions))
-        #exp.perform()
+            save_actions = self.save_actions_current_settings(
+                sound_bell=False
+            )
+
+            exp_step = ExperimentStep(
+                prepare=prepare_actions, perform=save_actions, finalize=[ActionSound(ActionSound.MacOSSound.FUNK)]
+            )
+            exp.add_step(experiment_step=exp_step)
+
         exp.perform_in_background_thread()
-        start_time = time.time()
-        #while time.time() - start_time < 3:
-            #time.sleep(0.001)
-            #pass
-        self.change_provider()
 
-        #actions, capture_queue = self.save_actions_current_settings()
-        #self.save_queue = capture_queue
-        
-        #Experiment.from_actions(actions).perform_in_background_thread()
+    def register_queue(self, queue):
+        self.save_queue = queue
 
-
-        #exp.from_actions(actions).perform_in_background_thread()
-            #exp.add_step(experiment_step=ExperimentStep(perform=actions))
-        #exp.perform_in_background_thread()
+    def unregister_queue(self):
+        self.register_queue(queue=None)
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
@@ -529,9 +548,9 @@ class MicroscopeApp(App):
         if self.image_queue is not None:
             self.image_queue.close()
             self.image_queue.join_thread()
-        
+
         self.image_queue = Queue()
-            
+
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
         args = self.cameras[selected_camera_name]["args"]
@@ -587,18 +606,9 @@ class MicroscopeApp(App):
                 self.preview_queue.put_nowait(img_array)
 
             if self.save_queue is not None:
-                try:
+                with suppress(Full, ValueError):
                     self.save_queue.put_nowait(img_array)
-                except (Full, ValueError) as err:
-                    self.save_queue = None # Task has reference
 
-            
-            if self.save_long_queue is not None:
-                try:
-                    self.save_long_queue.put_nowait(img_array)
-                except (Full, ValueError) as err:
-                    self.save_long_queue = None # Task has reference
-                    
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)
         except Empty:
