@@ -271,7 +271,7 @@ class MicroscopeApp(App):
         notif_complete = ActionPostNotification(
             MicroscopeAppNotification.did_save
         )
-        bell = ActionBell()
+        bell = ActionSound()
         ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
         ending2 = ActionChangeProperty(
             self.number_of_images_average, "is_disabled", False

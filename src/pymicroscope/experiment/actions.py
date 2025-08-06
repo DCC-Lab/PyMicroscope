@@ -114,7 +114,6 @@ class ActionSound(Action):
 
     def do_perform(self, results=None) -> dict[str, Any] | None:
         if platform.system() == "Darwin":
-            print(self.sound_file)
             process = subprocess.Popen(["afplay", self.sound_file])
         else:
             print("\a")
@@ -134,7 +133,6 @@ class ActionMove(Action):
 
     def do_perform(self, results=None) -> None:
         self.device.moveInMicronsTo(self.position)
-        print({"position": self.position})
 
 
 class ActionMoveBy(Action):
@@ -178,7 +176,6 @@ class ActionAccumulate(Action):
         super().__init__(*args, **kwargs)
         self.n_images = n_images
         self.queue = Queue(maxsize=n_images)
-        self.app = app
 
     def handle_new_image(self, notification):
         img_array = notification.user_info["img_array"]
@@ -202,8 +199,6 @@ class ActionAccumulate(Action):
         if self.queue is None:
             raise RuntimeError("No save queue available")
 
-        self.app.register_queue(self.queue)
-
         while len(img_arrays) < self.n_images:
             img_array = self.queue.get()
             img_arrays.append(img_array)
@@ -215,8 +210,6 @@ class ActionAccumulate(Action):
 
         self.queue.close()
         self.queue.join_thread()
-
-        self.app.unregister_queue()
 
         self.output = img_arrays
         return {"captured_frames": img_arrays}
