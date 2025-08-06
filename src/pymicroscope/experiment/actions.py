@@ -1,4 +1,5 @@
 from __future__ import annotations
+import weakref
 
 import time
 import subprocess
@@ -6,12 +7,15 @@ from pathlib import Path
 from typing import Any
 import platform
 import os
+from contextlib import suppress
 from multiprocessing import Queue
 import numpy as np
 from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
 from threading import Thread
+from mytk.notificationcenter import NotificationCenter
+from pymicroscope.app_notifications import MicroscopeAppNotification
 
 class Action:
     def __init__(self, source=None, *args, **kwargs):
@@ -148,16 +152,24 @@ class ActionFunctionCall(Action):
         self.action_results = self.function(*self.fct_args, **self.fct_kwargs)
         return {"result":self.action_results}
 
-class ActionCapture(Action):
+class ActionAccumulate(Action):
     def __init__(self, n_images, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.n_images = n_images
         self.queue = Queue(maxsize=n_images)
 
+    def handle_new_image(self, notification):
+        img_array = notification.user_info['img_array']
+        if img_array is not None:
+            with suppress(ValueError):
+                self.queue.put(img_array)
+    
     def do_perform(self, results=None) -> dict[str, Any] | None:
         index = 0
         img_arrays = []
 
+        NotificationCenter().add_observer(self, method=self.handle_new_image, notification_name=MicroscopeAppNotification.new_image_received)
+        
         if self.queue is None:
             raise RuntimeError("No save queue available")
 
@@ -165,6 +177,8 @@ class ActionCapture(Action):
             img_array = self.queue.get()
             img_arrays.append(img_array)
             index = index + 1
+
+        NotificationCenter().remove_observer(self, notification_name=MicroscopeAppNotification.new_image_received)
 
         self.queue.close()
         self.queue.join_thread()
@@ -188,6 +202,30 @@ class ActionMean(Action):
 
         return {"processed_frames": mean_img}
 
+class ActionProviderRun(Action):
+    def __init__(self, app, start, *args, **kwargs):
+        self.app_ref = weakref.ref(app)
+        self.start = start
+        
+    def do_perform(self, results=None) -> dict[str, Any] | None:
+        if self.start:
+            self.app_ref().start_capture()
+        else:
+            self.app_ref().stop_capture()
+            
+        return {}
+
+class ActionPostNotification(Action):
+    def __init__(self, notification_name, notifying_object=None, user_info=None, *args, **kwargs):
+        self.name = notification_name
+        self.object = notifying_object
+        self.user_info = user_info
+        
+    def do_perform(self, results=None) -> dict[str, Any] | None:
+        NotificationCenter().post_notification(self.name, self.object, self.user_info)
+        
+        return {}
+    
 
 class ActionSave(Action):
     def __init__(self, source, root_dir=None, template=None, *args, **kwargs):
