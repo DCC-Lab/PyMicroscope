@@ -1,9 +1,31 @@
 from __future__ import annotations
 
 import time
+from enum import Enum
 from typing import Any
 from threading import Thread
-from .actions import ActionFunctionCall
+from pymicroscope.experiment.actions import Action, ActionFunctionCall
+from mytk.notificationcenter import NotificationCenter
+
+
+class ExperimentNotification(Enum):
+    """
+    Enumerates notifications emitted during the execution of an experiment.
+    These signals indicate the beginning and completion of an experiment or
+    individual steps within it.
+
+    Attributes:
+        will_start_experiment: The experiment is about to begin. user_info: 'total_steps', 'start_time'
+        did_complete_experiment: The experiment has finished. 'total_steps', 'duration'
+        will_start_experiment_step: A specific step is about to begin. 'total_steps' and 'current_step'
+        did_complete_experiment_step: A specific step has completed. 'total_steps' and 'current_step'
+    """
+
+    will_start_experiment = "will_start_experiment"
+    did_complete_experiment = "did_complete_experiment"
+    will_start_experiment_step = "will_start_experiment_step"
+    did_complete_experiment_step = "did_complete_experiment_step"
+
 
 class ExperimentStep:
     def __init__(
@@ -20,6 +42,11 @@ class ExperimentStep:
         self.results = {}
 
     def perform(self, results=None):
+        NotificationCenter().post_notification(
+            ExperimentNotification.will_start_experiment_step,
+            notifying_object=self,
+        )
+
         if self.prepare_actions is not None:
             for i, action in enumerate(self.prepare_actions):
                 result = action.perform(results=self.results)
@@ -38,6 +65,11 @@ class ExperimentStep:
                 if result is not None:
                     self.results[f"finalize-{i}"] = result
 
+        NotificationCenter().post_notification(
+            ExperimentNotification.did_complete_experiment_step,
+            notifying_object=self,
+        )
+
         return self.results
 
     def cleanup(self):
@@ -54,20 +86,25 @@ class ExperimentStep:
                 action.cleanup()
 
     @classmethod
-    def from_function(cls, function, fct_args = None, fct_kwargs = None)  -> ExperimentStep:
-        fct_call_action = ActionFunctionCall(function=function, fct_args=fct_args, fct_kwargs=fct_kwargs)
+    def from_function(
+        cls, function, fct_args=None, fct_kwargs=None
+    ) -> ExperimentStep:
+        fct_call_action = ActionFunctionCall(
+            function=function, fct_args=fct_args, fct_kwargs=fct_kwargs
+        )
         return ExperimentStep(perform=[fct_call_action])
 
-class Experiment:        
+
+class Experiment:
     def __init__(self, *args, **kwargs):
         self.results = {}
         self.steps: list[ExperimentStep] = []
         self._thread = None
-        
+
     def finalize(self):
         if self._thread is not None:
             self._thread.join()
-        
+
     def add_step(self, experiment_step):
         self.steps.append(experiment_step)
 
@@ -81,32 +118,50 @@ class Experiment:
     def perform(self) -> Any | None:
         experiment_results = {}
         start_time = time.time()
-        
+
+        user_info = {"start_time": start_time, "total_steps": len(self.steps)}
+
+        NotificationCenter().post_notification(
+            ExperimentNotification.will_start_experiment_step,
+            notifying_object=self,
+            user_info=user_info,
+        )
+
         for i, step in enumerate(self.steps):
             results = step.perform()
             experiment_results[f"step-{i}"] = results
 
-        experiment_results['duration'] = time.time() - start_time
+        experiment_results["duration"] = time.time() - start_time
+
+        user_info["duration"] = experiment_results["duration"]
+        NotificationCenter().post_notification(
+            ExperimentNotification.did_complete_experiment_step,
+            notifying_object=self,
+            user_info=user_info,
+        )
 
         for step in self.steps:
             step.cleanup()
-        
+
         return experiment_results
-                
+
     def perform_in_background_thread(self):
         self._thread = Thread(target=self.perform)
         self._thread.start()
 
     @classmethod
-    def from_actions(cls, actions)  -> Experiment:
+    def from_actions(cls, actions) -> Experiment:
         exp = Experiment()
         exp.add_step(ExperimentStep(perform=actions))
         return exp
 
     @classmethod
-    def from_many_function_calls(cls, function, fct_kwargs)  -> Experiment:
+    def from_many_function_calls(cls, function, fct_kwargs) -> Experiment:
         exp = Experiment()
         for kwargs in fct_kwargs:
-            exp.add_step(ExperimentStep.from_function(function=function, fct_kwargs=kwargs))
+            exp.add_step(
+                ExperimentStep.from_function(
+                    function=function, fct_kwargs=kwargs
+                )
+            )
         return exp
-

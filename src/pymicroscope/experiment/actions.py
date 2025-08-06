@@ -254,6 +254,8 @@ class ActionSave(Action):
         filepath = self.root_dir / Path(self.template.format(**params))
         pil_image.save(filepath)
 
+        NotificationCenter().post_notification(MicroscopeAppNotification.did_save, notifying_object=self, user_info={'filepath':filepath, 'img_array':img_array})
+
         self.output = filepath
 
 
