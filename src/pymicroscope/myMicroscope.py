@@ -55,9 +55,9 @@ class MicroscopeApp(App):
 
         # self.position = Position(SutterDevice)
         # self.map_controller = MapController()
-        self.device = SutterDevice(serialNumber="debug")
+        self.sample_position_device = SutterDevice(serialNumber="debug")
 
-        self.map_controller = MapController(self.device)
+        self.map_controller = MapController(self.sample_position_device)
 
         self.can_start_map = False
 
@@ -514,7 +514,7 @@ class MicroscopeApp(App):
         corner_label = button.label
         self.map_controller.parameters[
             corner_label
-        ] = self.device.positionInMicrons()
+        ] = self.sample_position_device.positionInMicrons()
 
         if all(x is not None for x in self.map_controller.parameters.values()):
             self.can_start_map = True
@@ -536,7 +536,7 @@ class MicroscopeApp(App):
         for position in positions:
             prepare_actions = []
             move = ActionMove(
-                position=position, linear_motion_device=self.device
+                position=position, linear_motion_device=self.sample_position_device
             )
             beep1 = ActionSound()
             prepare_actions.extend([move, beep1])
