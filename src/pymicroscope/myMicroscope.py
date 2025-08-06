@@ -99,8 +99,26 @@ class MicroscopeApp(App):
             method=self.handle_notification,
             notification_name=MicroscopeAppNotification.did_stop_capture,
         )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.new_image_received,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.available_providers_changed,
+        )
 
-    def background_get_cameras(self):
+    def background_get_providers(self):
+        self.cameras = {
+            "Debug": {
+                "type": DebugImageProvider,
+                "args": (),
+                "kwargs": {"size": self.shape},
+            }
+        }
+
         devices = OpenCVImageProvider.available_devices()
         for device in devices:
             self.cameras[f"OpenCV camera #{device}"] = {
@@ -108,6 +126,12 @@ class MicroscopeApp(App):
                 "args": (),
                 "kwargs": {"camera_index": device},
             }
+
+        NotificationCenter().post_notification(
+            MicroscopeAppNotification.available_providers_changed,
+            notifying_object=self,
+            user_info={"providers": self.cameras},
+        )
 
     def cleanup(self):
         if self.preview_queue is not None:
@@ -138,7 +162,13 @@ class MicroscopeApp(App):
         )
 
     def build_cameras_menu(self):
-        self.background_get_cameras()
+        Thread(target=self.background_get_providers).start()
+
+    def update_provider_menu(self):
+        self.camera_popup.menu.delete(0, "end")  # Remove all items
+        for provider_name in self.cameras.keys():
+            self.camera_popup.menu.add_command(label=provider_name)
+        self.change_provider()
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
@@ -160,7 +190,6 @@ class MicroscopeApp(App):
         self.bind_properties(
             "is_camera_running", self.camera_popup, "is_disabled"
         )
-        self.change_provider()
 
         self.provider_settings = Button(
             "Configure …",
@@ -237,6 +266,18 @@ class MicroscopeApp(App):
         if notification.name == MicroscopeAppNotification.did_stop_capture:
             self.is_camera_running = False
             self.start_stop_button.label = "Start"
+
+        if notification.name == MicroscopeAppNotification.new_image_received:
+            with suppress(Full):
+                self.preview_queue.put_nowait(
+                    notification.user_info["img_array"]
+                )
+
+        if (
+            notification.name
+            == MicroscopeAppNotification.available_providers_changed
+        ):
+            self.update_provider_menu()
 
     def user_clicked_choose_directory(self, button, event):
         self.images_directory = filedialog.askdirectory(
@@ -536,7 +577,8 @@ class MicroscopeApp(App):
         for position in positions:
             prepare_actions = []
             move = ActionMove(
-                position=position, linear_motion_device=self.sample_position_device
+                position=position,
+                linear_motion_device=self.sample_position_device,
             )
             beep1 = ActionSound()
             prepare_actions.extend([move, beep1])
@@ -651,13 +693,10 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
-    def handle_new_image(self):
+    def retrieve_new_image(self):
         img_array = None
         try:
             img_array = self.image_queue.get(timeout=0.001)
-
-            with suppress(Full):
-                self.preview_queue.put_nowait(img_array)
 
             NotificationCenter().post_notification(
                 MicroscopeAppNotification.new_image_received,
@@ -679,7 +718,7 @@ class MicroscopeApp(App):
             pass
 
     def microscope_run_loop(self):
-        self.handle_new_image()
+        self.retrieve_new_image()
         self.update_preview()
 
         self.after(20, self.microscope_run_loop)
