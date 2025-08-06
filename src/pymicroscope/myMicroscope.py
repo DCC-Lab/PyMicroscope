@@ -4,25 +4,23 @@ import signal
 from contextlib import suppress
 import numpy as np
 from queue import Queue, Empty, Full
-from multiprocessing import Queue, JoinableQueue
+from multiprocessing import Queue
 from tkinter import filedialog
 from pathlib import Path
-from threading import Thread, RLock, current_thread, main_thread
+from threading import Thread, current_thread, main_thread
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
 )
 
 from PIL import Image as PILImage
-from pymicroscope.vmscontroller import VMSController
-from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
-
+from pymicroscope.save_history import SaveHistory
 from hardwarelibrary.motion import SutterDevice
 
 
@@ -47,6 +45,8 @@ class MicroscopeApp(App):
             }
         }
 
+        self.history = SaveHistory()
+        
         self.is_camera_running = False
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
@@ -102,6 +102,18 @@ class MicroscopeApp(App):
             self,
             method=self.handle_notification,
             notification_name=MicroscopeAppNotification.available_providers_changed,
+        )
+
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_save,
+        )
+
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_save_file,
         )
 
     def background_get_providers(self):
@@ -285,6 +297,9 @@ class MicroscopeApp(App):
                     notification.user_info["img_array"]
                 )
 
+        if notification.name == MicroscopeAppNotification.did_save_file:
+            self.history.add(notification.user_info['filepath'])
+                
         if (
             notification.name
             == MicroscopeAppNotification.available_providers_changed

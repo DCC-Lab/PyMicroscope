@@ -29,5 +29,6 @@ class MicroscopeAppNotification(Enum):
     did_stop_capture = "did_stop_capture"
     did_start_saving = "did_start_saving"
     did_save = "did_save"
+    did_save_file = "did_save_file"
     action_progress = "action_progress"
     available_providers_changed = "available_providers_changed"
