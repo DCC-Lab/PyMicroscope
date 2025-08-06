@@ -1,4 +1,5 @@
 from mytk import *
+from mytk.notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
 import numpy as np
@@ -20,6 +21,7 @@ from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
+from pymicroscope.app_notifications import MicroscopeAppNotification
 
 from hardwarelibrary.motion import SutterDevice
 
@@ -30,7 +32,6 @@ class MicroscopeApp(App):
 
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
-        self.save_queue = None
         self.images_directory = Path("~/Desktop").expanduser()
         self.images_template = "Image-{date}-{time}-{i}.tif"
 
@@ -43,8 +44,8 @@ class MicroscopeApp(App):
                 "kwargs": {"size": self.shape},
             }
         }
+
         self.is_camera_running = False
-        self.is_saving = False
 
         # self.vms_controller = VMSController()
         # try:
@@ -77,6 +78,27 @@ class MicroscopeApp(App):
             self.root.createcommand("tk::mac::Quit", self.quit)
         except TclError:
             pass  # Not on macOS or already defined
+
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.will_start_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_start_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.will_stop_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_stop_capture,
+        )
 
     def background_get_cameras(self):
         devices = OpenCVImageProvider.available_devices()
@@ -207,6 +229,15 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
+    def handle_notification(self, notification: Notification):
+        if notification.name == MicroscopeAppNotification.did_start_capture:
+            self.is_camera_running = True
+            self.start_stop_button.label = "Stop"
+
+        if notification.name == MicroscopeAppNotification.did_stop_capture:
+            self.is_camera_running = False
+            self.start_stop_button.label = "Start"
+
     def user_clicked_choose_directory(self, button, event):
         self.images_directory = filedialog.askdirectory(
             title="Select a destination for images:",
@@ -222,34 +253,39 @@ class MicroscopeApp(App):
     def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
         n_images = self.number_of_images_average.value
 
+        start_provider = ActionProviderRun(app=self, start=True)
         starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)
         starting2 = ActionChangeProperty(
             self.number_of_images_average, "is_disabled", True
         )
-
-        capture = ActionCapture(n_images=n_images, app=self)
+        notif_start = ActionPostNotification(
+            MicroscopeAppNotification.did_start_saving
+        )
+        capture = ActionAccumulate(n_images=n_images)
         mean = ActionMean(source=capture)
         save = ActionSave(
             source=mean,
             root_dir=self.images_directory,
             template=self.images_template,
         )
-        if sound_bell:
-            bell = ActionSound(ActionSound.MacOSSound.GLASS)
-        else:
-            bell = ActionWait(delay=0)
-
+        notif_complete = ActionPostNotification(
+            MicroscopeAppNotification.did_save
+        )
+        bell = ActionBell()
         ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
         ending2 = ActionChangeProperty(
             self.number_of_images_average, "is_disabled", False
         )
 
         return [
+            start_provider,
+            notif_start,
             starting1,
             starting2,
             capture,
             mean,
             save,
+            notif_complete,
             bell,
             ending1,
             ending2,
@@ -505,12 +541,12 @@ class MicroscopeApp(App):
             beep1 = ActionSound()
             prepare_actions.extend([move, beep1])
 
-            save_actions = self.save_actions_current_settings(
-                sound_bell=False
-            )
+            save_actions = self.save_actions_current_settings(sound_bell=False)
 
             exp_step = ExperimentStep(
-                prepare=prepare_actions, perform=save_actions, finalize=[ActionSound(ActionSound.MacOSSound.FUNK)]
+                prepare=prepare_actions,
+                perform=save_actions,
+                finalize=[ActionSound(ActionSound.MacOSSound.FUNK)],
             )
             exp.add_step(experiment_step=exp_step)
 
@@ -581,14 +617,32 @@ class MicroscopeApp(App):
             self.start_capture()
 
     def start_capture(self, configuration={}):
-        self.provider.start_capture(configuration)
-        self.is_camera_running = True
-        self.start_stop_button.label = "Stop"
+        if not self.is_camera_running:
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.will_start_capture,
+                notifying_object=self,
+            )
+
+            self.provider.start_capture(configuration)
+
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.did_start_capture,
+                notifying_object=self,
+            )
 
     def stop_capture(self):
-        self.provider.stop_capture()
-        self.is_camera_running = False
-        self.start_stop_button.label = "Start"
+        if self.is_camera_running:
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.will_stop_capture,
+                notifying_object=self,
+            )
+
+            self.provider.stop_capture()
+
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.did_stop_capture,
+                notifying_object=self,
+            )
 
     def empty_queue(self, queue):
         try:
@@ -605,9 +659,11 @@ class MicroscopeApp(App):
             with suppress(Full):
                 self.preview_queue.put_nowait(img_array)
 
-            if self.save_queue is not None:
-                with suppress(Full, ValueError):
-                    self.save_queue.put_nowait(img_array)
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.new_image_received,
+                self,
+                user_info={"img_array": img_array},
+            )
 
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)

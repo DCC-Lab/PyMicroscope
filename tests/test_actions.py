@@ -64,7 +64,7 @@ class ActionTestCase(
 
     def test070_capture(self):
         n_images = 10
-        capture = ActionCapture(n_images=n_images)
+        capture = ActionAccumulate(n_images=n_images)
         queue = capture.queue
         for _ in range(n_images):
             queue.put(np.zeros(shape=(100,100,3), dtype=np.uint8))
