@@ -30,3 +30,4 @@ class MicroscopeAppNotification(Enum):
     did_start_saving = "did_start_saving"
     did_save = "did_save"
     action_progress = "action_progress"
+    available_providers_changed = "available_providers_changed"
