@@ -1,30 +1,30 @@
 from mytk import *
+from mytk.notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
-from typing import Tuple, Optional
-import math
 import numpy as np
-import threading as Th
 from queue import Queue, Empty, Full
-from multiprocessing import RLock, shared_memory, Queue
+from multiprocessing import Queue, JoinableQueue
 from tkinter import filedialog
 from pathlib import Path
-from threading import Thread
-
+import threading
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
 )
-from pymicroscope.savetask import SaveTask
 
 from PIL import Image as PILImage
 from pymicroscope.vmscontroller import VMSController
 from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.sutterconfigdialog import SutterConfigDialog
-from typing import Tuple, Optional
+from pymicroscope.position_and_mapcontroller import MapController
+from pymicroscope.experiment.actions import *
+from pymicroscope.experiment.experiments import Experiment, ExperimentStep
+from pymicroscope.app_notifications import MicroscopeAppNotification
+
 from hardwarelibrary.motion import SutterDevice
+
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -32,7 +32,6 @@ class MicroscopeApp(App):
 
         self.image_queue = Queue()
         self.preview_queue = Queue(maxsize=1)
-        self.save_queue = None
         self.images_directory = Path("~/Desktop").expanduser()
         self.images_template = "Image-{date}-{time}-{i}.tif"
 
@@ -45,21 +44,21 @@ class MicroscopeApp(App):
                 "kwargs": {"size": self.shape},
             }
         }
+
         self.is_camera_running = False
 
-        self.vms_controller = VMSController()
-        try:
-            self.vms_controller.initialize()
-        except Exception as err:
-            pass  # vms_controller.is_accessible == False
+        # self.vms_controller = VMSController()
+        # try:
+        #    self.vms_controller.initialize()
+        # except Exception as err:
+        #   pass  # vms_controller.is_accessible == False
 
+        # self.position = Position(SutterDevice)
+        # self.map_controller = MapController()
+        self.sample_position_device = SutterDevice(serialNumber="debug")
 
-        self.upper_left_clicked = False
-        self.upper_right_clicked = False
-        self.lower_left_clicked = False
-        self.lower_right_clicked = False
+        self.map_controller = MapController(self.sample_position_device)
 
-        self.sutter_config_dialog = SutterConfigDialog()
         self.can_start_map = False
 
         self.app_setup()
@@ -67,9 +66,6 @@ class MicroscopeApp(App):
         self.after(100, self.microscope_run_loop)
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
 
-
-        # NotificationCenter().addObserver(self,  self.update_sutter_position, LinearMotionNotification.didGetPosition, self.sutter)
-        
     def app_setup(self):
         def handle_sigterm(signum, frame):
             self.quit()
@@ -83,7 +79,46 @@ class MicroscopeApp(App):
         except TclError:
             pass  # Not on macOS or already defined
 
-    def background_get_cameras(self):
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.will_start_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_start_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.will_stop_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_stop_capture,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.new_image_received,
+        )
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.available_providers_changed,
+        )
+
+    def background_get_providers(self):
+        self.cameras = {
+            "Debug": {
+                "type": DebugImageProvider,
+                "args": (),
+                "kwargs": {"size": self.shape},
+            }
+        }
+
         devices = OpenCVImageProvider.available_devices()
         for device in devices:
             self.cameras[f"OpenCV camera #{device}"] = {
@@ -92,24 +127,25 @@ class MicroscopeApp(App):
                 "kwargs": {"camera_index": device},
             }
 
+        NotificationCenter().post_notification(
+            MicroscopeAppNotification.available_providers_changed,
+            notifying_object=self,
+            user_info={"providers": self.cameras},
+        )
+
     def cleanup(self):
         if self.preview_queue is not None:
             self.preview_queue.close()
             self.preview_queue.join_thread()
-        
-        if self.preview_queue is not None:
-            self.preview_queue.close()
-            self.preview_queue.join_thread()
-        pass
 
     def build_interface(self):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        self.build_sutter_interface()
+        self.build_position_interface()
         self.build_cameras_menu()
         self.build_start_stop_interface()
-        
+
     def build_imageview_interface(self):
         array = np.zeros(self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
@@ -126,11 +162,17 @@ class MicroscopeApp(App):
         )
 
     def build_cameras_menu(self):
-        self.background_get_cameras()
+        Thread(target=self.background_get_providers).start()
+
+    def update_provider_menu(self):
+        self.camera_popup.menu.delete(0, "end")  # Remove all items
+        for provider_name in self.cameras.keys():
+            self.camera_popup.menu.add_command(label=provider_name)
+        self.change_provider()
 
     def build_start_stop_interface(self):
         self.save_controls = Box(
-            label="Image Acquisition", width=500, height=170
+            label="Image Acquisition", width=500, height=150
         )
 
         self.save_controls.grid_into(
@@ -148,7 +190,6 @@ class MicroscopeApp(App):
         self.bind_properties(
             "is_camera_running", self.camera_popup, "is_disabled"
         )
-        self.change_provider()
 
         self.provider_settings = Button(
             "Configure …",
@@ -169,7 +210,9 @@ class MicroscopeApp(App):
             padx=10,
         )
 
-        self.save_button = Button("Save …", user_event_callback=self.user_clicked_save)
+        self.save_button = Button(
+            "Save …", user_event_callback=self.user_clicked_save
+        )
         self.save_button.grid_into(
             self.save_controls,
             row=2,
@@ -177,8 +220,10 @@ class MicroscopeApp(App):
             pady=10,
             padx=10,
         )
-        self.bind_properties("is_camera_running", self.save_button, "is_enabled")
-        
+        self.bind_properties(
+            "is_camera_running", self.save_button, "is_enabled"
+        )
+
         Label("Images to average: ").grid_into(
             self.save_controls, row=2, column=1, pady=10, padx=10, sticky="e"
         )
@@ -188,11 +233,14 @@ class MicroscopeApp(App):
             self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
         )
 
-        self.choose_directory_button = Button("Directory …", user_event_callback=self.user_clicked_choose_directory)
+        self.choose_directory_button = Button(
+            "Directory …",
+            user_event_callback=self.user_clicked_choose_directory,
+        )
         self.choose_directory_button.grid_into(
             self.save_controls, row=3, column=0, pady=10, padx=10, sticky="e"
         )
-        
+
         label = Label("(directory)")
         label.grid_into(
             self.save_controls, row=3, column=1, pady=10, padx=10, sticky="e"
@@ -205,56 +253,130 @@ class MicroscopeApp(App):
         )
         self.bind_properties("images_template", entry, "value_variable")
 
+        self.number_of_images_average = IntEntry(value=30, width=5)
+        self.number_of_images_average.grid_into(
+            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
+        )
+
+    def handle_notification(self, notification: Notification):
+        if notification.name == MicroscopeAppNotification.did_start_capture:
+            self.is_camera_running = True
+            self.start_stop_button.label = "Stop"
+
+        if notification.name == MicroscopeAppNotification.did_stop_capture:
+            self.is_camera_running = False
+            self.start_stop_button.label = "Start"
+
+        if notification.name == MicroscopeAppNotification.new_image_received:
+            with suppress(Full):
+                self.preview_queue.put_nowait(
+                    notification.user_info["img_array"]
+                )
+
+        if (
+            notification.name
+            == MicroscopeAppNotification.available_providers_changed
+        ):
+            self.update_provider_menu()
 
     def user_clicked_choose_directory(self, button, event):
-        self.images_directory = filedialog.askdirectory(title="Select a destination for images:", initialdir=self.images_directory)
-        
+        self.images_directory = filedialog.askdirectory(
+            title="Select a destination for images:",
+            initialdir=self.images_directory,
+        )
+
         if self.images_directory == "":
             self.images_directory = "/tmp"
-                        
+
     def user_clicked_save(self, button, event):
         self.save()
 
-    def save(self):
+    def save_actions_current_settings(self, sound_bell=True) -> list[Action]:
         n_images = self.number_of_images_average.value
-        
-        task = SaveTask(n_images=n_images, root_dir=self.images_directory, template=self.images_template)
-        self.save_queue = task.queue
-        
-        if True:
-            th = Thread(target=task.hook)
-            th.start()
-        else:  
-            task.start()
-    
+
+        start_provider = ActionProviderRun(app=self, start=True)
+        starting1 = ActionChangeProperty(self.save_button, "is_disabled", True)
+        starting2 = ActionChangeProperty(
+            self.number_of_images_average, "is_disabled", True
+        )
+        notif_start = ActionPostNotification(
+            MicroscopeAppNotification.did_start_saving
+        )
+        capture = ActionAccumulate(n_images=n_images)
+        mean = ActionMean(source=capture)
+        save = ActionSave(
+            source=mean,
+            root_dir=self.images_directory,
+            template=self.images_template,
+        )
+        notif_complete = ActionPostNotification(
+            MicroscopeAppNotification.did_save
+        )
+        bell = ActionSound()
+        ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
+        ending2 = ActionChangeProperty(
+            self.number_of_images_average, "is_disabled", False
+        )
+
+        return [
+            start_provider,
+            notif_start,
+            starting1,
+            starting2,
+            capture,
+            mean,
+            save,
+            notif_complete,
+            bell,
+            ending1,
+            ending2,
+        ]
+
+    def save(self):
+        actions = self.save_actions_current_settings()
+
+        Experiment.from_actions(actions).perform_in_background_thread()
+
     def user_changed_camera(self, popup, index):
         self.change_provider()
-    
-    def build_sutter_interface(self):
-        self.sutter = Box(label="Position", width=500, height=350)
-        self.sutter.grid_into(
+
+    def build_position_interface(self):
+        self.position = Box(label="Position", width=500, height=250)
+        self.position.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
-        self.sutter.widget.grid_propagate(False)
+        self.position.widget.grid_propagate(False)
 
-        self.position = Box(label="Sample position", width=self.sutter.width-20)
-        self.position.grid_into(
-            self.sutter, row=0, column=0, pady=10, padx=10, sticky="nswe")
-    
-        Label("(x, y, z) :").grid_into(
-            self.position, row=0, column=0, pady=10, padx=10, sticky="e"
+        Label("instrument position").grid_into(
+            self.position,
+            row=0,
+            column=0,
+            columnspan=2,
+            pady=8,
+            padx=10,
+            sticky="w",
         )
-        Label(f"({self.sutter_config_dialog.initial_x_value}, {self.sutter_config_dialog.initial_y_value}, {self.sutter_config_dialog.initial_z_value})").grid_into(
-            self.position, row=0, column=1, pady=10, padx=10, sticky="w"
+        Label("x :").grid_into(
+            self.position, row=1, column=0, pady=10, padx=10, sticky="e"
         )
-
-        self.config = Box(label="Position configuration", width=self.sutter.width-20)
-        self.config.grid_into(
-            self.sutter, row=1, column=0, pady=10, padx=10, sticky="nswe"
+        Label("0").grid_into(
+            self.position, row=1, column=1, pady=10, padx=10, sticky="w"
+        )
+        Label("y :").grid_into(
+            self.position, row=1, column=2, pady=10, padx=10, sticky="e"
+        )
+        Label("0").grid_into(
+            self.position, row=1, column=3, pady=10, padx=10, sticky="w"
+        )
+        Label("z :").grid_into(
+            self.position, row=1, column=4, pady=10, padx=10, sticky="e"
+        )
+        Label("0").grid_into(
+            self.position, row=1, column=5, pady=10, padx=10, sticky="w"
         )
 
         Label("Initial configuration").grid_into(
-            self.config,
+            self.position,
             row=2,
             column=0,
             columnspan=2,
@@ -264,7 +386,7 @@ class MicroscopeApp(App):
         )
 
         Label("Facteur :").grid_into(
-            self.config,
+            self.position,
             row=3,
             column=0,
             columnspan=2,
@@ -273,16 +395,18 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        #revoir, mettre en float value
-        self.microstep_pixel_entry = IntEntry(value=self.sutter_config_dialog.microstep_pixel, width=5)
-        self.microstep_pixel_entry.grid_into(
-            self.config, row=3, column=2, pady=2, padx=2, sticky="ns"
+        self.microstep_pixel_entry = IntEntry(
+            value=float(self.map_controller.microstep_pixel), width=5
         )
-        #problème demander a dan
-        self.microstep_pixel = self.microstep_pixel_entry.value
+        self.microstep_pixel_entry.grid_into(
+            self.position, row=3, column=2, pady=2, padx=2, sticky="ns"
+        )
+        self.map_controller.bind_properties(
+            "microstep_pixel", self.microstep_pixel_entry, "value_variable"
+        )
 
         Label("um/px").grid_into(
-            self.config,
+            self.position,
             row=3,
             column=3,
             pady=2,
@@ -291,7 +415,7 @@ class MicroscopeApp(App):
         )
 
         Label("Number of z images :").grid_into(
-            self.config,
+            self.position,
             row=4,
             column=0,
             columnspan=2,
@@ -299,46 +423,51 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.z_image_number_entry = IntEntry(value=self.sutter_config_dialog.z_image_number, width=5)
-        self.z_image_number_entry.grid_into(
-            self.config, row=4, column=2, pady=2, padx=2, sticky="ns"
+        self.z_image_number_entry = IntEntry(
+            value=self.map_controller.z_image_number, width=5
         )
-        #problème demander a dan
-        self.z_image = self.z_image_number_entry
+        self.z_image_number_entry.grid_into(
+            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
+        )
+        self.map_controller.bind_properties(
+            "z_image_number", self.z_image_number_entry, "value_variable"
+        )
 
         Label("z step :").grid_into(
-            self.config,
-            row=5,
-            column=1,
+            self.position,
+            row=4,
+            column=4,
             pady=2,
             padx=2,
             sticky="nse",
         )
 
-        self.z_range_entry = IntEntry(value=self.sutter_config_dialog.z_range, width=5)
-        self.z_range_entry.grid_into(
-            self.config, row=5, column=2, pady=2, padx=2, sticky="ns"
+        self.z_range_entry = IntEntry(
+            value=self.map_controller.z_range, width=5
         )
-        #problème demander a dan
-        self.z_range = self.z_range_entry.value
+        self.z_range_entry.grid_into(
+            self.position, row=4, column=5, pady=2, padx=2, sticky="ns"
+        )
+        self.map_controller.bind_properties(
+            "z_range", self.z_range_entry, "value_variable"
+        )
+
         Label("um").grid_into(
-            self.config,
-            row=5,
-            column=3,
+            self.position,
+            row=4,
+            column=6,
             pady=2,
             padx=0,
             sticky="nsw",
         )
-
-
 
         self.apply_upper_left_button = Button(
             "Upper left corner",
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
-            self.config,
-            row=6,
+            self.position,
+            row=5,
             column=0,
             columnspan=2,
             pady=3,
@@ -351,8 +480,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
-            self.config,
-            row=6,
+            self.position,
+            row=5,
             column=2,
             columnspan=2,
             pady=3,
@@ -365,8 +494,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_saving_position,
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
-            self.config,
-            row=7,
+            self.position,
+            row=6,
             column=2,
             columnspan=2,
             pady=2,
@@ -377,10 +506,10 @@ class MicroscopeApp(App):
         self.apply_lower_left_button = Button(
             "Lower left corner",
             user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.apply_lower_left_button.grid_into(
-            self.config,
-            row=7,
+            self.position,
+            row=6,
             column=0,
             columnspan=2,
             pady=2,
@@ -390,10 +519,27 @@ class MicroscopeApp(App):
 
         self.start_map_aquisition = Button(
             "Start Map",
-            user_event_callback=self.user_clicked_aquisition_image,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+            user_event_callback=self.user_clicked_map_aquisition_image,
+        )
         self.start_map_aquisition.grid_into(
-            self.config,
+            self.position,
+            row=5,
+            column=5,
+            columnspan=2,
+            pady=2,
+            padx=2,
+            sticky="nse",
+        )
+        self.bind_properties(
+            "can_start_map", self.start_map_aquisition, "is_enabled"
+        )
+
+        self.clear_map_aquisition = Button(
+            "Clear",
+            user_event_callback=self.user_clicked_clear,
+        )
+        self.clear_map_aquisition.grid_into(
+            self.position,
             row=6,
             column=5,
             columnspan=2,
@@ -401,86 +547,58 @@ class MicroscopeApp(App):
             padx=2,
             sticky="nse",
         )
-        self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
-
-        self.clear_map_aquisition = Button(
-            "Clear",
-            user_event_callback=self.user_clicked_clear,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
-        self.clear_map_aquisition.grid_into(
-            self.config,
-            row=7,
-            column=5,
-            columnspan=2,
-            pady=2,
-            padx=2,
-            sticky="nse",
+        self.bind_properties(
+            "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
-        self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
 
     def user_clicked_saving_position(self, even, button):
-        self.saving_position(button.label)
+        corner_label = button.label
+        self.map_controller.parameters[
+            corner_label
+        ] = self.sample_position_device.positionInMicrons()
 
-    def saving_position(self, corner):
-
-        if corner == "Upper left corner":
-            try:
-                self.sutter_config_dialog.saving_position(corner)
-                self.upper_left_clicked = True
-
-            except Exception as err:
-                pass
-
-        elif corner == "Upper right corner":
-            try:
-                self.sutter_config_dialog.saving_position(corner)
-                self.upper_right_clicked= True
-                
-            except Exception as err:
-                pass
-
-        elif corner == "Lower left corner":
-            try:
-                self.sutter_config_dialog.saving_position(corner)
-                self.lower_left_clicked = True
-
-            except Exception as err:
-                pass
-
-        elif corner == "Lower right corner":
-            try:
-                self.sutter_config_dialog.saving_position(corner)
-                self.lower_right_clicked = True
-
-            except Exception as err:
-                pass
-        
-        if all([self.upper_left_clicked, self.upper_right_clicked, self.lower_left_clicked, self.lower_right_clicked]):
+        if all(x is not None for x in self.map_controller.parameters.values()):
             self.can_start_map = True
-            
-            #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_enabled")
-            #self.bind_properties("can_start_map", self.start_map_aquisition, "is_enabled")
-        '''event!!!'''
 
     def user_clicked_clear(self, even, button):
-        self.upper_left_clicked = False
-        self.upper_right_clicked= False
-        self.lower_left_clicked = False
-        self.lower_right_clicked = False
-        self.can_start_map = False
+        value_to_clear = self.map_controller.parameters
 
-        #appeler fonctiion de sutter pour clear ces paramètres
-        self.sutter_config_dialog.clear()
+        # appeler fonctiion de position pour clear ces paramètres
+        ActionClear(value_to_clear)
+        self.can_start_map = None
 
-        #self.bind_properties("can_start_map", self.clear_map_aquisition, "is_disabled")
-        #self.bind_properties("can_start_map", self.start_map_aquisition, "is_disabled")
-        
+    def user_clicked_map_aquisition_image(self, event, button):
+        self.save_map_experience()
 
-    def user_clicked_aquisition_image(self, event, button):
-        #if self.sutter_device.doInitializeDevice() is not None:
-        self.sutter_config_dialog.aquisition_image()
-        #else:
-        #    raise Exception("No sutter device found")
+    def save_map_experience(self):
+        positions = self.map_controller.create_positions_for_map()
+        exp = Experiment()
+
+        for position in positions:
+            prepare_actions = []
+            move = ActionMove(
+                position=position,
+                linear_motion_device=self.sample_position_device,
+            )
+            beep1 = ActionSound()
+            prepare_actions.extend([move, beep1])
+
+            save_actions = self.save_actions_current_settings(sound_bell=False)
+
+            exp_step = ExperimentStep(
+                prepare=prepare_actions,
+                perform=save_actions,
+                finalize=[ActionSound(ActionSound.MacOSSound.FUNK)],
+            )
+            exp.add_step(experiment_step=exp_step)
+
+        exp.perform_in_background_thread()
+
+    def register_queue(self, queue):
+        self.save_queue = queue
+
+    def unregister_queue(self):
+        self.register_queue(queue=None)
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
@@ -508,9 +626,9 @@ class MicroscopeApp(App):
         if self.image_queue is not None:
             self.image_queue.close()
             self.image_queue.join_thread()
-        
+
         self.image_queue = Queue()
-            
+
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
         args = self.cameras[selected_camera_name]["args"]
@@ -541,14 +659,32 @@ class MicroscopeApp(App):
             self.start_capture()
 
     def start_capture(self, configuration={}):
-        self.provider.start_capture(configuration)
-        self.is_camera_running = True
-        self.start_stop_button.label = "Stop"
+        if not self.is_camera_running:
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.will_start_capture,
+                notifying_object=self,
+            )
+
+            self.provider.start_capture(configuration)
+
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.did_start_capture,
+                notifying_object=self,
+            )
 
     def stop_capture(self):
-        self.provider.stop_capture()
-        self.is_camera_running = False
-        self.start_stop_button.label = "Start"
+        if self.is_camera_running:
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.will_stop_capture,
+                notifying_object=self,
+            )
+
+            self.provider.stop_capture()
+
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.did_stop_capture,
+                notifying_object=self,
+            )
 
     def empty_queue(self, queue):
         try:
@@ -557,20 +693,17 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
-    def handle_new_image(self):
+    def retrieve_new_image(self):
         img_array = None
         try:
             img_array = self.image_queue.get(timeout=0.001)
 
-            with suppress(Full):
-                self.preview_queue.put_nowait(img_array)
+            NotificationCenter().post_notification(
+                MicroscopeAppNotification.new_image_received,
+                self,
+                user_info={"img_array": img_array},
+            )
 
-            if self.save_queue is not None:
-                try:
-                    self.save_queue.put_nowait(img_array)
-                except Full as err:
-                    self.save_queue = None # Task has reference
-                    
             while img_array is not None:
                 img_array = self.image_queue.get(timeout=0.001)
         except Empty:
@@ -585,7 +718,7 @@ class MicroscopeApp(App):
             pass
 
     def microscope_run_loop(self):
-        self.handle_new_image()
+        self.retrieve_new_image()
         self.update_preview()
 
         self.after(20, self.microscope_run_loop)
