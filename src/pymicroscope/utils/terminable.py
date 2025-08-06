@@ -71,6 +71,7 @@ import functools
 import psutil
 
 
+#from pymicroscope.utils import LoggableProcess
 from pymicroscope.utils import LoggableProcess
 
 

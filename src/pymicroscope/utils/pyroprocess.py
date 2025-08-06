@@ -10,7 +10,6 @@ import psutil
 
 from pymicroscope.utils import UnifiedProcess
 
-
 class PyroProcess(UnifiedProcess):
     """
     Class for Python Remote Object (Pyro).
