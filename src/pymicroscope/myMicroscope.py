@@ -1,38 +1,42 @@
 from mytk import *
+from mytk import __version__ as mytk_version
 from mytk.notificationcenter import NotificationCenter, Notification
 import signal
 import time
 from contextlib import suppress
 import numpy as np
-from queue import Queue, Empty, Full
-from multiprocessing import Queue, JoinableQueue
+from queue import Queue as TQueue, Empty, Full
+from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
 from pathlib import Path
-from threading import Thread, RLock, current_thread, main_thread
+from threading import Thread
+from packaging import version
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
 )
 
 from PIL import Image as PILImage
-from pymicroscope.vmscontroller import VMSController
-from pymicroscope.vmsconfigdialog import VMSConfigDialog
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
 from pymicroscope.position_and_mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
+from pymicroscope.save_history import SaveHistory
+from pymicroscope.utils.thread_utils import is_main_thread
 
 from hardwarelibrary.motion import SutterDevice
-
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.image_queue:Queue = Queue()
-        self.preview_queue:Queue = Queue(maxsize=1)
+        if version.parse(mytk_version) < version.parse("0.9.12"): 
+            self.main_queue:TQueue = TQueue()
+
+        self.image_queue:MPQueue = MPQueue()
+        self.preview_queue:TQueue = TQueue(maxsize=1)
         self.images_directory:Path = Path("~/Desktop").expanduser()
         self.images_template:str = "Image-{date}-{time}-{i}.tif"
 
@@ -48,6 +52,8 @@ class MicroscopeApp(App):
             }
         }
 
+        self.history = SaveHistory()
+        
         self.is_camera_running = False
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
@@ -109,6 +115,18 @@ class MicroscopeApp(App):
             notification_name=MicroscopeAppNotification.available_providers_changed,
         )
 
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_save,
+        )
+
+        NotificationCenter().add_observer(
+            self,
+            method=self.handle_notification,
+            notification_name=MicroscopeAppNotification.did_save_file,
+        )
+
     def background_get_providers(self):
         providers = {
             "Debug": {
@@ -131,21 +149,16 @@ class MicroscopeApp(App):
             notifying_object=self,
             user_info={"providers": providers},
         )
-
-    @staticmethod
-    def is_main_thread() -> bool:
-        return current_thread() == main_thread()
-        
-    def schedule_on_main_thread(self, fct, args):
-        self.root.after(0, fct, *args)
         
     def cleanup(self):
-        if self.preview_queue is not None:
-            self.preview_queue.close()
-            self.preview_queue.join_thread()
-
+        try:
+            self.history.window.widget.destroy()
+        except Exception as err:
+            pass    
+        # del self.history
+    
     def build_interface(self):
-        assert self.is_main_thread()
+        assert is_main_thread()
         
         self.window.widget.title("PyMicroscope")
 
@@ -155,7 +168,7 @@ class MicroscopeApp(App):
         self.build_cameras_menu()
 
     def build_imageview_interface(self):
-        assert self.is_main_thread()
+        assert is_main_thread()
 
         array = np.zeros(self.shape, dtype=np.uint8)
         pil_image = PILImage.fromarray(array, mode="RGB")
@@ -175,7 +188,7 @@ class MicroscopeApp(App):
         Thread(target=self.background_get_providers).start()
 
     def update_provider_menu(self, providers):
-        assert self.is_main_thread()
+        assert is_main_thread()
 
         selected_provider = self.camera_popup.value_variable.get()
         self.camera_popup.clear_menu_items()
@@ -185,7 +198,7 @@ class MicroscopeApp(App):
                 
 
     def build_start_stop_interface(self):
-        assert self.is_main_thread()
+        assert is_main_thread()
 
         self.save_controls = Box(
             label="Image Acquisition", width=510, height=140
@@ -290,6 +303,10 @@ class MicroscopeApp(App):
                     notification.user_info["img_array"]
                 )
 
+        if notification.name == MicroscopeAppNotification.did_save_file:
+            filepath = notification.user_info['filepath']
+            self.schedule_on_main_thread(self.history.add, (filepath, ))
+                
         if (
             notification.name
             == MicroscopeAppNotification.available_providers_changed
@@ -330,7 +347,7 @@ class MicroscopeApp(App):
         notif_complete = ActionPostNotification(
             MicroscopeAppNotification.did_save
         )
-        bell = ActionSound()
+        bell = ActionSound(sound_name=ActionSound.MacOSSound.FUNK)
         ending1 = ActionChangeProperty(self.save_button, "is_disabled", False)
         ending2 = ActionChangeProperty(
             self.number_of_images_average, "is_disabled", False
@@ -359,7 +376,7 @@ class MicroscopeApp(App):
         self.change_provider()
 
     def build_position_interface(self):
-        assert self.is_main_thread()
+        # assert is_main_thread()
 
         self.sample = Box(label="Sample Mapping Parameters", width=510, height=210)
         self.sample.grid_into(
@@ -608,7 +625,7 @@ class MicroscopeApp(App):
     def change_provider(self, configuration={}):
         self.release_provider()
 
-        self.image_queue = Queue()
+        self.image_queue = MPQueue()
 
         selected_camera_name = self.camera_popup.value_variable.get()
         CameraType = self.cameras[selected_camera_name]["type"]
@@ -699,10 +716,14 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
+                        
     def microscope_run_loop(self):
+        if version.parse(mytk_version) < version.parse("0.9.12"): 
+            self.check_main_queue()
+            
         self.retrieve_new_image()
         self.update_preview()
-
+        
         self.after(20, self.microscope_run_loop)
 
     def about(self):
@@ -725,6 +746,25 @@ class MicroscopeApp(App):
         self.cleanup()
         super().quit()
 
+if version.parse(mytk_version) < version.parse("0.9.12"): 
+
+    def schedule_on_main_thread(self, fct, args):
+        self.main_queue.put( (fct, args) )
+
+    def check_main_queue(self):
+        while not self.main_queue.empty():
+            try:
+                f, args = self.main_queue.get_nowait()
+                f(*args)
+            except Exception as e:
+                print("Unable to call scheduled function {fct} :", e)
+
+    setattr(MicroscopeApp, "schedule_on_main_thread", schedule_on_main_thread)
+    setattr(MicroscopeApp, "check_main_queue", check_main_queue)
+
+    
+            
+    
 
 if __name__ == "__main__":
     app = MicroscopeApp()
