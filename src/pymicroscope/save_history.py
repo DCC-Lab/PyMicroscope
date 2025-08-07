@@ -1,4 +1,4 @@
-from mytk import Window, TableView, TabularData, App
+from mytk import Window, TableView
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
@@ -23,30 +23,32 @@ class FileInfo:
             created_time=datetime.fromtimestamp(stat.st_ctime),
             mime_type = mime_type,
         )
+    
+    def as_dict(self):
+        return {'path':str(self.path), 'filename':str(self.path.name), 'size_bytes':self.size_bytes, 'created_time':self.created_time}
             
 class SaveHistory:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.files = []
-        self.window = Window(title="Save history", geometry="300x400")
+        self.window = Window(title="Save history", geometry="300x600+1200+0")
         self.window.widget.rowconfigure(0, weight=1)
         self.window.widget.columnconfigure(0, weight=1)
 
-        self.tableview = TableView(columns_labels={"filepath":"Filepath"})
+        self.tableview = TableView(columns_labels={"filepath":"Filepath", 'filename':'Name', 'size_bytes':'Size', 'created_time':'Date created'})
         self.tableview.grid_into(self.window, padx=10, pady=10, sticky='nsew')
         self.tableview.column_formats = {"filepath":{'type':str,'anchor':'w'}}
+        self.tableview.displaycolumns = ['filename']        
+        self.tableview.all_elements_are_editable = False
         
-        
-    def add(self, filepath):
+    def add(self, filepath:Path):
         assert is_main_thread()
         
         file_info = FileInfo.from_path(filepath)
-        self.files.append(file_info)
+        self.files.append(file_info.as_dict())
         
-        record = {"filepath":str(filepath)}
-
+        record = file_info.as_dict()
         self.tableview.data_source.append_record(record)
-        self.tableview.source_data_added_or_updated([record])
         
         
     

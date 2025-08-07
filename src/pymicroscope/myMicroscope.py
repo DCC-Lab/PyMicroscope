@@ -144,7 +144,11 @@ class MicroscopeApp(App):
         self.main_queue.put( (fct, args) )
         
     def cleanup(self):
-        pass
+        try:
+            self.history.window.widget.destroy()
+        except Exception as err:
+            pass    
+        # del self.history
     
     def build_interface(self):
         assert is_main_thread()
