@@ -1,4 +1,4 @@
-from mytk import Window, TableView
+from mytk import Window, TableView, App
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
@@ -35,11 +35,12 @@ class SaveHistory:
         self.window.widget.rowconfigure(0, weight=1)
         self.window.widget.columnconfigure(0, weight=1)
 
-        self.tableview = TableView(columns_labels={"filepath":"Filepath", 'filename':'Name', 'size_bytes':'Size', 'created_time':'Date created'})
+        self.tableview:TableView = TableView(columns_labels={"filepath":"Filepath", 'filename':'Name', 'size_bytes':'Size', 'created_time':'Date created'})
         self.tableview.grid_into(self.window, padx=10, pady=10, sticky='nsew')
         self.tableview.column_formats = {"filepath":{'type':str,'anchor':'w'}}
         self.tableview.displaycolumns = ['filename']        
         self.tableview.all_elements_are_editable = False
+        self.tableview.delegate = self
         
     def add(self, filepath:Path):
         assert is_main_thread()
@@ -50,5 +51,7 @@ class SaveHistory:
         record = file_info.as_dict()
         self.tableview.data_source.append_record(record)
         
-        
+    def doubleclick_cell(self, item_id:str, column_name:str, tableview:TableView):
+        record = tableview.data_source.record(item_id)
+        App.app.reveal_path(record['path'])
     
