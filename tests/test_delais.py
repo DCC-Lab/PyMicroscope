@@ -15,6 +15,9 @@ from hardwarelibrary.communication.usbport import USBPort
 
 CONTROLLER_SERIAL_PATH = "/dev/cu.wlan-debug"
 
+
+
+
 class TestDelais(unittest.TestCase):
     def setUp(self):
         self.init_thorlabs = APTDevice()
@@ -44,6 +47,8 @@ class TestDelais(unittest.TestCase):
     @unittest.SkipTest
     def test020_list_kinesis_device(self):
         list = kinesis.list_kinesis_devices()
+        port = kinesis.KinesisMotor('debug')
+        port.send_comm()
         print(list)
 
     @unittest.SkipTest
