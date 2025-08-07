@@ -148,6 +148,7 @@ class MicroscopeApp(App):
         self.build_position_interface()
         self.build_start_stop_interface()
         self.build_cameras_menu()
+        self.build_delays_interface()
 
     def build_imageview_interface(self):
         assert self.is_main_thread()
@@ -566,6 +567,64 @@ class MicroscopeApp(App):
             "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
 
+    def build_delays_interface(self):
+        assert self.is_main_thread()
+
+        self.delays_controls = Box(
+            label="Delays", width=300, height=150
+        )
+
+        self.delays_controls.grid_into(
+            self.window, column=3, row=0, pady=10, padx=10, sticky="nse"
+        )
+        self.delays_controls.widget.grid_propagate(False)
+
+        Label("Position").grid_into(
+            self.delays_controls, row=1, column=0, pady=4, padx=4, sticky="w"
+        )
+        Label("(0,0,0)").grid_into(
+            self.delays_controls, row=1, column=1, pady=4, padx=4, sticky="w"
+        )
+        Label("Tunable Wavelenght").grid_into(
+            self.delays_controls, row=2, column=0, pady=4, padx=4, sticky="w"
+        )
+        self.wavelenght_entry = IntEntry(
+            value=0, width=5
+        )
+        self.wavelenght_entry.grid_into(
+            self.delays_controls, row=2, column=1, pady=4, padx=4, sticky="w"
+        )
+        Label("nm").grid_into(
+            self.delays_controls, row=2, column=2, pady=4, padx=4, sticky="w"
+        )
+
+
+        self.start_ajustement_placement = Button(
+            "Start Placement",
+            user_event_callback=None,
+        )
+        self.start_ajustement_placement.grid_into(
+            self.delays_controls,
+            row=3,
+            column=0,
+            pady=4,
+            padx=4,
+            sticky="nsw",
+        )
+        self.start_homing = Button(
+            "Homing Placement",
+            user_event_callback=None,
+        )
+        self.start_homing.grid_into(
+            self.delays_controls,
+            row=4,
+            column=0,
+            pady=4,
+            padx=4,
+            sticky="nsw",
+        )
+
+
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
         self.map_controller.parameters[
@@ -607,6 +666,7 @@ class MicroscopeApp(App):
             exp.add_step(experiment_step=exp_step)
 
         exp.perform_in_background_thread()
+
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
