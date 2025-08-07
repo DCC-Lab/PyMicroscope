@@ -1,4 +1,5 @@
 from mytk import *
+from mytk import __version__ as mytk_version
 from mytk.notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
@@ -8,6 +9,7 @@ from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
 from pathlib import Path
 from threading import Thread
+from packaging import version
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -28,7 +30,10 @@ from hardwarelibrary.motion import SutterDevice
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.main_queue:TQueue = TQueue()
+
+        if version.parse(mytk_version) < version.parse("0.9.12"): 
+            self.main_queue:TQueue = TQueue()
+
         self.image_queue:MPQueue = MPQueue()
         self.preview_queue:TQueue = TQueue(maxsize=1)
         self.images_directory:Path = Path("~/Desktop").expanduser()
@@ -139,9 +144,6 @@ class MicroscopeApp(App):
             notifying_object=self,
             user_info={"providers": providers},
         )
-        
-    def schedule_on_main_thread(self, fct, args):
-        self.main_queue.put( (fct, args) )
         
     def cleanup(self):
         try:
@@ -737,16 +739,11 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
-    def check_main_queue(self):
-        while not self.main_queue.empty():
-            try:
-                f, args = self.main_queue.get_nowait()
-                f(*args)
-            except Exception as e:
-                print("Unable to call scheduled function {fct} :", e)
                         
     def microscope_run_loop(self):
-        self.check_main_queue()
+        if version.parse(mytk_version) < version.parse("0.9.12"): 
+            self.check_main_queue()
+            
         self.retrieve_new_image()
         self.update_preview()
         
@@ -772,6 +769,25 @@ class MicroscopeApp(App):
         self.cleanup()
         super().quit()
 
+if version.parse(mytk_version) < version.parse("0.9.12"): 
+
+    def schedule_on_main_thread(self, fct, args):
+        self.main_queue.put( (fct, args) )
+
+    def check_main_queue(self):
+        while not self.main_queue.empty():
+            try:
+                f, args = self.main_queue.get_nowait()
+                f(*args)
+            except Exception as e:
+                print("Unable to call scheduled function {fct} :", e)
+
+    setattr(MicroscopeApp, "schedule_on_main_thread", schedule_on_main_thread)
+    setattr(MicroscopeApp, "check_main_queue", check_main_queue)
+
+    
+            
+    
 
 if __name__ == "__main__":
     app = MicroscopeApp()
