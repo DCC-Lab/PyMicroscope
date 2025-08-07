@@ -1,6 +1,7 @@
 from mytk import *
 from mytk.notificationcenter import NotificationCenter, Notification
 import signal
+import time
 from contextlib import suppress
 import numpy as np
 from queue import Queue, Empty, Full
@@ -53,6 +54,7 @@ class MicroscopeApp(App):
         self.sample_position_x = 0
         self.sample_position_y = 0
         self.sample_position_z = 0
+        self.last_read_position = None
 
         self.map_controller = MapController(self.sample_position_device)
 
