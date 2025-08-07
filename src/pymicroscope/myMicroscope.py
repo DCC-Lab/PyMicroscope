@@ -598,10 +598,9 @@ class MicroscopeApp(App):
             self.delays_controls, row=2, column=2, pady=4, padx=4, sticky="w"
         )
 
-
         self.start_ajustement_placement = Button(
             "Start Placement",
-            user_event_callback=None,
+            user_event_callback=self.user_clicked_ajustement_placement,
         )
         self.start_ajustement_placement.grid_into(
             self.delays_controls,
@@ -613,7 +612,7 @@ class MicroscopeApp(App):
         )
         self.start_homing = Button(
             "Homing Placement",
-            user_event_callback=None,
+            user_event_callback=self.user_clicked_homing,
         )
         self.start_homing.grid_into(
             self.delays_controls,
@@ -623,6 +622,12 @@ class MicroscopeApp(App):
             padx=4,
             sticky="nsw",
         )
+
+    def user_clicked_ajustement_placement(self, even, button):
+        pass
+
+    def user_clicked_homing(self, even, button):
+        pass
 
 
     def user_clicked_saving_position(self, even, button):
