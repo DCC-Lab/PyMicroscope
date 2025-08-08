@@ -26,6 +26,7 @@ from pymicroscope.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
 
 from hardwarelibrary.motion import SutterDevice
+from pymicroscope.automated_delays import KinesisDevice
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -56,6 +57,7 @@ class MicroscopeApp(App):
         self.is_camera_running = False
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
+        self.delay_device = KinesisDevice(serialNumber="83849018")
 
         self.map_controller = MapController(self.sample_position_device)
 
@@ -585,7 +587,6 @@ class MicroscopeApp(App):
         )
 
     def build_delay_interface(self):
-        assert self.is_main_thread()
 
         self.delay_controls = Box(
             label="Delay", width=300, height=200
@@ -630,7 +631,7 @@ class MicroscopeApp(App):
         )
         self.start_move_left = Button(
             "Left",
-            user_event_callback=None,
+            user_event_callback=self.user_clicked_left_direction,
         )
         self.start_move_left.grid_into(
             self.delay_controls,
@@ -642,7 +643,7 @@ class MicroscopeApp(App):
         )
         self.start_move_right = Button(
             "Right",
-            user_event_callback=None,
+            user_event_callback=self.user_clicked_right_direction,
         )
         self.start_move_right.grid_into(
             self.delay_controls,
@@ -669,8 +670,13 @@ class MicroscopeApp(App):
         pass
 
     def user_clicked_homing(self, even, button):
-        pass
+        ActionHome(linear_motion_device=self.delay_device).do_perform()
 
+    def user_clicked_left_direction(self, even, button):
+        ActionMoveBy(d_position=[1], linear_motion_device=self.delay_device).do_perform()
+
+    def user_clicked_right_direction(self, even, button):
+        ActionMoveBy(d_position=[-1], linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label

@@ -47,7 +47,7 @@ class KinesisDevice(LinearMotionDevice):
         self.port.set_position_reference() #set the initilal point
 
         if self.port is None:
-            raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.portPath))
+            raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.port))
 
     def doShutdownDevice(self):
         self.port.close()
@@ -87,7 +87,7 @@ class KinesisDevice(LinearMotionDevice):
 
     def doMoveBy(self, displacement):
         encoder_displacement = self.encoder_steps*displacement
-        self.port.move_by(position=encoder_displacement)
+        self.port.move_by(distance=encoder_displacement)
         if self.port.is_moving() is False:
                 raise Exception("unable to move the device.")
         else:
@@ -113,16 +113,14 @@ class DelaysController():
         delay_position = 285 + (-0.302)*wavelength_value     #for the moment
         return delay_position
 
-    def intensity_comparaison(self):
-        intensity_value = []
-        max_intensity = 0
-        intensity_value.append(self.pass'''valeur d'intensité en temps réel''')
-        if self.'''intensity_value''' > intensity_value[-1]:
-            max_intensity = intensity_value
+ #   def intensity_comparaison(self):
+  #      intensity_value = []
+   #     max_intensity = 0
+    #    intensity_value.append('''self valeur d'intensité en temps réel''')
+     #   if self'''intensity_value''' > intensity_value[-1]:
+      #      max_intensity = intensity_value
 
-        if max_intensity - self.'''intensity_value''' = '''écart max à déterminer''':
-            self.port.stop
-            self.port.'''retour en arrière'''
-
-
+#        if max_intensity - self.'''intensity_value''' = '''écart max à déterminer''':
+ #           self.port.stop
+  #          self.port.'''retour en arrière''' 
 
