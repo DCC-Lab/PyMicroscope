@@ -60,7 +60,7 @@ class MicroscopeApp(App):
         self.sample_position_x = 0
         self.sample_position_y = 0
         self.sample_position_z = 0
-        self.last_read_position = None
+        self.last_read_position = 0
 
         self.map_controller = MapController(self.sample_position_device)
 
@@ -716,6 +716,18 @@ class MicroscopeApp(App):
         except Empty:
             pass
 
+    def update_sample_position(self):
+        # Update the sample position every 0.3 seconds
+        if time.time() - self.last_read_position >= 0.3:
+            if self.sample_position_device is not None:
+                position = self.sample_position_device.positionInMicrons()
+                self.sample_position_x, self.sample_position_y, self.sample_position_z = position
+
+            Label(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z} um').grid_into(
+                self.position, row=0, column=0, pady=10, padx=10, sticky="nsew"
+            )
+        self.last_read_position = time.time()
+
                         
     def microscope_run_loop(self):
         if version.parse(mytk_version) < version.parse("0.9.12"): 
@@ -723,6 +735,7 @@ class MicroscopeApp(App):
             
         self.retrieve_new_image()
         self.update_preview()
+        self.update_sample_position()
         
         self.after(20, self.microscope_run_loop)
 
