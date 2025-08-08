@@ -410,7 +410,7 @@ class MicroscopeApp(App):
         )
 
         self.microstep_pixel_entry = NumericEntry(
-            value=0.16565, increment=0.00001, minimum=0.00001
+            value=0.16565, increment=0.00001, minimum=0.00001  # TODO increment doesn't work like I want it to and the entry is quite large on the interface
         )
         self.microstep_pixel_entry.grid_into(
             self.sample, row=1, column=2, columnspan=2, pady=2, padx=2, sticky="ns"
@@ -593,7 +593,7 @@ class MicroscopeApp(App):
         if not self.cannot_start_map and self.is_camera_running:
             self.save_map_experience()
         else : 
-            print("Camera is not currently running.") # TODO User should be notified properly.
+            print("Camera is not currently running.") # TODO User should be notified properly or 4 corner buttons deactivated while camera is not running
 
     def save_map_experience(self):
         self.is_mapping = True
