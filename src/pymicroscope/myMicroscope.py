@@ -621,7 +621,7 @@ class MicroscopeApp(App):
 
         exp.perform_in_background_thread()
         self.is_mapping = False # TODO technically ok but should be set to false when the experiment is done.
-        self.cannot_start_map = False # TODO has to be enabled only when the experiment is done, which is not currently the case.
+        self.cannot_start_map = False # TODO has to be enabled only when the experiment is done (in another thread), which is not currently the case.
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
