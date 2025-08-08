@@ -148,7 +148,7 @@ class MicroscopeApp(App):
         self.build_position_interface()
         self.build_start_stop_interface()
         self.build_cameras_menu()
-        self.build_delays_interface()
+        self.build_delay_interface()
 
     def build_imageview_interface(self):
         assert self.is_main_thread()
@@ -567,45 +567,70 @@ class MicroscopeApp(App):
             "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
 
-    def build_delays_interface(self):
+    def build_delay_interface(self):
         assert self.is_main_thread()
 
-        self.delays_controls = Box(
-            label="Delays", width=300, height=150
+        self.delay_controls = Box(
+            label="Delay", width=300, height=200
         )
 
-        self.delays_controls.grid_into(
+        self.delay_controls.grid_into(
             self.window, column=3, row=0, pady=10, padx=10, sticky="nse"
         )
-        self.delays_controls.widget.grid_propagate(False)
+        self.delay_controls.widget.grid_propagate(False)
 
         Label("Position").grid_into(
-            self.delays_controls, row=1, column=0, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=1, column=0, pady=4, padx=4, sticky="w"
         )
         Label("(0,0,0)").grid_into(
-            self.delays_controls, row=1, column=1, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=1, column=1, pady=4, padx=4, sticky="w"
         )
         Label("Tunable Wavelenght").grid_into(
-            self.delays_controls, row=2, column=0, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=2, column=0, pady=4, padx=4, sticky="w"
         )
         self.wavelenght_entry = IntEntry(
             value=0, width=5
         )
         self.wavelenght_entry.grid_into(
-            self.delays_controls, row=2, column=1, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=2, column=1, pady=4, padx=4, sticky="w"
         )
         Label("nm").grid_into(
-            self.delays_controls, row=2, column=2, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=2, column=2, pady=4, padx=4, sticky="w"
         )
 
         self.start_ajustement_placement = Button(
-            "Start Placement",
+            "Start wavelength Placement",
             user_event_callback=self.user_clicked_ajustement_placement,
         )
         self.start_ajustement_placement.grid_into(
-            self.delays_controls,
+            self.delay_controls,
             row=3,
             column=0,
+            columnspan=2,
+            pady=4,
+            padx=4,
+            sticky="ns",
+        )
+        self.start_move_left = Button(
+            "Left",
+            user_event_callback=None,
+        )
+        self.start_move_left.grid_into(
+            self.delay_controls,
+            row=4,
+            column=0,
+            pady=4,
+            padx=4,
+            sticky="ns",
+        )
+        self.start_move_right = Button(
+            "Right",
+            user_event_callback=None,
+        )
+        self.start_move_right.grid_into(
+            self.delay_controls,
+            row=4,
+            column=1,
             pady=4,
             padx=4,
             sticky="nsw",
@@ -615,8 +640,8 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_homing,
         )
         self.start_homing.grid_into(
-            self.delays_controls,
-            row=4,
+            self.delay_controls,
+            row=5,
             column=0,
             pady=4,
             padx=4,
