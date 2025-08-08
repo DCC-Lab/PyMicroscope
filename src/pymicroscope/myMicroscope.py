@@ -58,6 +58,12 @@ class MicroscopeApp(App):
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
         self.delay_device = KinesisDevice(serialNumber="83849018")
+        self.does_delay_device = self.delay_device.port
+        if self.does_delay_device:
+            self.delay_position = self.delay_device.doGetPosition()
+        else:
+            self.delay_position = 0
+
 
         self.map_controller = MapController(self.sample_position_device)
 
@@ -597,10 +603,10 @@ class MicroscopeApp(App):
         )
         self.delay_controls.widget.grid_propagate(False)
 
-        Label("Position").grid_into(
+        Label("Position in encoder steps").grid_into(
             self.delay_controls, row=1, column=0, pady=4, padx=4, sticky="w"
         )
-        Label("(0,0,0)").grid_into(
+        Label(self.delay_position).grid_into(
             self.delay_controls, row=1, column=1, pady=4, padx=4, sticky="w"
         )
         Label("Tunable Wavelenght").grid_into(
@@ -629,6 +635,11 @@ class MicroscopeApp(App):
             padx=4,
             sticky="ns",
         )
+
+        self.bind_properties(
+            "does_delay_device", self.start_ajustement_placement, "is_enabled"
+        )
+        
         self.start_move_left = Button(
             "Left",
             user_event_callback=self.user_clicked_left_direction,
@@ -641,6 +652,10 @@ class MicroscopeApp(App):
             padx=4,
             sticky="ns",
         )
+        self.bind_properties(
+            "does_delay_device", self.start_move_left, "is_enabled"
+        )
+
         self.start_move_right = Button(
             "Right",
             user_event_callback=self.user_clicked_right_direction,
@@ -653,6 +668,11 @@ class MicroscopeApp(App):
             padx=4,
             sticky="nsw",
         )
+
+        self.bind_properties(
+            "does_delay_device", self.start_move_right, "is_enabled"
+        )
+
         self.start_homing = Button(
             "Homing Placement",
             user_event_callback=self.user_clicked_homing,
@@ -664,6 +684,9 @@ class MicroscopeApp(App):
             pady=4,
             padx=4,
             sticky="nsw",
+        )
+        self.bind_properties(
+            "does_delay_device", self.start_homing, "is_enabled"
         )
 
     def user_clicked_ajustement_placement(self, even, button):
