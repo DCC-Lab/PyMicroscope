@@ -739,7 +739,7 @@ class MicroscopeApp(App):
 
     def update_sample_position(self):
         # Update the sample position every 0.3 seconds
-        if time.time() - self.last_read_position >= 0.3:
+        if time.time() - self.last_read_position >= 0.3:  # TODO does not currently update when mapping (even with forced positions)
             if self.sample_position_device is not None:
                 position = self.sample_position_device.positionInMicrons()
                 self.sample_position_x, self.sample_position_y, self.sample_position_z = position
