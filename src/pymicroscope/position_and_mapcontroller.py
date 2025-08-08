@@ -34,7 +34,7 @@ class MapController(Bindable):
         y_image_dimension = 500*microstep_pixel
         z_image_dimension = z_range*microstep_pixel
 
-        if all(x != (0.0, 0.0, 0.0) for x in self.parameters.values()): 
+        if all(x != (0.0, 0.0, 0.0) for x in self.parameters.values()): # TODO check if all corners are set even though it could be at the origin
             number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (0.9*x_image_dimension))
             number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (0.9*y_image_dimension))
         else:
