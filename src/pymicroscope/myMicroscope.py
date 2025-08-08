@@ -555,7 +555,7 @@ class MicroscopeApp(App):
         )
         self.bind_properties(
             "cannot_start_map", self.start_map_aquisition, "is_disabled"
-        ) # does it work dynamically? I don't think so
+        )
 
         self.clear_map_aquisition = Button(
             "Clear",
@@ -572,7 +572,7 @@ class MicroscopeApp(App):
         )
         self.bind_properties(
             "cannot_start_map", self.clear_map_aquisition, "is_disabled"
-        ) # does it work dynamically? I don't think so
+        )
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
@@ -593,10 +593,11 @@ class MicroscopeApp(App):
         if not self.cannot_start_map and self.is_camera_running:
             self.save_map_experience()
         else : 
-            print("Camera is not currently running.") # User should be notified properly.
+            print("Camera is not currently running.") # TODO User should be notified properly.
 
     def save_map_experience(self):
         self.is_mapping = True
+        self.cannot_start_map = True
         positions = self.map_controller.create_positions_for_map(self.z_image_number_entry.value, self.microstep_pixel_entry.value, self.z_range_entry.value)
         exp = Experiment()
 
@@ -619,7 +620,8 @@ class MicroscopeApp(App):
             exp.add_step(experiment_step=exp_step)
 
         exp.perform_in_background_thread()
-        self.is_mapping = False
+        self.is_mapping = False # TODO technically ok but should be set to false when the experiment is done.
+        self.cannot_start_map = False # TODO has to be enabled only when the experiment is done, which is not currently the case.
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
@@ -778,24 +780,6 @@ class MicroscopeApp(App):
 
         self.cleanup()
         super().quit()
-
-if version.parse(mytk_version) < version.parse("0.9.12"): 
-
-    def schedule_on_main_thread(self, fct, args):
-        self.main_queue.put( (fct, args) )
-
-    def check_main_queue(self):
-        while not self.main_queue.empty():
-            try:
-                f, args = self.main_queue.get_nowait()
-                f(*args)
-            except Exception as e:
-                print("Unable to call scheduled function {fct} :", e)
-
-    setattr(MicroscopeApp, "schedule_on_main_thread", schedule_on_main_thread)
-    setattr(MicroscopeApp, "check_main_queue", check_main_queue)
-
-    
             
     
 
