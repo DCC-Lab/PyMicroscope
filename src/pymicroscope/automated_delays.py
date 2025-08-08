@@ -74,28 +74,28 @@ class KinesisDevice(LinearMotionDevice):
         return self.doGetPosition()/self.encoder_steps
 
     def doGetPosition(self) -> int:
-        return self.port.get_position(channel=self.channel)
+        return self.port.get_position()
 
     def doMoveTo(self, position):
         '''Move to a position in microsteps'''
         encoder_position = self.encoder_steps*position
-        self.port.move_to(position=encoder_position, channel=self.channel)
-        if self.port.is_moving(channel=self.channel) is False:
+        self.port.move_to(position=encoder_position)
+        if self.port.is_moving() is False:
             raise Exception("unable to move the device.")
         else:
-            self.port.wait_move(channel=self.channel)
+            self.port.wait_move()
 
     def doMoveBy(self, displacement):
         encoder_displacement = self.encoder_steps*displacement
-        self.port.move_by(position=encoder_displacement, channel=self.channel)
-        if self.port.is_moving(channel=self.channel) is False:
+        self.port.move_by(position=encoder_displacement)
+        if self.port.is_moving() is False:
                 raise Exception("unable to move the device.")
         else:
-            self.port.wait_move(channel=self.channel)
+            self.port.wait_move()
 
     def doHome(self):
         self.port.home()
-        if self.port.is_homing(channel=self.channel) is False:
+        if self.port.is_homing() is False:
             raise Exception("unable to move the device to home.")
         else:
             self.port.wait_for_home()
