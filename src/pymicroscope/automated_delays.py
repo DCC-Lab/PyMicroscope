@@ -13,24 +13,19 @@ from struct import *
 from pyftdi.ftdi import Ftdi #FIXME: should not be here.
 from mytk import *
 from pylablib.devices.Thorlabs import kinesis
-import numpy as np
 
 class KinesisDevice(LinearMotionDevice):
-    classIdVendor = 4930
-    classIdProduct = 1
+    #SERIAL_NUMBER = "83849018"
 
-    def __init__(self, serialNumber: str = None):
+    def __init__(self, serialNumber: str = None, channel: int = 1):
         super().__init__(serialNumber=serialNumber, idVendor=self.classIdVendor, idProduct=self.classIdProduct)
         self.port = None
-        self.nativeStepsPerMicrons = 16
+        self.channel =channel
+        self.encoder_steps = 34304
 
         # All values are in native units (i.e. microsteps)
         self.xMinLimit = 0
-        self.yMinLimit = 0
-        self.zMinLimit = 0
-        self.xMaxLimit = 25000*16
-        self.yMaxLimit = 25000*16
-        self.zMaxLimit = 25000*16
+        self.xMaxLimit = 857599
 
     def __del__(self):
         try:
@@ -39,34 +34,71 @@ class KinesisDevice(LinearMotionDevice):
             # ignore if already closed
             return
 
-    def doInitializeDevice(self): 
-        pass
+    def doInitializeDevice(self):
+        portPath = kinesis.KinesisDevice.list_devices()
+        if portPath is None:
+            raise PhysicalDevice.UnableToInitialize("No Thorlabs Device connected")
+        if portPath[0] != "83------":
+            raise PhysicalDevice.UnableToInitialize("No motor device found")
+        
+        self.port = kinesis.KinesisMotor(conn=self.serialNumber)
+        self.port.open()
+        self.port.set_supported_channels(channels= self.channel)
+        self.port.set_position_reference() #set the initilal point
+
+        if self.port is None:
+            raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.portPath))
 
     def doShutdownDevice(self):
-        pass
+        self.port.close()
+        self.port = None
 
     def sendCommandBytes(self, commandBytes):
-        pass
+        if self.port is None:
+            self.initializeDevice()
+        
+        time.sleep(0.1)
+        self.port.send_comm(messageID=commandBytes)
+
+    def sendCommandBytesData(self, commandBytes, data):
+        if self.port is None:
+            self.initializeDevice()
+        
+        time.sleep(0.1)
+        self.port.send_comm_data(messageID=commandBytes, data=data)
 
     def readReply(self, size, format) -> tuple:
         pass
 
-    def positionInMicrosteps(self) -> (int, int, int):  # for compatibility
-        return self.doGetPosition()
+    def positionInMicrosteps(self) -> int:  # for compatibility
+        return self.doGetPosition()/self.encoder_steps
 
-    def doGetPosition(self) -> (int, int, int):
-        
-       
-        return (x, y, z)
+    def doGetPosition(self) -> int:
+        return self.port.get_position(channel=self.channel)
 
     def doMoveTo(self, position):
-        pass
+        '''Move to a position in microsteps'''
+        encoder_position = self.encoder_steps*position
+        self.port.move_to(position=encoder_position, channel=self.channel)
+        if self.port.is_moving(channel=self.channel) is False:
+            raise Exception("unable to move the device.")
+        else:
+            self.port.wait_move(channel=self.channel)
 
     def doMoveBy(self, displacement):
-        pass
+        encoder_displacement = self.encoder_steps*displacement
+        self.port.move_by(position=encoder_displacement, channel=self.channel)
+        if self.port.is_moving(channel=self.channel) is False:
+                raise Exception("unable to move the device.")
+        else:
+            self.port.wait_move(channel=self.channel)
 
     def doHome(self):
-        pass
+        self.port.home()
+        if self.port.is_homing(channel=self.channel) is False:
+            raise Exception("unable to move the device to home.")
+        else:
+            self.port.wait_for_home()
 
 #for eventully automated
 class DelaysController():
