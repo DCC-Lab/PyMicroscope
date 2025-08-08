@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 import platform
 from enum import Enum
-from mytk.notificationcenter import Notification, NotificationCenter
+from mytk.notificationcenter import NotificationCenter
 import os
 from contextlib import suppress
 from multiprocessing import Queue
@@ -292,7 +292,7 @@ class ActionSave(Action):
         filepath = self.root_dir / Path(self.template.format(**params))
         pil_image.save(filepath)
 
-        NotificationCenter().post_notification(MicroscopeAppNotification.did_save, notifying_object=self, user_info={'filepath':filepath, 'img_array':img_array})
+        NotificationCenter().post_notification(MicroscopeAppNotification.did_save_file, notifying_object=self, user_info={'filepath':filepath, 'img_array':img_array})
 
         self.output = filepath
 
