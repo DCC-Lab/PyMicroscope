@@ -390,7 +390,8 @@ class MicroscopeApp(App):
         )
         self.position.widget.grid_propagate(False)
         
-        Label(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z}').grid_into(
+        self.sample_pos = Label(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z}')
+        self.sample_pos.grid_into(
             self.position, row=0, column=0, pady=10, padx=10, sticky="nsew"
         )
 
@@ -720,22 +721,23 @@ class MicroscopeApp(App):
         # Update the sample position every 0.3 seconds
         if time.time() - self.last_read_position >= 0.3:
             if self.sample_position_device is not None:
-                position = self.sample_position_device.positionInMicrons()
+                position = self.sample_position_device.positionInMicrons() # threading issue here? might try to send two commands at the same time to the device
                 self.sample_position_x, self.sample_position_y, self.sample_position_z = position
 
-            Label(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z} um').grid_into(
-                self.position, row=0, column=0, pady=10, padx=10, sticky="nsew"
-            )
+            self.sample_pos.value_variable.set(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z} um')
         self.last_read_position = time.time()
 
                         
     def microscope_run_loop(self):
         if version.parse(mytk_version) < version.parse("0.9.12"): 
             self.check_main_queue()
-            
+        
         self.retrieve_new_image()
         self.update_preview()
         self.update_sample_position()
+
+        # factor = time.time()-self.last_read_position
+        # self.sample_position_device.moveInMicronsTo((5*factor, 5, 5))
         
         self.after(20, self.microscope_run_loop)
 
