@@ -63,8 +63,12 @@ class MicroscopeApp(App):
         self.last_read_position = 0
 
         self.map_controller = MapController(self.sample_position_device)
+        self.is_mapping = False
+        # self.microstep_pixel = 0.16565
+        # self.z_image_number_entry = 1
+        # self.z_range = 1
 
-        self.can_start_map = False
+        self.cannot_start_map = True
 
         self.app_setup()
         self.build_interface()
@@ -405,20 +409,23 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        self.microstep_pixel_entry = IntEntry(
-            value=float(self.map_controller.microstep_pixel), width=5
+        self.microstep_pixel_entry = NumericEntry(
+            value=0.16565, increment=0.00001, minimum=0.00001
         )
         self.microstep_pixel_entry.grid_into(
-            self.sample, row=1, column=2, pady=2, padx=2, sticky="ns"
+            self.sample, row=1, column=2, columnspan=2, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties(
-            "microstep_pixel", self.microstep_pixel_entry, "value_variable"
+        self.bind_properties(
+            "is_mapping", self.microstep_pixel_entry, "is_disabled"
         )
+        # self.bind_properties(
+        #    "microstep_pixel", self.microstep_pixel_entry, "value_variable"
+        #)
 
         Label("um/px").grid_into(
             self.sample,
             row=1,
-            column=3,
+            column=4,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -434,14 +441,17 @@ class MicroscopeApp(App):
             sticky="nse",
         )
         self.z_image_number_entry = IntEntry(
-            value=self.map_controller.z_image_number, width=5
+            value=1, width=5
         )
         self.z_image_number_entry.grid_into(
             self.sample, row=2, column=2, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties(
-            "z_image_number", self.z_image_number_entry, "value_variable"
+        self.bind_properties(
+            "is_mapping", self.z_image_number_entry, "is_disabled"
         )
+        # self.bind_properties(
+        #    "z_image_number", self.z_image_number_entry, "value_variable"
+        # )
 
         Label("z step :").grid_into(
             self.sample,
@@ -453,14 +463,17 @@ class MicroscopeApp(App):
         )
 
         self.z_range_entry = IntEntry(
-            value=self.map_controller.z_range, width=5
+            value=1, width=5
         )
         self.z_range_entry.grid_into(
             self.sample, row=2, column=5, pady=2, padx=2, sticky="ns"
         )
-        self.map_controller.bind_properties(
-            "z_range", self.z_range_entry, "value_variable"
+        self.bind_properties(
+            "is_mapping", self.z_range_entry, "is_disabled"
         )
+        # self.bind_properties(
+        #    "z_range", self.z_range_entry, "value_variable"
+        # )
 
         Label("um").grid_into(
             self.sample,
@@ -541,8 +554,8 @@ class MicroscopeApp(App):
             sticky="nsew",
         )
         self.bind_properties(
-            "can_start_map", self.start_map_aquisition, "is_enabled"
-        )
+            "cannot_start_map", self.start_map_aquisition, "is_disabled"
+        ) # does it work dynamically? I don't think so
 
         self.clear_map_aquisition = Button(
             "Clear",
@@ -558,8 +571,8 @@ class MicroscopeApp(App):
             sticky="nsew",
         )
         self.bind_properties(
-            "can_start_map", self.clear_map_aquisition, "is_enabled"
-        )
+            "cannot_start_map", self.clear_map_aquisition, "is_disabled"
+        ) # does it work dynamically? I don't think so
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
@@ -568,19 +581,23 @@ class MicroscopeApp(App):
         ] = self.sample_position_device.positionInMicrons()
 
         if all(x is not None for x in self.map_controller.parameters.values()):
-            self.can_start_map = True
+            self.cannot_start_map = False # enable the button to start the map acquisition
 
     def user_clicked_clear(self, even, button):
         value_to_clear = self.map_controller.parameters
 
         ActionClear(value_to_clear)
-        self.can_start_map = None
+        self.cannot_start_map = True # disable the button to start the map acquisition
 
     def user_clicked_map_aquisition_image(self, event, button):
-        self.save_map_experience()
+        if not self.cannot_start_map and self.is_camera_running:
+            self.save_map_experience()
+        else : 
+            print("Camera is not currently running.") # User should be notified properly.
 
     def save_map_experience(self):
-        positions = self.map_controller.create_positions_for_map()
+        self.is_mapping = True
+        positions = self.map_controller.create_positions_for_map(self.z_image_number_entry.value, self.microstep_pixel_entry.value, self.z_range_entry.value)
         exp = Experiment()
 
         for position in positions:
@@ -602,6 +619,7 @@ class MicroscopeApp(App):
             exp.add_step(experiment_step=exp_step)
 
         exp.perform_in_background_thread()
+        self.is_mapping = False
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
@@ -721,7 +739,7 @@ class MicroscopeApp(App):
         # Update the sample position every 0.3 seconds
         if time.time() - self.last_read_position >= 0.3:
             if self.sample_position_device is not None:
-                position = self.sample_position_device.positionInMicrons() # threading issue here? might try to send two commands at the same time to the device
+                position = self.sample_position_device.positionInMicrons()
                 self.sample_position_x, self.sample_position_y, self.sample_position_z = position
 
             self.sample_pos.value_variable.set(f'(x, y, z) : {self.sample_position_x, self.sample_position_y, self.sample_position_z} um')
