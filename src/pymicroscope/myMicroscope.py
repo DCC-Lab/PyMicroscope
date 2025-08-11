@@ -26,7 +26,7 @@ from pymicroscope.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
 
 from hardwarelibrary.motion import SutterDevice
-from pymicroscope.automated_delays import KinesisDevice
+from pymicroscope.automated_delays import KinesisDevice, DelaysController
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -63,6 +63,7 @@ class MicroscopeApp(App):
             self.delay_position = self.delay_device.doGetPosition()
         else:
             self.delay_position = 0
+        self.delay_controller = DelaysController()
 
 
         self.map_controller = MapController(self.sample_position_device)
@@ -604,10 +605,10 @@ class MicroscopeApp(App):
         self.delay_controls.widget.grid_propagate(False)
 
         Label("Position in encoder steps").grid_into(
-            self.delay_controls, row=1, column=0, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=1, column=0, columnspan=2, pady=4, padx=4, sticky="w"
         )
         Label(self.delay_position).grid_into(
-            self.delay_controls, row=1, column=1, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=1, column=1, columnspan=2, pady=4, padx=4, sticky="e"
         )
         Label("Tunable Wavelenght").grid_into(
             self.delay_controls, row=2, column=0, pady=4, padx=4, sticky="w"
@@ -616,7 +617,7 @@ class MicroscopeApp(App):
             value=0, width=5
         )
         self.wavelenght_entry.grid_into(
-            self.delay_controls, row=2, column=1, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=2, column=1, pady=4, padx=4, sticky="e"
         )
         Label("nm").grid_into(
             self.delay_controls, row=2, column=2, pady=4, padx=4, sticky="w"
@@ -630,7 +631,7 @@ class MicroscopeApp(App):
             self.delay_controls,
             row=3,
             column=0,
-            columnspan=2,
+            columnspan=3,
             pady=4,
             padx=4,
             sticky="ns",
@@ -690,7 +691,8 @@ class MicroscopeApp(App):
         )
 
     def user_clicked_ajustement_placement(self, even, button):
-        pass
+        delay_position = self.delay_controller.linear_relation_delays_and_wavelength(self.wavelenght_entry) #modifier l'équation de la relation en fct de la nouvelle implémentation
+        ActionMove(position=delay_position, linear_motion_device=self.delay_device).perform()
 
     def user_clicked_homing(self, even, button):
         ActionHome(linear_motion_device=self.delay_device).do_perform()

@@ -104,10 +104,7 @@ class KinesisDevice(LinearMotionDevice):
 class DelaysController():
     def __init__(self, device, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #initiation with thorlabs kinesis
         self.port = None
-
-        #shut down
 
     def linear_relation_delays_and_wavelength(self, wavelength_value):
         delay_position = 285 + (-0.302)*wavelength_value     #for the moment
