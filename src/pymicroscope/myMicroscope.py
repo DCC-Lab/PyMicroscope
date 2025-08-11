@@ -62,7 +62,7 @@ class MicroscopeApp(App):
         if self.does_delay_device:
             self.delay_position = self.delay_device.doGetPosition()
         else:
-            self.delay_position = 0
+            self.delay_position = None
         self.delay_controller = DelaysController()
 
 
@@ -698,10 +698,10 @@ class MicroscopeApp(App):
         ActionHome(linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_left_direction(self, even, button):
-        ActionMoveBy(d_position=[1], linear_motion_device=self.delay_device).do_perform()
+        ActionMoveBy(d_position=[100], linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_right_direction(self, even, button):
-        ActionMoveBy(d_position=[-1], linear_motion_device=self.delay_device).do_perform()
+        ActionMoveBy(d_position=[-100], linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label

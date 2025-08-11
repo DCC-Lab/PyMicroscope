@@ -27,6 +27,18 @@ class KinesisDevice(LinearMotionDevice):
         self.xMinLimit = 0
         self.xMaxLimit = 857599
 
+        portPath = [(None, )] # if connected at a window pc, you can change the portPath
+        #portPath = kinesis.KinesisDevice.list_devices()
+        for port in portPath:
+            if port[0] is None:
+                PhysicalDevice.UnableToInitialize("No Thorlabs Device connected")
+                pass
+            if port[0] != serialNumber:
+                PhysicalDevice.UnableToInitialize("Not the same serialNumber connected")
+                pass
+            else:
+                self.initializeDevice()
+
     def __del__(self):
         try:
             self.port.close()
@@ -35,19 +47,13 @@ class KinesisDevice(LinearMotionDevice):
             return
 
     def doInitializeDevice(self):
-        portPath = kinesis.KinesisDevice.list_devices()
-        if portPath is None:
-            raise PhysicalDevice.UnableToInitialize("No Thorlabs Device connected")
-        if portPath[0] != "83------":
-            raise PhysicalDevice.UnableToInitialize("No motor device found")
-        
         self.port = kinesis.KinesisMotor(conn=self.serialNumber)
-        self.port.open()
-        self.port.set_supported_channels(channels= self.channel)
-        self.port.set_position_reference() #set the initilal point
-
         if self.port is None:
             raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.port))
+        else:
+            self.port.open()
+            self.port.set_supported_channels(channels= self.channel)
+            self.port.set_position_reference() #set the initilal point
 
     def doShutdownDevice(self):
         self.port.close()
@@ -102,7 +108,7 @@ class KinesisDevice(LinearMotionDevice):
 
 #for eventully automated
 class DelaysController():
-    def __init__(self, device, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.port = None
 
