@@ -596,7 +596,7 @@ class MicroscopeApp(App):
     def build_delay_interface(self):
 
         self.delay_controls = Box(
-            label="Delay", width=300, height=200
+            label="Delay", width=300, height=250
         )
 
         self.delay_controls.grid_into(
@@ -622,14 +622,32 @@ class MicroscopeApp(App):
         Label("nm").grid_into(
             self.delay_controls, row=2, column=2, pady=4, padx=4, sticky="w"
         )
-
+        Label("Delay/Wavelenght relation:").grid_into(
+            self.delay_controls, row=3, column=0, columnspan=2, pady=4, padx=4, sticky="w"
+        )
+        self.a_equation_entry = IntEntry(
+            value=0, width=3
+        )
+        self.a_equation_entry.grid_into(
+            self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="w"
+        )
+        Label("x  +").grid_into(
+            self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="e"
+        )
+        self.b_equation_entry = IntEntry(
+            value=0, width=3
+        )
+        self.b_equation_entry.grid_into(
+            self.delay_controls, row=3, column=2, pady=4, padx=4, sticky="w"
+        )
+        
         self.start_ajustement_placement = Button(
             "Start wavelength Placement",
             user_event_callback=self.user_clicked_ajustement_placement,
         )
         self.start_ajustement_placement.grid_into(
             self.delay_controls,
-            row=3,
+            row=4,
             column=0,
             columnspan=3,
             pady=4,
@@ -647,7 +665,7 @@ class MicroscopeApp(App):
         )
         self.start_move_left.grid_into(
             self.delay_controls,
-            row=4,
+            row=5,
             column=0,
             pady=4,
             padx=4,
@@ -663,7 +681,7 @@ class MicroscopeApp(App):
         )
         self.start_move_right.grid_into(
             self.delay_controls,
-            row=4,
+            row=5,
             column=1,
             pady=4,
             padx=4,
@@ -680,7 +698,7 @@ class MicroscopeApp(App):
         )
         self.start_homing.grid_into(
             self.delay_controls,
-            row=5,
+            row=6,
             column=0,
             pady=4,
             padx=4,
