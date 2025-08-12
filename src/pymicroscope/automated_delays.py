@@ -21,7 +21,8 @@ class KinesisDevice(LinearMotionDevice):
         super().__init__(serialNumber=serialNumber, idVendor=self.classIdVendor, idProduct=self.classIdProduct)
         self.port = None
         self.channel =channel
-        self.encoder_steps = 34304
+        #self.encoder_steps = 34304
+        self.nativeStepsPerMicrons = 34304
 
         # All values are in native units (i.e. microsteps)
         self.xMinLimit = 0
@@ -77,23 +78,23 @@ class KinesisDevice(LinearMotionDevice):
         pass
 
     def positionInMicrosteps(self) -> int:  # for compatibility
-        return self.doGetPosition()/self.encoder_steps
+        return self.doGetPosition() #/self.encoder_steps
 
     def doGetPosition(self) -> int:
         return self.port.get_position()
 
     def doMoveTo(self, position):
         '''Move to a position in microsteps'''
-        encoder_position = self.encoder_steps*position
-        self.port.move_to(position=encoder_position)
+        #encoder_position = self.encoder_steps*position
+        self.port.move_to(position=position[0])
         if self.port.is_moving() is False:
             raise Exception("unable to move the device.")
         else:
             self.port.wait_move()
 
     def doMoveBy(self, displacement):
-        encoder_displacement = self.encoder_steps*displacement
-        self.port.move_by(distance=encoder_displacement)
+        #encoder_displacement = self.encoder_steps*displacement
+        self.port.move_by(distance=displacement[0])
         if self.port.is_moving() is False:
                 raise Exception("unable to move the device.")
         else:

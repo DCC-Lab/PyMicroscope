@@ -63,6 +63,7 @@ class TestDelais(unittest.TestCase):
         print(self.port._get_position(channel=[1]))
         #pas de stop point au jogging/ bien setter les paramètres initiales comme le point 0
        #pour une valeur data = 2000 la position est de 12333
+        self.port.recv_comm()
 
 
     @unittest.SkipTest
