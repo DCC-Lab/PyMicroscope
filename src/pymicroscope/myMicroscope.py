@@ -1,9 +1,12 @@
+from __future__ import annotations
 from mytk import *
 from mytk import __version__ as mytk_version
 from mytk.notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
 import numpy as np
+from scipy import ndimage as ndi
+
 from queue import Queue as TQueue, Empty, Full
 from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
@@ -734,7 +737,10 @@ class MicroscopeApp(App):
     def update_preview(self):
         try:
             img_array = self.preview_queue.get_nowait()
-            pil_image = PILImage.fromarray(img_array, mode="RGB")
+            
+            # filtered_array = (sobel_edges(img_array)*255).astype(np.uint8)
+            filtered_array = (fft_gaussian(img_array, cutoff_px=40)*255).astype(np.uint8)
+            pil_image = PILImage.fromarray(filtered_array, mode="L")
             self.image.update_display(pil_image)
         except Empty:
             pass
@@ -787,7 +793,74 @@ if version.parse(mytk_version) < version.parse("0.9.12"):
 
     
             
+def _to_gray(img: np.ndarray) -> np.ndarray:
+    """
+    Convert RGB/RGBA or grayscale image to float32 grayscale in [0, 1].
+    Keeps shape (H, W).
+    """
+    img = np.asarray(img)
+    if img.ndim == 2:
+        gray = img
+    elif img.ndim == 3:
+        # Drop alpha if present; simple luminance
+        rgb = img[..., :3]
+        gray = 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
+    else:
+        raise ValueError("Expected 2D (H, W) or 3D (H, W, C) array.")
+    gray = gray.astype(np.float32)
+    # Normalize to [0,1] if likely in 8-bit or 16-bit range
+    if gray.max() > 1.0:
+        gray = gray / gray.max()
+    return gray
+
+def fft_gaussian(img: np.ndarray, cutoff_px: float = 50.0, low_pass=True) -> np.ndarray:
+    """
+    Frequency-domain Gaussian high-pass filter.
+    cutoff_px: standard deviation (in pixels) of the *low-pass* Gaussian.
+               Higher => more aggressive high-pass.
+    Returns float32 image in [0,1] (clip applied).
     
+    Example:
+        hp = fft_gaussian(image, cutoff_px=30)
+    """
+    g = _to_gray(img)
+    H, W = g.shape
+    # Build centered Gaussian low-pass in frequency domain
+    y = np.fft.fftfreq(H)[:, None] * H
+    x = np.fft.fftfreq(W)[None, :] * W
+    r2 = x * x + y * y
+    gaussian_lp = np.exp(-0.5 * r2 / (cutoff_px ** 2)).astype(np.float32)
+    highpass = 1.0 - gaussian_lp
+
+    G = np.fft.fft2(g)
+    G_shifted = np.fft.fftshift(G)
+    if low_pass:
+        F_hp = G_shifted * gaussian_lp
+    else:
+        F_hp = G_shifted * highpass
+        
+    result = np.abs(np.fft.ifft2(np.fft.ifftshift(F_hp)))
+    # Rescale to [0,1] for display
+    result -= result.min()
+    denom = result.max() or 1.0
+    return (result / denom).astype(np.float32)
+
+def sobel_edges(img: np.ndarray, preblur_sigma: float = 1.0) -> np.ndarray:
+    """
+    Edge magnitude via Sobel (optionally after Gaussian denoise).
+    Returns float32 in [0,1].
+    
+    Example:
+        edges = sobel_edges(image, preblur_sigma=1.0)
+    """
+    g = _to_gray(img)
+    if preblur_sigma > 0:
+        g = ndi.gaussian_filter(g, sigma=preblur_sigma)
+    dx = ndi.sobel(g, axis=1)
+    dy = ndi.sobel(g, axis=0)
+    mag = np.hypot(dx, dy)
+    mag /= (mag.max() or 1.0)
+    return mag.astype(np.float32)
 
 if __name__ == "__main__":
     app = MicroscopeApp()
