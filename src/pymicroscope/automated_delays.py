@@ -127,14 +127,3 @@ class DelaysController(Bindable):
         delay_position = (self.a_value)*wavelength_value + self.b_value
         return delay_position
 
- #   def intensity_comparaison(self):
-  #      intensity_value = []
-   #     max_intensity = 0
-    #    intensity_value.append('''self valeur d'intensité en temps réel''')
-     #   if self'''intensity_value''' > intensity_value[-1]:
-      #      max_intensity = intensity_value
-
-#        if max_intensity - self.'''intensity_value''' = '''écart max à déterminer''':
- #           self.port.stop
-  #          self.port.'''retour en arrière''' 
-

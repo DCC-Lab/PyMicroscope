@@ -383,7 +383,7 @@ class MicroscopeApp(App):
     def build_position_interface(self):
         # assert is_main_thread()
 
-        self.position = Box(label="Position", width=500, height=250)
+        self.position = Box(label="Position", width=500, height=310)
         self.position.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
@@ -426,10 +426,54 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w",
         )
+        Label("Image Pixel Dimension:").grid_into(
+            self.position,
+            row=3,
+            column=0,
+            columnspan=2,
+            pady=10,
+            padx=10,
+            sticky="w",
+        )
+        Label("x dimension:").grid_into(
+            self.position,
+            row=3,
+            column=2,
+            pady=10,
+            padx=10,
+            sticky="e",
+        )
+        self.x_pixel_entry = IntEntry(
+            value=0, width=4
+        )
+        self.x_pixel_entry.grid_into(
+            self.position, row=3, column=3, pady=2, padx=2, sticky="nsw"
+        )
+        self.map_controller.bind_properties(
+            "x_dimension", self.x_pixel_entry, "value_variable"
+        )
+
+        Label("y dimension:").grid_into(
+            self.position,
+            row=3,
+            column=4,
+            pady=10,
+            padx=10,
+            sticky="e",
+        )
+        self.y_pixel_entry = IntEntry(
+            value=0, width=4
+        )
+        self.y_pixel_entry.grid_into(
+            self.position, row=3, column=5, pady=2, padx=2, sticky="nsw"
+        )
+        self.map_controller.bind_properties(
+            "y_dimension", self.y_pixel_entry, "value_variable"
+        )
 
         Label("Facteur :").grid_into(
             self.position,
-            row=3,
+            row=4,
             column=0,
             columnspan=2,
             pady=2,
@@ -441,7 +485,7 @@ class MicroscopeApp(App):
             value=float(self.map_controller.microstep_pixel), width=5
         )
         self.microstep_pixel_entry.grid_into(
-            self.position, row=3, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "microstep_pixel", self.microstep_pixel_entry, "value_variable"
@@ -449,7 +493,7 @@ class MicroscopeApp(App):
 
         Label("um/px").grid_into(
             self.position,
-            row=3,
+            row=4,
             column=3,
             pady=2,
             padx=0,
@@ -458,7 +502,7 @@ class MicroscopeApp(App):
 
         Label("Number of z images :").grid_into(
             self.position,
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             pady=2,
@@ -469,7 +513,7 @@ class MicroscopeApp(App):
             value=self.map_controller.z_image_number, width=5
         )
         self.z_image_number_entry.grid_into(
-            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=5, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_image_number", self.z_image_number_entry, "value_variable"
@@ -477,8 +521,8 @@ class MicroscopeApp(App):
 
         Label("z step :").grid_into(
             self.position,
-            row=4,
-            column=4,
+            row=5,
+            column=3,
             pady=2,
             padx=2,
             sticky="nse",
@@ -488,7 +532,7 @@ class MicroscopeApp(App):
             value=self.map_controller.z_range, width=5
         )
         self.z_range_entry.grid_into(
-            self.position, row=4, column=5, pady=2, padx=2, sticky="ns"
+            self.position, row=5, column=4, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_range", self.z_range_entry, "value_variable"
@@ -496,8 +540,8 @@ class MicroscopeApp(App):
 
         Label("um").grid_into(
             self.position,
-            row=4,
-            column=6,
+            row=5,
+            column=5,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -509,7 +553,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
             self.position,
-            row=5,
+            row=6,
             column=0,
             columnspan=2,
             pady=3,
@@ -523,7 +567,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
             self.position,
-            row=5,
+            row=6,
             column=2,
             columnspan=2,
             pady=3,
@@ -537,7 +581,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
             self.position,
-            row=6,
+            row=7,
             column=2,
             columnspan=2,
             pady=2,
@@ -551,7 +595,7 @@ class MicroscopeApp(App):
         )
         self.apply_lower_left_button.grid_into(
             self.position,
-            row=6,
+            row=7,
             column=0,
             columnspan=2,
             pady=2,
@@ -565,12 +609,12 @@ class MicroscopeApp(App):
         )
         self.start_map_aquisition.grid_into(
             self.position,
-            row=5,
-            column=5,
+            row=6,
+            column=4,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="nse",
+            sticky="ns",
         )
         self.bind_properties(
             "can_start_map", self.start_map_aquisition, "is_enabled"
@@ -582,12 +626,12 @@ class MicroscopeApp(App):
         )
         self.clear_map_aquisition.grid_into(
             self.position,
-            row=6,
-            column=5,
+            row=7,
+            column=4,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="nse",
+            sticky="ns",
         )
         self.bind_properties(
             "can_start_map", self.clear_map_aquisition, "is_enabled"
