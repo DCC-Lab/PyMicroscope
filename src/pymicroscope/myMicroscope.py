@@ -939,6 +939,12 @@ class MicroscopeApp(App):
         
         self.after(20, self.microscope_run_loop)
 
+    def delay_return_home(self):
+        if self.delay_device.doGetPosition() != 0:
+            ActionHome(linear_motion_device=self.delay_device).do_perform()
+        else:
+            pass
+
     def about(self):
         Dialog.showinfo(
             title="About Microscope",
@@ -953,6 +959,7 @@ class MicroscopeApp(App):
     def quit(self):
         try:
             self.release_provider()
+            self.delay_return_home()
         except Exception as err:
             pass
 
