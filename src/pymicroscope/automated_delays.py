@@ -48,6 +48,7 @@ class KinesisDevice(LinearMotionDevice):
             return
 
     def doInitializeDevice(self):
+        '''Connect the right Kinesis Motor, open the port, set the channel and the reference position'''
         self.port = kinesis.KinesisMotor(conn=self.serialNumber)
         if self.port is None:
             raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.port))
@@ -61,6 +62,8 @@ class KinesisDevice(LinearMotionDevice):
         self.port = None
 
     def sendCommandBytes(self, commandBytes):
+        """ The function to write a command to the endpoint. It will initialize the device 
+        if it is not alread initialized. On failure, it will warn and shutdown."""
         if self.port is None:
             self.initializeDevice()
         
@@ -68,6 +71,8 @@ class KinesisDevice(LinearMotionDevice):
         self.port.send_comm(messageID=commandBytes)
 
     def sendCommandBytesData(self, commandBytes, data):
+        """ The function to write a command with data value associated to the endpoint. It will initialize the device 
+        if it is not alread initialized. On failure, it will warn and shutdown."""
         if self.port is None:
             self.initializeDevice()
         
@@ -93,6 +98,7 @@ class KinesisDevice(LinearMotionDevice):
             self.port.wait_move()
 
     def doMoveBy(self, displacement):
+        '''Move by a position in microsteps'''
         #encoder_displacement = self.encoder_steps*displacement
         self.port.move_by(distance=displacement[0])
         if self.port.is_moving() is False:
@@ -101,6 +107,7 @@ class KinesisDevice(LinearMotionDevice):
             self.port.wait_move()
 
     def doHome(self):
+        '''Go to the initial position'''
         self.port.home()
         if self.port.is_homing() is False:
             raise Exception("unable to move the device to home.")
@@ -116,7 +123,8 @@ class DelaysController(Bindable):
         self.b_value = 285
 
     def linear_relation_delays_and_wavelength(self, wavelength_value):
-        delay_position = (self.a_value)*wavelength_value + self.b_value    #for the moment
+        '''By the value setting at the interface, the linear relation delays and wavelength fonction return the delay position at a certain wavelenght'''
+        delay_position = (self.a_value)*wavelength_value + self.b_value
         return delay_position
 
  #   def intensity_comparaison(self):
