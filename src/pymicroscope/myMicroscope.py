@@ -760,17 +760,17 @@ class MicroscopeApp(App):
         )
 
     def user_clicked_ajustement_placement(self, even, button):
-        delay_position = self.delay_controller.linear_relation_delays_and_wavelength(self.wavelenght_entry) #modifier l'équation de la relation en fct de la nouvelle implémentation
+        delay_position = self.delay_controller.linear_relation_delays_and_wavelength(self.wavelenght_entry.value) #modifier l'équation de la relation en fct de la nouvelle implémentation
         ActionMove(position=(delay_position,), linear_motion_device=self.delay_device).perform()
 
     def user_clicked_homing(self, even, button):
         ActionHome(linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_left_direction(self, even, button):
-        ActionMoveBy(d_position=(1,), linear_motion_device=self.delay_device).do_perform()
+        ActionMoveBy(d_position=(5,), linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_right_direction(self, even, button):
-        ActionMoveBy(d_position=(-1,), linear_motion_device=self.delay_device).do_perform()
+        ActionMoveBy(d_position=(-5,), linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label

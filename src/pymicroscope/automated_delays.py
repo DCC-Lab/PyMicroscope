@@ -22,7 +22,9 @@ class KinesisDevice(LinearMotionDevice):
         self.port = None
         self.channel =channel
         #self.encoder_steps = 34304
-        self.nativeStepsPerMicrons = 34304
+        #self.nativeStepsPerMicrons = 34304
+        self.nativeStepsPerMicrons = 128
+
 
         # All values are in native units (i.e. microsteps)
         self.xMinLimit = 0
@@ -108,11 +110,11 @@ class KinesisDevice(LinearMotionDevice):
 
     def doHome(self):
         '''Go to the initial position'''
-        self.port.home()
-        if self.port.is_homing() is False:
+        self.port.move_to(position=0)
+        if self.port.is_moving() is False:
             raise Exception("unable to move the device to home.")
         else:
-            self.port.wait_for_home()
+            self.port.wait_for_stop()
 
 #for eventully automated
 class DelaysController(Bindable):
