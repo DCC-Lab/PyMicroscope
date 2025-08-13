@@ -596,7 +596,7 @@ class MicroscopeApp(App):
     def build_delay_interface(self):
 
         self.delay_controls = Box(
-            label="Delay", width=300, height=250
+            label="Delay", width=370, height=250
         )
 
         self.delay_controls.grid_into(
@@ -626,19 +626,26 @@ class MicroscopeApp(App):
             self.delay_controls, row=3, column=0, columnspan=2, pady=4, padx=4, sticky="w"
         )
         self.a_equation_entry = IntEntry(
-            value=0, width=3
+            value=self.delay_controller.a_value, width=5
         )
         self.a_equation_entry.grid_into(
-            self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="w"
-        )
-        Label("x  +").grid_into(
             self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="e"
         )
+        self.delay_controller.bind_properties(
+            "a_value", self.a_equation_entry, "value_variable"
+        )
+
+        Label("x  +").grid_into(
+            self.delay_controls, row=3, column=2, pady=4, padx=4, sticky="w"
+        )
         self.b_equation_entry = IntEntry(
-            value=0, width=3
+            value=self.delay_controller.b_value, width=3
         )
         self.b_equation_entry.grid_into(
-            self.delay_controls, row=3, column=2, pady=4, padx=4, sticky="w"
+            self.delay_controls, row=3, column=3, pady=4, padx=4, sticky="w"
+        )
+        self.delay_controller.bind_properties(
+            "b_value", self.b_equation_entry, "value_variable"
         )
         
         self.start_ajustement_placement = Button(

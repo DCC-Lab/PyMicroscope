@@ -108,13 +108,15 @@ class KinesisDevice(LinearMotionDevice):
             self.port.wait_for_home()
 
 #for eventully automated
-class DelaysController():
+class DelaysController(Bindable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.port = None
+        self.a_value = -0.302
+        self.b_value = 285
 
     def linear_relation_delays_and_wavelength(self, wavelength_value):
-        delay_position = 285 + (-0.302)*wavelength_value     #for the moment
+        delay_position = (self.a_value)*wavelength_value + self.b_value    #for the moment
         return delay_position
 
  #   def intensity_comparaison(self):
