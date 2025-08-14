@@ -21,11 +21,11 @@ from pymicroscope.utils.configurable import (
 from PIL import Image as PILImage
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.position_and_mapcontroller import MapController
+from pymicroscope.base.position_and_mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
-from pymicroscope.save_history import SaveHistory
+from pymicroscope.base.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
 
 from hardwarelibrary.motion import SutterDevice
