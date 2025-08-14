@@ -60,7 +60,7 @@ class ActionTestCase(
         self.assertAlmostEqual(time.time() - start_time, 1, 1)
 
     def test060_bell(self):
-        ActionBell().perform()        
+        ActionSound().perform()        
 
     def test070_capture(self):
         n_images = 10
@@ -160,7 +160,7 @@ class ExperimentTestCase(
     def test050_exp_add_many_actions(self):
         exp = Experiment()
         exp.add_many_single_action_steps(
-            [ActionWait(0.02), ActionBell(), ActionWait(0.02)]
+            [ActionWait(0.02), ActionSound(), ActionWait(0.02)]
         )
         print(exp.perform())
 
@@ -168,16 +168,16 @@ class ExperimentTestCase(
         exp = Experiment()
         exp.add_step(
             ExperimentStep(
-                prepare=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
-                perform=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
-                finalize=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
+                prepare=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
+                perform=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
+                finalize=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
             )
         )
         exp.add_step(
             ExperimentStep(
-                prepare=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
-                perform=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
-                finalize=[ActionWait(0.02), ActionBell(), ActionWait(0.02)],
+                prepare=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
+                perform=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
+                finalize=[ActionWait(0.02), ActionSound(), ActionWait(0.02)],
             )
         )
 
