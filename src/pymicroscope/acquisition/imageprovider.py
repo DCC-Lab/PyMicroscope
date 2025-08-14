@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from mytk import Dialog
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
 from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
-from pymicroscope.vmsconfigdialog import VMSConfigDialog
+from pymicroscope.acquisition.vmsconfigdialog import VMSConfigDialog
 
 class Controllable:
     def __init__(self, *args, **kwargs):
