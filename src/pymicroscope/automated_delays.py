@@ -82,8 +82,9 @@ class KinesisDevice(LinearMotionDevice):
         self.port.send_comm_data(messageID=commandBytes, data=data)
 
     def readReply(self, size, format) -> tuple:
+        '''No reply fonction needing the size and format. Can be self.port.recv_comm(expected_id) with a expected_id, but this fonction is not necessare in our case.'''
         pass
-
+    
     def positionInMicrosteps(self) -> int:  # for compatibility
         return self.doGetPosition() #/self.encoder_steps
 

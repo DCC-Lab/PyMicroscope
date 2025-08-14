@@ -782,9 +782,9 @@ class MicroscopeApp(App):
             self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
-        value_to_clear = self.map_controller.parameters
-
-        ActionClear(value_to_clear)
+        for corner in self.map_controller.parameters:
+            self.map_controller.parameters[corner] = None
+            
         self.can_start_map = None
 
     def user_clicked_map_aquisition_image(self, event, button):

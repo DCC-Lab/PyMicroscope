@@ -309,10 +309,3 @@ class ActionSave(Action):
 
         self.output = filepath
 
-
-class ActionClear(Action):
-    def __init__(self, filepath: Path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.filepath = filepath
-        for file in self.filepath:
-            self.filepath[file] = None
