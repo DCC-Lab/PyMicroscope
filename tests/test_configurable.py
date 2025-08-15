@@ -141,6 +141,53 @@ class ConfigurableTestCase(envtest.CoreTestCase):
         self.assertEqual(prop.sanitize(2000), 2000)
         self.assertEqual(prop.sanitize(100.5), 100.5)
 
+    def test028_configurable_property_wrong_type(self) -> None:
+
+        with self.assertRaises(ValueError):
+            prop = ConfigurableNumericProperty(
+                name="Exposure Time",
+                default_value=100.1,
+                min_value=0,
+                max_value=1000,
+                value_type=int
+            )
+
+        with self.assertRaises(ValueError):
+            prop = ConfigurableNumericProperty(
+                name="Exposure Time",
+                default_value=100.0,
+                min_value=0,
+                max_value=1000,
+                value_type=int
+            )
+
+    def test028_configurable_property_wrong_str_type(self) -> None:
+        with self.assertRaises(ValueError):
+            prop = ConfigurableStringProperty(
+                name="String",
+                default_value=100.0,
+            )
+
+    def test029_configurable_property_is_invalid(self) -> None:
+        prop = ConfigurableStringProperty(name="String")
+        self.assertFalse(prop.is_valid(10))
+
+    def test031_configurable_property_is_in_valid_set_but_set_is_empty(self) -> None:
+        prop = ConfigurableStringProperty(name="String")
+        self.assertTrue(prop.is_in_valid_set(10))
+
+    def test031_configurable_property_has_invalid_values(self) -> None:
+        with self.assertRaises(ValueError):
+            prop = ConfigurableStringProperty(name="String", valid_set=['a', 1])
+
+    def test031_configurable_property_sanitize_none_to_default(self) -> None:
+        prop = ConfigurableStringProperty(name="String", default_value="Something")
+        self.assertEqual(prop.sanitize(None), "Something")
+
+    def test031_configurable_property_sanitize_unabnle_to_cast_defaults_to_default_value(self) -> None:
+        prop = ConfigurableNumericProperty(name="Numeric value", default_value=100)
+        self.assertEqual(prop.sanitize("adsklahjs"), 100)
+            
     def test050_configurable_str_property(self) -> None:
 
         prop = ConfigurableStringProperty(
@@ -153,6 +200,8 @@ class ConfigurableTestCase(envtest.CoreTestCase):
         self.assertTrue(prop.is_valid("Adef"))
         self.assertTrue(prop.is_valid("Bdef"))
         self.assertTrue(prop.is_valid("Cdef"))
+        self.assertFalse(prop.is_valid("Test"))
+        self.assertFalse(prop.is_valid(100))
         self.assertEqual(prop.sanitize("Cdef"), 'Cdef')
 
     def test051_configurable_str_property_is_valid_set_as_list(self) -> None:
@@ -167,6 +216,11 @@ class ConfigurableTestCase(envtest.CoreTestCase):
         self.assertTrue(prop.is_in_valid_set("Mireille"))
         self.assertFalse(prop.is_in_valid_set("Bob the builder"))
 
+    
+    def test060_quick_propertyy_lists(self):
+        props = ConfigurableNumericProperty.int_property_list(['a','b'])
+        self.assertIsNotNone(props)
+        self.assertEqual(len(props), 2)
         
     def test030_configurable_object(self) -> None:
 

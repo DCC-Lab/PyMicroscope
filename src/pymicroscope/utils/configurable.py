@@ -34,10 +34,7 @@ class ConfigurableProperty:
         
     def is_valid_type(self, value: Any) -> bool:
         expected_type = self.value_type
-        
-        if expected_type is None and self.default_value is not None:
-            expected_type = type(self.default_value)
-            
+                    
         if expected_type is None or expected_type is Any:
             return True
         
@@ -53,8 +50,11 @@ class ConfigurableProperty:
     def sanitize(self, value) -> Any:
         if value is None:
             value = self.default_value
-            
+                
         if self.value_type not in (None, Any):
+            if isinstance(value, self.value_type):
+                return value
+
             if not self.is_valid_type(value):
                 try:
                     value = self.value_type(value)
@@ -69,8 +69,8 @@ class ConfigurableStringProperty(ConfigurableProperty):
     valid_regex:Optional[Any] = None
 
     def __post_init__(self):
-        super().__post_init__()
         self.value_type = str
+        super().__post_init__()
     
     def is_valid(self, value: str) -> bool:
         if not super().is_valid(value):
@@ -78,7 +78,7 @@ class ConfigurableStringProperty(ConfigurableProperty):
         
         if re.search(self.valid_regex or ".*", value) is None:
             return False
-        
+                
         return True
 
 @dataclass
@@ -107,7 +107,7 @@ class ConfigurableNumericProperty(ConfigurableProperty):
                     value = self.min_value
                 elif value > self.max_value:
                     value = self.max_value
-        
+            
         return value
 
     @staticmethod
