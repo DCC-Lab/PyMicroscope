@@ -105,10 +105,13 @@ class TestReadWrite(unittest.TestCase):
             },
         }
 
-        self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
-        self.port.reset_input_buffer()
-        self.port.reset_output_buffer()
-
+        try:
+            self.port = serial.Serial(CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3)
+            self.port.reset_input_buffer()
+            self.port.reset_output_buffer()
+        except:
+            self.fail(f"Port {CONTROLLER_SERIAL_PATH} not available")
+            
     def tearDown(self):
         if self.port is not None:
             self.port.close()

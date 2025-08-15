@@ -23,7 +23,7 @@ import unittest  # to remove
 import os
 import sys
 
-os.environ["COVERAGE_PROCESS_START"] = ".coveragerc"
+# os.environ["COVERAGE_PROCESS_START"] = ".coveragerc"
 
 path = os.path.join(os.path.dirname(__file__), "../src")
 sys.path.append(path)
@@ -209,9 +209,15 @@ class TestHTTPServer(ThreadingHTTPServer):
         self.start_server_thread()
         return self
 
+    # def __exit__(self, exc_type, exc_value, traceback):
+    #     """Stops the server thread cleanly."""
+    #     super().__exit__(exc_type, exc_value, traceback)
     def __exit__(self, exc_type, exc_value, traceback):
-        """Stops the server thread cleanly."""
-        super().__exit__(exc_type, exc_value, traceback)
+        try:
+            self.stop_server_thread()   # calls shutdown() and join()
+        finally:
+            self.server_close()
+        return False  # don't suppress exceptions
 
     def start_server_thread(self):
         """Start serving requests in a new thread."""
