@@ -74,13 +74,7 @@ class TestDelais(unittest.TestCase):
 
     @unittest.SkipTest
     def test004_commande(self):
-        self.init_thorlabs._write(LEDMode.MOVING)
-
-    def test005_thorpy_methode(self):
-        
-        
-    
-    
+        self.init_thorlabs._write(LEDMode.MOVING)    
 
 
 if __name__ == "__main__":
