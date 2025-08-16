@@ -20,11 +20,11 @@ class ConfigurableProperty:
             self.value_type = type(self.default_value)  
             
         if self.default_value is not None and not self.is_valid(self.default_value):
-            raise ValueError(f"Default value {self.default_value} is not valid")
+            raise ValueError(f"Default value {self.default_value} is not valid for this type of property {type(self)}")
 
         for value in self.valid_set or []:        
             if value is not None and not self.is_valid(value):
-                raise ValueError(f"Value in set {value} is not valid")
+                raise ValueError(f"Value {value} is not valid for this type of property {type(self)}")
         
     def is_in_valid_set(self, value: Any) -> bool:
         if self.valid_set is None:
@@ -89,7 +89,11 @@ class ConfigurableNumericProperty(ConfigurableProperty):
     format_string : Optional[str] = None
                   
     def is_in_valid_range(self, value: Any) -> bool:
-        return self.min_value <= value <= self.max_value
+        try:
+            return self.min_value <= value <= self.max_value
+        except TypeError:
+            return False
+        
 
     def is_valid(self, value: Any) -> bool:
         if not super().is_valid(value):
@@ -123,7 +127,7 @@ class Configurable:
         self.properties = { pd.name:pd  for pd in properties or []} 
         self.values = { pd.name:pd.default_value  for pd in properties or []} 
         
-    def validate(self, values):
+    def is_valid(self, values):
         is_valid = {}
         for key, value in values.items():
             property = self.properties[key]

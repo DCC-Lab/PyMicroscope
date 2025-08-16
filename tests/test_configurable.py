@@ -216,13 +216,34 @@ class ConfigurableTestCase(envtest.CoreTestCase):
         self.assertTrue(prop.is_in_valid_set("Mireille"))
         self.assertFalse(prop.is_in_valid_set("Bob the builder"))
 
+    def test052_configurable_property_fct_validate(self) -> None:
+
+        def is_positive(value):
+            return value > 0
+        
+        prop = ConfigurableNumericProperty(
+            name="Name",
+            validate_fct = is_positive
+        )
+
+        self.assertTrue(prop.is_valid(1))
+        self.assertFalse(prop.is_valid(-1))
+
+
+    def test053_configurable_property_invalid_set(self) -> None:
+        with self.assertRaises(ValueError) as err:
+            prop = ConfigurableNumericProperty(
+                name="Name",
+                valid_set=['String']
+            )
+
     
     def test060_quick_propertyy_lists(self):
         props = ConfigurableNumericProperty.int_property_list(['a','b'])
         self.assertIsNotNone(props)
         self.assertEqual(len(props), 2)
         
-    def test030_configurable_object(self) -> None:
+    def test030_configurable_object_init(self) -> None:
 
         prop1 = ConfigurableNumericProperty(
             name="exposure_time",
@@ -237,9 +258,128 @@ class ConfigurableTestCase(envtest.CoreTestCase):
             min_value=0,
             max_value=1000,            
         )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
         
-        obj = TestObject([prop1, prop2])
+        obj = TestObject(properties=[prop1, prop2, prop3])
         self.assertIsNotNone(obj)
+
+    def test030_configurable_object_valid_props(self):
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
+        
+        obj = TestObject(properties=[prop1, prop2, prop3])
+
+        self.assertTrue(obj.is_valid({"gain":1,"exposure_time":1}))
+
+    def test030_configurable_object_invalid_props(self):
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
+        
+        obj = TestObject(properties=[prop1, prop2, prop3])
+
+        is_valid = obj.is_valid({"gain":-1,"exposure_time":1})
+        self.assertFalse(is_valid['gain'])
+        self.assertTrue(is_valid['exposure_time'])
+    
+    def test030_configurable_object_invalid_key(self):
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            default_value=100,
+            min_value=0,
+            max_value=1000,            
+        )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
+        
+        obj = TestObject(properties=[prop1, prop2, prop3])
+
+        with self.assertRaises(KeyError):
+            self.assertTrue(obj.is_valid({"gain":1,"exposure_time":1,"bla":0}))
+        
+
+    def test030_configurable_object_sanitize(self):
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            default_value=100,
+            min_value=10,
+            max_value=1000,            
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            default_value=100,
+            min_value=1,
+            max_value=1000,            
+        )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
+        
+        obj = TestObject(properties=[prop1, prop2, prop3])
+
+        sanitized = obj.sanitize({"gain":0,"exposure_time":1})
+        self.assertEqual(sanitized['gain'],1)
+
+        sanitized = obj.sanitize({"gain":0,"exposure_time":10_000})
+        self.assertEqual(sanitized['gain'],1) # too low
+        self.assertEqual(sanitized['exposure_time'],1_000) # too high
+
+        sanitized = obj.sanitize({"gain":0,"exposure_time":None})
+        self.assertEqual(sanitized['exposure_time'], 100) # None -> default_value
+
+        sanitized = obj.sanitize({"gain":0,"exposure_time":"10"})
+        self.assertEqual(sanitized['exposure_time'], 10) # Wrong type -> casting
+
+        sanitized = obj.sanitize({"gain":0,"exposure_time":"Wrong"})
+        self.assertEqual(sanitized['exposure_time'], 100) # Wrong type -> default_value
         
     # def test040_configurable_object_dialog(self) -> None:
 
