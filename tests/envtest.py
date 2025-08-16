@@ -23,7 +23,7 @@ import unittest  # to remove
 import os
 import sys
 
-# os.environ["COVERAGE_PROCESS_START"] = ".coveragerc"
+os.environ["COVERAGE_PROCESS_START"] = ".coveragerc"
 
 path = os.path.join(os.path.dirname(__file__), "../src")
 sys.path.append(path)
@@ -419,6 +419,17 @@ class CoreTestCase(TestCase):
             queue.join_thread()
         except AttributeError:
             pass
+
+def tearDownModule():
+    # 1) Ensure all non-main threads are gone
+    others = [t for t in threading.enumerate() if t is not threading.main_thread()]
+    if others:
+        print("\n[DIAG] Non-main threads still alive at teardown:", file=sys.stderr)
+        for t in others:
+            print(f"  - {t!r} (daemon={t.daemon})", file=sys.stderr)
+    # 2) Forcefully flush stdio (helps surface late exceptions)
+    sys.stderr.flush()
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

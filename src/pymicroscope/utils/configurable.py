@@ -2,6 +2,7 @@ from typing import Optional, Any, Callable
 from dataclasses import dataclass
 import numbers
 import re
+from mytk import Dialog, Label, Entry
 
 def is_numeric(value) -> bool:
     return isinstance(value, numbers.Real)
@@ -122,10 +123,26 @@ class ConfigurableNumericProperty(ConfigurableProperty):
         
         return properties
    
-class Configurable:
+class ConfigModel:
     def __init__(self, properties:list[ConfigurableProperty] = None):
         self.properties = { pd.name:pd  for pd in properties or []} 
-        self.values = { pd.name:pd.default_value  for pd in properties or []} 
+        self._values = { pd.name:pd.default_value  for pd in properties or []} 
+    
+    @property
+    def values(self):
+        return self._values
+    
+    @values.setter
+    def values(self, new_values):
+        if all(self.is_valid(new_values).values()):
+            self._values = new_values
+        else:
+            raise ValueError("Some values are invalid")
+    def update_values(self, new_values):
+        if all(self.is_valid(new_values).values()):
+            self._values.update(new_values)
+        else:
+            raise ValueError("Some values are invalid")
         
     def is_valid(self, values):
         is_valid = {}
@@ -142,41 +159,38 @@ class Configurable:
 
         return sanitized_values
 
-        
+class ConfigurationDialog(Dialog, ConfigModel):
+    def __init__(self, populate_body_fct=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.populate_body_fct = populate_body_fct
+        self.configuration_widgets = {}
     
-    
-# class ConfigurationDialog(Dialog, Configurable):
-#     def __init__(self, populate_body_fct=None, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.populate_body_fct = populate_body_fct
-#         self.configuration_widgets = {}
-    
-#     def populate_widget_body(self):
-#         if self.populate_body_fct is None:
-#             for i, (key, value) in enumerate(self.values.items()):
-#                 if key in self.properties:
-#                     text_label = self.properties[key].displayed_name or key
-#                     # if self.properties[key].displayed_name is not None:
-#                     #     text_label = self.properties[key].displayed_name
+    def populate_widget_body(self):
+        if self.populate_body_fct is None:
+            for i, (key, value) in enumerate(self.values.items()):
+                if key in self.properties:
+                    text_label = self.properties[key].displayed_name or key
+                    if self.properties[key].displayed_name is not None:
+                        text_label = self.properties[key].displayed_name
                         
-#                     Label(text_label).grid_into(self, row=i, column=0, padx=10, pady=5, sticky="e")
-#                     entry = Entry(character_width=6)
-#                     entry.value_variable.set(value)
-#                     entry.grid_into(self, row=i, column=1, padx=10, pady=5, sticky="w")
-#                     self.configuration_widgets[key] = entry
-#         else:
-#             self.populate_body_fct()
+                    Label(text_label).grid_into(self, row=i, column=0, padx=10, pady=5, sticky="e")
+                    entry = Entry(character_width=6)
+                    entry.value_variable.set(value)
+                    entry.grid_into(self, row=i, column=1, padx=10, pady=5, sticky="w")
+                    self.configuration_widgets[key] = entry
+        else:
+            self.populate_body_fct()
     
-#     def widget_values(self) -> dict:
-#         values = {}
-#         for key, entry_widget in self.configuration_widgets.items():
-#             values[key] = entry_widget.value_variable.get()
+    def widget_values(self) -> dict:
+        values = {}
+        for key, entry_widget in self.configuration_widgets.items():
+            values[key] = entry_widget.value_variable.get()
             
-#         return self.sanitize(values)
+        return self.sanitize(values)
         
-#     def run(self):
-#         reply = super().run()
+    def run(self):
+        reply = super().run()
         
-#         self.values.update(self.widget_values())
+        self.values.update(self.widget_values())
             
-#         return reply
+        return reply

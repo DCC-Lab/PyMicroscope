@@ -1,12 +1,12 @@
 import envtest
 from typing import Optional, Tuple, Any
 
-from pymicroscope.utils.configurable import Configurable, ConfigurableStringProperty, ConfigurableNumericProperty
-# from mytk import Dialog, Label, Entry
+from pymicroscope.utils.configurable import ConfigModel, ConfigurableStringProperty, ConfigurableNumericProperty, ConfigurationDialog
+from mytk import Dialog, Label, Entry
 import threading, atexit, sys
 
 
-class TestObject(Configurable):
+class TestObject(ConfigModel):
     pass
 
 class ConfigurableTestCase(envtest.CoreTestCase):
@@ -380,45 +380,88 @@ class ConfigurableTestCase(envtest.CoreTestCase):
 
         sanitized = obj.sanitize({"gain":0,"exposure_time":"Wrong"})
         self.assertEqual(sanitized['exposure_time'], 100) # Wrong type -> default_value
-        
-    # def test040_configurable_object_dialog(self) -> None:
 
-    #     prop1 = ConfigurableNumericProperty(
-    #         name="exposure_time",
-    #         displayed_name="Exposure time",
-    #         default_value=100,
-    #         min_value=0,
-    #         max_value=1000,
-    #         value_type=int          
-    #     )
+    def test099_configurable_object_get_set(self):
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            default_value=100,
+            min_value=10,
+            max_value=1000,            
+        )
 
-    #     prop2 = ConfigurableNumericProperty(
-    #         name="gain",
-    #         displayed_name="Gain",
-    #         default_value=3,
-    #         min_value=0,
-    #         max_value=1000,
-    #         value_type=int
-    #     )
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            default_value=100,
+            min_value=1,
+            max_value=1000,            
+        )
+
+        prop3 = ConfigurableStringProperty(
+            name="name",
+            default_value="Test",
+        )
         
-    #     diag = ConfigurationDialog(title="Configuration", properties=[prop1, prop2],
-    #                                buttons_labels=["Ok"], auto_click=("Ok", 200))
-    #     reply = diag.run()
-    #     print(diag.values)
+        obj = TestObject(properties=[prop1, prop2, prop3])
+
+        self.assertIsNotNone(obj.values)
+        obj.values = {"gain":1}
+
+        with self.assertRaises(ValueError):
+            obj.values = {"gain":-1}
         
+    def test100_configurable_object_dialog(self) -> None:
+
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            displayed_name="Exposure time",
+            default_value=100,
+            min_value=0,
+            max_value=1000,
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            displayed_name="Gain",
+            default_value=3,
+            min_value=0,
+            max_value=1000,
+        )
+
+        diag = ConfigurationDialog(title="Configuration", properties=[prop1, prop2],
+                                   buttons_labels=["Ok"], auto_click=("Ok", 200))
+        reply = diag.run()
+
+        self.assertEqual(diag.values, {"gain":3, 'exposure_time':100})
+
+    def test110_configurable_object_dialog_with_values(self) -> None:
+
+        prop1 = ConfigurableNumericProperty(
+            name="exposure_time",
+            displayed_name="Exposure time",
+            default_value=100,
+            min_value=0,
+            max_value=1000,
+        )
+
+        prop2 = ConfigurableNumericProperty(
+            name="gain",
+            displayed_name="Gain",
+            default_value=3,
+            min_value=0,
+            max_value=1000,
+        )
+
+        diag = ConfigurationDialog(title="Configuration", properties=[prop1, prop2],
+                                   buttons_labels=["Ok"], auto_click=("Ok", 200))
+        
+        diag.values = {"gain":10, 'exposure_time':30}
+        reply = diag.run()
+
+        self.assertEqual(diag.values, {"gain":10, 'exposure_time':30})
+
     # # def test050_ConfiguModel(self) -> None:
     # #     ConfigModel()
 
-def tearDownModule():
-    # 1) Ensure all non-main threads are gone
-    others = [t for t in threading.enumerate() if t is not threading.main_thread()]
-    if others:
-        print("\n[DIAG] Non-main threads still alive at teardown:", file=sys.stderr)
-        for t in others:
-            print(f"  - {t!r} (daemon={t.daemon})", file=sys.stderr)
-    # 2) Forcefully flush stdio (helps surface late exceptions)
-    sys.stderr.flush()
-    sys.stdout.flush()
     
 if __name__ == "__main__":
     envtest.main()
