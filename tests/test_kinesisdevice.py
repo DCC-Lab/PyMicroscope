@@ -1,15 +1,19 @@
 import unittest
 from mytk import *
-from pylablib.devices import Thorlabs
 from pylablib.devices.Thorlabs import kinesis
-import numpy as np
-import serial
-from serial.tools import list_ports
+import platform
 
 SERIAL_NUMBER = "83849018"
-class TestDelais(unittest.TestCase):
+class TestKinesisDevice(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if platform.system() == "Windows":
+            cls.port = kinesis.KinesisMotor(conn=SERIAL_NUMBER)
+        else:
+            raise RuntimeError("This test is only for Windows platform with a Thorlabs device connected.")
+
+        super().setUpClass()
     def setUp(self):
-        #self.port = kinesis.KinesisDevice(conn=SERIAL_NUMBER)
         self.port = kinesis.KinesisMotor(conn=SERIAL_NUMBER)
         
     def tearDown(self):

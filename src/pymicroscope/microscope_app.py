@@ -18,14 +18,15 @@ from pymicroscope.utils.configurable import (
 from PIL import Image as PILImage
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.base.position_and_mapcontroller import MapController
+from pymicroscope.base.mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
 from pymicroscope.base.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
-from pymicroscope.plugins.delays import DelaysController
+from pymicroscope.plugins.delay_line import DelaysController
 
+from hardwarelibrary.physicaldevice import PhysicalDevice
 from hardwarelibrary.motion import SutterDevice
 from pymicroscope.hardware.kinesisdevice import KinesisDevice
 
@@ -58,14 +59,17 @@ class MicroscopeApp(App):
         self.is_camera_running = False
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
-        self.delay_device = KinesisDevice(serialNumber="83849018")
-        self.does_delay_device = self.delay_device.port
-        if self.does_delay_device:
-            self.delay_position = self.delay_device.doGetPosition()
-        else:
-            self.delay_position = None
-        self.delay_controller = DelaysController()
+        self.delay_device:LinearMotionDevice = KinesisDevice(serialNumber="83849018")
 
+        try:
+            self.delay_device.initializeDevice()
+            self.delay_position = self.delay_device.position()
+            self.delay_device_is_ready = True
+        except PhysicalDevice.UnableToInitialize as e:
+            self.delay_position = None
+            self.delay_device_is_ready = False
+            
+        self.delay_controller = DelaysController()
 
         self.map_controller = MapController(self.sample_position_device)
 
@@ -708,7 +712,7 @@ class MicroscopeApp(App):
         )
 
         self.bind_properties(
-            "does_delay_device", self.start_ajustement_placement, "is_enabled"
+            "has_delay_device", self.start_ajustement_placement, "is_enabled"
         )
         
         self.start_move_left = Button(
@@ -724,7 +728,7 @@ class MicroscopeApp(App):
             sticky="ns",
         )
         self.bind_properties(
-            "does_delay_device", self.start_move_left, "is_enabled"
+            "has_delay_device", self.start_move_left, "is_enabled"
         )
 
         self.start_move_right = Button(
@@ -741,7 +745,7 @@ class MicroscopeApp(App):
         )
 
         self.bind_properties(
-            "does_delay_device", self.start_move_right, "is_enabled"
+            "has_delay_device", self.start_move_right, "is_enabled"
         )
 
         self.start_homing = Button(
@@ -757,7 +761,7 @@ class MicroscopeApp(App):
             sticky="nsw",
         )
         self.bind_properties(
-            "does_delay_device", self.start_homing, "is_enabled"
+            "has_delay_device", self.start_homing, "is_enabled"
         )
 
     def user_clicked_ajustement_placement(self, even, button):
@@ -941,8 +945,8 @@ class MicroscopeApp(App):
         self.after(20, self.microscope_run_loop)
 
     def delay_return_home(self):
-        if self.delay_device.doGetPosition() != 0:
-            ActionHome(linear_motion_device=self.delay_device).do_perform()
+        if self.delay_device.position() != 0:
+            ActionHome(linear_motion_device=self.delay_device).perform()
         else:
             pass
 
