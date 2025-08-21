@@ -24,9 +24,10 @@ from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
 from pymicroscope.base.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
+from pymicroscope.plugins.delays import DelaysController
 
 from hardwarelibrary.motion import SutterDevice
-from pymicroscope.automated_delays import KinesisDevice, DelaysController
+from pymicroscope.hardware.kinesisdevice import KinesisDevice
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):

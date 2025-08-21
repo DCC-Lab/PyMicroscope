@@ -6,7 +6,6 @@ from hardwarelibrary.communication.serialport import SerialPort
 from hardwarelibrary.communication.commands import DataCommand
 from hardwarelibrary.communication.debugport import DebugPort
 
-import re
 import time
 from struct import *
 
@@ -116,17 +115,3 @@ class KinesisDevice(LinearMotionDevice):
             raise Exception("unable to move the device to home.")
         else:
             self.port.wait_for_stop()
-
-#for eventully automated
-class DelaysController(Bindable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.port = None
-        self.a_value = -0.302
-        self.b_value = 285
-
-    def linear_relation_delays_and_wavelength(self, wavelength_value):
-        '''By the value setting at the interface, the linear relation delays and wavelength fonction return the delay position at a certain wavelenght'''
-        delay_position = (self.a_value)*wavelength_value + self.b_value
-        return delay_position
-
