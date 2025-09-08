@@ -205,7 +205,7 @@ class MicroscopeApp(App):
         assert is_main_thread()
 
         self.save_controls = Box(
-            label="Image Acquisition", width=510, height=140
+            label="Image Acquisition", width=520, height=140
         )
 
         self.save_controls.grid_into(
@@ -382,7 +382,7 @@ class MicroscopeApp(App):
     def build_position_interface(self):
         # assert is_main_thread()
 
-        self.sample = Box(label="Sample Mapping Parameters", width=510, height=210)
+        self.sample = Box(label="Sample Mapping Parameters", width=520, height=210)
         self.sample.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
