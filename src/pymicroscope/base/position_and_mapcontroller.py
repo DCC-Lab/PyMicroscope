@@ -8,9 +8,9 @@ class MapController(Bindable):
         super().__init__(*args, **kwargs)
         self.device = device
 
-        self.z_image_number = 1
-        self.microstep_pixel = 0.16565
-        self.z_range = 1
+        # z_image_number = 1
+        # microstep_pixel = 0.16565
+        # z_range = 1
 
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
@@ -19,7 +19,7 @@ class MapController(Bindable):
             "Lower right corner": None,
         }
 
-    def create_positions_for_map(self):
+    def create_positions_for_map(self, z_image_number: int = 1, microstep_pixel: float = 0.16565, z_range: int = 1) -> list[Tuple[int, int, int]]:
         ## Faire le calcul pour vrai avec corner1m cprner2 corner3 corbner4...
         # Utiliser self.parameters and self.z_imageNUmber, self.micvrostep......
         positions_list = []
@@ -30,11 +30,11 @@ class MapController(Bindable):
         corner4 = self.parameters["Lower right corner"]
         #print(corner1, corner2, corner3, corner4)
 
-        x_image_dimension = 1000*self.microstep_pixel
-        y_image_dimension = 500*self.microstep_pixel
-        z_image_dimension = self.z_range*self.microstep_pixel
+        x_image_dimension = 1000*microstep_pixel
+        y_image_dimension = 500*microstep_pixel
+        z_image_dimension = z_range*microstep_pixel
 
-        if all(x != (0.0, 0.0, 0.0) for x in self.parameters.values()): 
+        if all(x != (0.0, 0.0, 0.0) for x in self.parameters.values()): # TODO check if all corners are set even though it could be at the origin
             number_of_x_image = math.ceil((corner2[0] - corner1[0]) / (0.9*x_image_dimension))
             number_of_y_image = math.ceil((corner2[1] - corner4[1])/ (0.9*y_image_dimension))
         else:
@@ -42,7 +42,7 @@ class MapController(Bindable):
              number_of_y_image = 1
 
 
-        for z in range(self.z_image_number):
+        for z in range(z_image_number):
                 z_position = z*z_image_dimension
                 for y in range(number_of_y_image):
                     y_position = y*y_image_dimension*0.9
@@ -51,10 +51,9 @@ class MapController(Bindable):
                         positions_list.append((x_position, y_position, z_position))
 
         
-        return positions_list
+        # return positions_list
         
-        #return [(10, 0, 0), (100, 0, 0), (0, 100, 0), (100, 100, 0)]
-                #, (0,200,0), (100,0,0), (100, 100, 0 ), (100, 200, 0)]
+        return [(10, 0, 0), (100, 0, 0), (0, 100, 0), (100, 100, 0)]
 
     # def ajuste_map_imaging(self):
     #     if all(x is not None for x in self.parameters.values()):
