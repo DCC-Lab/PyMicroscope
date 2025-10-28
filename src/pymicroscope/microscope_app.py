@@ -403,7 +403,7 @@ class MicroscopeApp(App):
             self.sample,
             row=1,
             column=0,
-            columnspan=2,
+            columnspan=1,
             pady=2,
             padx=2,
             sticky="nse",
@@ -413,7 +413,7 @@ class MicroscopeApp(App):
             value=0.16565, increment=0.00001, minimum=0.00001  # TODO increment doesn't work like I want it to and the entry is quite large on the interface
         )
         self.microstep_pixel_entry.grid_into(
-            self.sample, row=1, column=2, columnspan=2, pady=2, padx=2, sticky="ns"
+            self.sample, row=1, column=1, columnspan=1, pady=2, padx=2, sticky="ns"
         )
         self.bind_properties(
             "is_mapping", self.microstep_pixel_entry, "is_disabled"
@@ -425,7 +425,7 @@ class MicroscopeApp(App):
         Label("um/px").grid_into(
             self.sample,
             row=1,
-            column=4,
+            column=2,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -435,7 +435,7 @@ class MicroscopeApp(App):
             self.sample,
             row=2,
             column=0,
-            columnspan=2,
+            columnspan=1,
             pady=2,
             padx=2,
             sticky="nse",
@@ -444,7 +444,7 @@ class MicroscopeApp(App):
             value=1, width=5
         )
         self.z_image_number_entry.grid_into(
-            self.sample, row=2, column=2, pady=2, padx=2, sticky="ns"
+            self.sample, row=2, column=1, pady=2, padx=2, sticky="nsw"
         )
         self.bind_properties(
             "is_mapping", self.z_image_number_entry, "is_disabled"
@@ -456,7 +456,7 @@ class MicroscopeApp(App):
         Label("z step :").grid_into(
             self.sample,
             row=2,
-            column=4,
+            column=2,
             pady=2,
             padx=2,
             sticky="nse",
@@ -466,7 +466,7 @@ class MicroscopeApp(App):
             value=1, width=5
         )
         self.z_range_entry.grid_into(
-            self.sample, row=2, column=5, pady=2, padx=2, sticky="ns"
+            self.sample, row=2, column=3, pady=2, padx=2, sticky="ns"
         )
         self.bind_properties(
             "is_mapping", self.z_range_entry, "is_disabled"
@@ -478,7 +478,7 @@ class MicroscopeApp(App):
         Label("um").grid_into(
             self.sample,
             row=2,
-            column=6,
+            column=4,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -492,7 +492,7 @@ class MicroscopeApp(App):
             self.sample,
             row=3,
             column=0,
-            columnspan=2,
+            columnspan=1,
             pady=3,
             padx=2,
             sticky="w",
@@ -505,8 +505,8 @@ class MicroscopeApp(App):
         self.apply_upper_right_button.grid_into(
             self.sample,
             row=3,
-            column=2,
-            columnspan=2,
+            column=1,
+            columnspan=1,
             pady=3,
             padx=2,
             sticky="w",
@@ -519,8 +519,8 @@ class MicroscopeApp(App):
         self.apply_lower_right_button.grid_into(
             self.sample,
             row=4,
-            column=2,
-            columnspan=2,
+            column=1,
+            columnspan=1,
             pady=2,
             padx=2,
             sticky="w",
@@ -534,7 +534,7 @@ class MicroscopeApp(App):
             self.sample,
             row=4,
             column=0,
-            columnspan=2,
+            columnspan=1,
             pady=2,
             padx=2,
             sticky="w",
@@ -547,8 +547,8 @@ class MicroscopeApp(App):
         self.start_map_aquisition.grid_into(
             self.sample,
             row=3,
-            column=5,
-            columnspan=2,
+            column=2,
+            columnspan=3,
             pady=2,
             padx=2,
             sticky="nsew",
@@ -564,8 +564,8 @@ class MicroscopeApp(App):
         self.clear_map_aquisition.grid_into(
             self.sample,
             row=4,
-            column=5,
-            columnspan=2,
+            column=2,
+            columnspan=3,
             pady=2,
             padx=2,
             sticky="nsew",
