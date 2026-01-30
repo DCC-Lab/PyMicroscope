@@ -26,6 +26,10 @@ class EpiphanWrapperTestCase(envtest.CoreTestCase):
             EpiphanLibraryWrapper.lib.FrmGrab_Open("local".encode("utf-8"))
         )
 
+    def test030_FrameGrabber
+        self.assertIsNotNone(EpiphanFrameGrabber())
+
+        
 
 if __name__ == "__main__":
     envtest.main()
