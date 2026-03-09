@@ -50,10 +50,7 @@ class MapController(Bindable):
                         x_position = x*x_image_dimension*0.9
                         positions_list.append((x_position, y_position, z_position))
 
-        
-        # return positions_list
-        
-        return [(10, 0, 0), (100, 0, 0), (0, 100, 0), (100, 100, 0)]
+        return positions_list
 
     # def ajuste_map_imaging(self):
     #     if all(x is not None for x in self.parameters.values()):
