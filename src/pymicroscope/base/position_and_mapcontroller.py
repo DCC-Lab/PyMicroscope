@@ -8,10 +8,6 @@ class MapController(Bindable):
         super().__init__(*args, **kwargs)
         self.device = device
 
-        # z_image_number = 1
-        # microstep_pixel = 0.16565
-        # z_range = 1
-
         self.parameters: dict[str, Optional[Tuple[int, int, int]]] = {
             "Upper left corner": None,
             "Upper right corner": None,
