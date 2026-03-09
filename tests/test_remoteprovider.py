@@ -5,50 +5,58 @@ import base64
 
 import numpy as np
 
+import unittest
 import envtest  # setup environment for testing
 from pymicroscope.utils.pyroprocess import PyroProcess
-from pymicroscope.acquisition.imageprovider import (
-    ImageProvider,
-    RemoteImageProvider,
-    ImageProviderClient,
-    RemoteImageProviderClient,
-    DebugRemoteImageProvider,
-)
 
-from Pyro5.nameserver import start_ns
-from Pyro5.api import expose
+try:
+    from pymicroscope.acquisition.imageprovider import (
+        ImageProvider,
+        RemoteImageProvider,
+        ImageProviderClient,
+        RemoteImageProviderClient,
+        DebugRemoteImageProvider,
+    )
+    from Pyro5.nameserver import start_ns
+    from Pyro5.api import expose
+    HAS_REMOTE_PROVIDER = True
+except ImportError:
+    HAS_REMOTE_PROVIDER = False
+    expose = lambda cls: cls  # no-op decorator fallback
 
 
-@expose
-class TestClient(PyroProcess, ImageProviderClient):
-    """
-    A test client that stores the last captured image tuple.
-    """
-
-    def __init__(
-        self, pyro_name: str = "test-client", *args: Any, **kwargs: Any
-    ) -> None:
+if HAS_REMOTE_PROVIDER:
+    @expose
+    class TestClient(PyroProcess, ImageProviderClient):
         """
-        Initialize the test client process.
-
-        Args:
-            pyro_name (str): The Pyro name to register under.
-            *args: Positional arguments for PyroProcess.
-            **kwargs: Keyword arguments for PyroProcess.
+        A test client that stores the last captured image tuple.
         """
-        super().__init__(*args, pyro_name=pyro_name, **kwargs)
-        self.img_tuple: Optional[Tuple] = None
 
-    def new_image_captured(self, img_tuple: Tuple) -> None:
-        """
-        Called when a new image is captured.
+        def __init__(
+            self, pyro_name: str = "test-client", *args: Any, **kwargs: Any
+        ) -> None:
+            """
+            Initialize the test client process.
 
-        Args:
-            img_tuple (Tuple): The image and associated metadata.
-        """
-        self.img_tuple = img_tuple
+            Args:
+                pyro_name (str): The Pyro name to register under.
+                *args: Positional arguments for PyroProcess.
+                **kwargs: Keyword arguments for PyroProcess.
+            """
+            super().__init__(*args, pyro_name=pyro_name, **kwargs)
+            self.img_tuple: Optional[Tuple] = None
+
+        def new_image_captured(self, img_tuple: Tuple) -> None:
+            """
+            Called when a new image is captured.
+
+            Args:
+                img_tuple (Tuple): The image and associated metadata.
+            """
+            self.img_tuple = img_tuple
 
 
+@unittest.skipUnless(HAS_REMOTE_PROVIDER, "RemoteImageProvider not available on this branch")
 class ImageProviderTestCase(envtest.CoreTestCase):
     """
     Unit tests for the image provider system including client registration,
@@ -153,6 +161,7 @@ class ImageProviderTestCase(envtest.CoreTestCase):
         image_client.terminate_synchronously()
 
 
+@unittest.skipUnless(HAS_REMOTE_PROVIDER, "RemoteImageProvider not available on this branch")
 class DebugProviderOnNetworkTestCase(envtest.CoreTestCase):
     def setUp(self):
         super().setUp()

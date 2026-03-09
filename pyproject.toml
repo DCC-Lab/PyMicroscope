@@ -1,23 +1,52 @@
 [project]
-name = "PyMicroscope"
+name = "pymicroscope"
 dynamic = ["version"]
-description = "A simple microscope application"
+description = "A modular Python framework for controlling and acquiring images from microscopes"
 authors = [
     { name = "Daniel C. Côté", email = "dccote@cervo.ulaval.ca" }
 ]
-requires-python = ">=3.8"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "pyro5",
-    "mytk",
-    "hardwarelibrary",
     "psutil",
-    "pyserial"
+    "pyserial",
+    "numpy",
+    "Pillow",
+    "mytk",
 ]
+
+[project.optional-dependencies]
+opencv = ["opencv-python"]
+hardware = ["hardwarelibrary"]
+all = ["pymicroscope[opencv,hardware]"]
+dev = [
+    "pymicroscope[all]",
+    "coverage",
+]
+
+[project.urls]
+Homepage = "https://github.com/DCC-Lab/PyMicroscope"
+Repository = "https://github.com/DCC-Lab/PyMicroscope"
+Issues = "https://github.com/DCC-Lab/PyMicroscope/issues"
 
 [build-system]
 requires = [
     "setuptools>=61.0",
-    "setuptools-scm>=7.0"
+    "setuptools-scm>=7.0",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -29,5 +58,13 @@ where = ["src"]
 
 [tool.setuptools_scm]
 version_scheme = "guess-next-dev"
-local_scheme = "node-and-date"
+local_scheme = "no-local-version"
 write_to = "src/pymicroscope/_version.py"
+
+[tool.coverage.run]
+source = ["pymicroscope"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
