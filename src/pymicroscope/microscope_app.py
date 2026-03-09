@@ -783,7 +783,7 @@ class MicroscopeApp(App):
             corner_label
         ] = self.sample_position_device.positionInMicrons()
 
-        if all(x is not None for x in self.map_controller.parameters.values()):
+        if self.map_controller.corners_are_set:
             self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
