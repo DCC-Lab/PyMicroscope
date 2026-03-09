@@ -26,13 +26,13 @@ dependencies = [
     "pyserial",
     "numpy",
     "Pillow",
+    "mytk",
 ]
 
 [project.optional-dependencies]
 opencv = ["opencv-python"]
-hardware = ["hardwarelibrary", "mytk"]
-gui = ["mytk"]
-all = ["pymicroscope[opencv,hardware,gui]"]
+hardware = ["hardwarelibrary"]
+all = ["pymicroscope[opencv,hardware]"]
 dev = [
     "pymicroscope[all]",
     "pytest",
