@@ -192,5 +192,132 @@ class TerminatableTestCase(envtest.CoreTestCase):
             thread.join()
 
 
+class LoggableTestCase(envtest.CoreTestCase):
+    """Tests for the Loggable base class and related utilities."""
+
+    def test010_loggable_standalone(self):
+        """Verify Loggable can be used as a standalone mixin."""
+        from pymicroscope.utils.loggable import Loggable
+        obj = Loggable(log_name="test.standalone", log_level=logging.DEBUG)
+        self.assertEqual(obj.log_name, "test.standalone")
+        self.assertEqual(obj.log_level, logging.DEBUG)
+
+    def test020_loggable_default_log_level(self):
+        """Verify default log level is used when none specified."""
+        from pymicroscope.utils.loggable import Loggable, DEFAULT_LOG_LEVEL
+        obj = Loggable()
+        self.assertEqual(obj.log_level, DEFAULT_LOG_LEVEL)
+
+    def test030_loggable_log_property(self):
+        """Verify log property returns a Logger instance."""
+        from pymicroscope.utils.loggable import Loggable
+        obj = Loggable(log_name="test.property")
+        self.assertIsInstance(obj.log, logging.Logger)
+
+    def test040_configured_log_returns_logger(self):
+        """Verify configured_log function returns a properly configured logger."""
+        from pymicroscope.utils.loggable import configured_log
+        log = configured_log("test.configured", log_level=logging.WARNING)
+        self.assertIsInstance(log, logging.Logger)
+        self.assertEqual(log.level, logging.WARNING)
+        self.assertFalse(log.propagate)
+
+    def test050_configured_log_default_level(self):
+        """Verify configured_log uses DEFAULT_LOG_LEVEL when none specified."""
+        from pymicroscope.utils.loggable import configured_log, DEFAULT_LOG_LEVEL
+        log = configured_log("test.default_level")
+        self.assertEqual(log.level, DEFAULT_LOG_LEVEL)
+
+    def test060_configured_log_clears_handlers(self):
+        """Verify that calling configured_log twice doesn't duplicate handlers."""
+        from pymicroscope.utils.loggable import configured_log
+        log1 = configured_log("test.handlers")
+        n_handlers = len(log1.handlers)
+        log2 = configured_log("test.handlers")
+        self.assertEqual(len(log2.handlers), n_handlers)
+
+    def test070_pretty_format(self):
+        """Verify pretty_format returns a formatted string."""
+        from pymicroscope.utils.loggable import Loggable
+        obj = Loggable()
+        result = obj.pretty_format({"key": "value", "number": 42})
+        self.assertIn("key", result)
+        self.assertIn("value", result)
+        self.assertIsInstance(result, str)
+
+    def test080_show_loggers(self):
+        """Verify show_loggers runs without error."""
+        from pymicroscope.utils.loggable import Loggable
+        with CaptureStdout() as output:
+            Loggable.show_loggers()
+        self.assertIsInstance(output.text, str)
+
+    def test090_silence_werkzeug(self):
+        """Verify silence_werkzeug adds filter to werkzeug logger."""
+        from pymicroscope.utils.loggable import Loggable, PostGetFilter
+        Loggable.silence_werkzeug()
+        werkzeug_logger = logging.getLogger("werkzeug")
+        has_filter = any(isinstance(f, PostGetFilter) for f in werkzeug_logger.filters)
+        self.assertTrue(has_filter)
+
+    def test100_post_get_filter_blocks_post(self):
+        """Verify PostGetFilter blocks messages containing POST."""
+        from pymicroscope.utils.loggable import PostGetFilter
+        f = PostGetFilter()
+        record = logging.LogRecord("test", logging.INFO, "", 0, "POST /api/data", (), None)
+        self.assertFalse(f.filter(record))
+
+    def test110_post_get_filter_blocks_get(self):
+        """Verify PostGetFilter blocks messages containing GET."""
+        from pymicroscope.utils.loggable import PostGetFilter
+        f = PostGetFilter()
+        record = logging.LogRecord("test", logging.INFO, "", 0, "GET /api/data", (), None)
+        self.assertFalse(f.filter(record))
+
+    def test120_post_get_filter_passes_normal(self):
+        """Verify PostGetFilter allows normal messages through."""
+        from pymicroscope.utils.loggable import PostGetFilter
+        f = PostGetFilter()
+        record = logging.LogRecord("test", logging.INFO, "", 0, "Starting server", (), None)
+        self.assertTrue(f.filter(record))
+
+    def test130_viscosity_filter_is_post_get_filter(self):
+        """Verify ViscosityFilter is a subclass of PostGetFilter."""
+        from pymicroscope.utils.loggable import ViscosityFilter, PostGetFilter
+        self.assertTrue(issubclass(ViscosityFilter, PostGetFilter))
+        f = ViscosityFilter()
+        record = logging.LogRecord("test", logging.INFO, "", 0, "POST /data", (), None)
+        self.assertFalse(f.filter(record))
+
+    def test140_configured_log_with_override_level(self):
+        """Verify Loggable.configured_log accepts level override."""
+        from pymicroscope.utils.loggable import Loggable
+        obj = Loggable(log_name="test.override", log_level=logging.INFO)
+        log = obj.configured_log(log_level=logging.DEBUG)
+        self.assertEqual(log.level, logging.DEBUG)
+
+
+class ThreadUtilsTestCase(envtest.CoreTestCase):
+    """Tests for thread_utils module."""
+
+    def test000_is_main_thread_from_main(self):
+        """Verify is_main_thread returns True from the main thread."""
+        from pymicroscope.utils.thread_utils import is_main_thread
+        self.assertTrue(is_main_thread())
+
+    def test010_is_main_thread_from_secondary(self):
+        """Verify is_main_thread returns False from a secondary thread."""
+        from pymicroscope.utils.thread_utils import is_main_thread
+        results = []
+
+        def check():
+            results.append(is_main_thread())
+
+        t = threading.Thread(target=check)
+        t.start()
+        t.join()
+        self.assertFalse(results[0])
+
+
 if __name__ == "__main__":
     envtest.main()

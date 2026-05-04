@@ -1,7 +1,7 @@
 """ Port USB """
 import unittest
 import time
-from vmscontroller import VMSController
+from pymicroscope.acquisition.vmscontroller import VMSController
 
 
 class TestController(unittest.TestCase):

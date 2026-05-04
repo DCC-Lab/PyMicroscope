@@ -150,6 +150,19 @@ class ActionMoveBy(Action):
     def do_perform(self, results=None) -> dict[str, Any] | None:
         self.device.moveInMicronsBy(self.d_position)
         return {"displacement": self.d_position}
+    
+class ActionHome(Action):
+    def __init__(
+        self,
+        linear_motion_device: LinearMotionDevice,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.device: LinearMotionDevice = linear_motion_device
+
+    def do_perform(self, results=None) -> None:
+        self.device.home()
 
 
 class ActionFunctionCall(Action):
@@ -296,10 +309,3 @@ class ActionSave(Action):
 
         self.output = filepath
 
-
-class ActionClear(Action):
-    def __init__(self, filepath: Path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.filepath = filepath
-        for file in self.filepath:
-            self.filepath[file] = None
