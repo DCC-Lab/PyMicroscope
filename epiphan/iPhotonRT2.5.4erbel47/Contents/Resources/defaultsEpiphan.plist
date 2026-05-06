@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>epiphanHorizontalResolution</key>
+	<integer>892</integer>
+	<key>epiphanHorizontalFrontPorch</key>
+	<integer>24</integer>
+	<key>epiphanHorizontalSyncTime</key>
+	<integer>80</integer>
+	<key>epiphanHorizontalBackPorch</key>
+	<integer>104</integer>
+	<key>epiphanHorizontalPositiveSync</key>
+	<true/>
+	<key>epiphanVerticalResolution</key>
+	<integer>564</integer>
+	<key>epiphanVerticalFrontPorch</key>
+	<integer>3</integer>
+	<key>epiphanVerticalSyncTime</key>
+	<integer>10</integer>
+	<key>epiphanVerticalBackPorch</key>
+	<integer>6</integer>
+	<key>epiphanVerticalFrequency</key>
+	<integer>29481</integer>
+	<key>epiphanVerticalPositiveSync</key>
+	<true/>
+	<key>epiphanHorizontalShift</key>
+	<integer>0</integer>
+	<key>epiphanVerticalShift</key>
+	<integer>0</integer>
+	<key>epiphanPLLShift</key>
+	<integer>40</integer>
+	<key>epiphanSamplingPhase</key>
+	<integer>28</integer>
+	<key>redOffsetLevel</key>
+	<integer>0</integer>
+	<key>greenOffsetLevel</key>
+	<integer>0</integer>
+	<key>blueOffsetLevel</key>
+	<integer>0</integer>
+	<key>redGainLevel</key>
+	<integer>255</integer>
+	<key>greenGainLevel</key>
+	<integer>255</integer>
+	<key>blueGainLevel</key>
+	<integer>255</integer>
+</dict>
+</plist>

@@ -1,0 +1,660 @@
+function varargout = vrscdt(varargin)
+% VRSCDT M-file for vrscdt.fig
+%      VRSCDT, by itself, creates a new VRSCDT or raises the existing
+%      singleton*.
+%
+%      H = VRSCDT returns the handle to a new VRSCDT or the handle to
+%      the existing singleton*.
+%
+%      VRSCDT('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in VRSCDT.M with the given input arguments.
+%
+%      VRSCDT('Property','Value',...) creates a new VRSCDT or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before vrscdt_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to vrscdt_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help vrscdt
+
+% Last Modified by GUIDE v2.5 22-Jun-2011 13:48:42
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @vrscdt_OpeningFcn, ...
+                   'gui_OutputFcn',  @vrscdt_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before vrscdt is made visible.
+function vrscdt_OpeningFcn(hObject, eventdata, handles, varargin)
+% This function has no output args, see OutputFcn.
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+% varargin   command line arguments to vrscdt (see VARARGIN)
+
+% Choose default command line output for vrscdt
+handles.output = hObject;
+
+% Update handles structure
+guidata(hObject, handles);
+
+% UIWAIT makes vrscdt wait for user response (see UIRESUME)
+% uiwait(handles.figure1);
+
+ports = getAvailableSerialPort()
+
+set(handles.serialInterfacePopupmenu,'String', ports);
+
+% --- Outputs from this function are returned to the command line.
+function varargout = vrscdt_OutputFcn(hObject, eventdata, handles) 
+% varargout  cell array for returning output args (see VARARGOUT);
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+
+
+% --- Executes on button press in getFirmwareVersionPushbutton.
+function getFirmwareVersionPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to getFirmwareVersionPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+set(handles.firmwareVersionEdit,'String','Unkwnown');
+set(handles.statusEdit,'String','Getting firmware version...');
+drawnow
+
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+if (s.status == 'open')
+    fwrite(s,127);
+    firmwareVersion = fread(s, 3);
+
+    c = [num2str(firmwareVersion(1)), '.', num2str(firmwareVersion(2)), '.', num2str(firmwareVersion(3))];
+    % need to convert the answer back into String type to display it
+    set(handles.firmwareVersionEdit,'String',c);
+    guidata(hObject, handles);
+
+    fclose(s);    
+else    
+    msgBox(['Could not open serial interface ', serialInterface]);    
+end
+
+delete(s);
+clear s;
+set(handles.statusEdit,'String','');
+
+function serialInterfaceEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to serialInterfaceEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of serialInterfaceEdit as text
+%        str2double(get(hObject,'String')) returns contents of serialInterfaceEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function serialInterfaceEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to serialInterfaceEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function firmwareVersionEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to firmwareVersionEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of firmwareVersionEdit as text
+%        str2double(get(hObject,'String')) returns contents of firmwareVersionEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function firmwareVersionEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to firmwareVersionEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- If Enable == 'on', executes on mouse press in 5 pixel border.
+% --- Otherwise, executes on mouse press in 5 pixel border or over getFirmwareVersionPushbutton.
+function getFirmwareVersionPushbutton_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to getFirmwareVersionPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+function galvanometerStartValueEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to galvanometerStartValueEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of galvanometerStartValueEdit as text
+%        str2double(get(hObject,'String')) returns contents of galvanometerStartValueEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function galvanometerStartValueEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to galvanometerStartValueEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in writeStartValuePushbutton.
+function writeStartValuePushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to writeStartValuePushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+galvanometerStartValueString = get(handles.galvanometerStartValueEdit,'String');
+if (isempty(galvanometerStartValueString))
+   msgbox('Set galvanometer start value first.');
+   return;
+end
+galvanometerStartValue = str2num(galvanometerStartValueString);
+
+if (galvanometerStartValue < 0 || galvanometerStartValue > 65535)
+    msgbox('Galvanometer start value is outside valid range, i.e. 0 to 65535');
+    return    
+end
+set(handles.statusEdit,'String','Writing start value...');
+drawnow
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+galvanometerStartValueMostSignificantByte = uint8(floor(galvanometerStartValue / 256));
+
+galvanometerStartValueLeastSignificantByte = rem(galvanometerStartValue, 256);
+
+command = [hex2dec('7B') galvanometerStartValueMostSignificantByte galvanometerStartValueLeastSignificantByte];
+if (s.status == 'open')
+    fwrite(s, command);
+    %pause(1);
+    fclose(s);
+else
+    msgBox(['Could not open serial interface ', serialInterface]);
+end
+
+delete(s);
+clear s;
+set(handles.statusEdit,'String','');
+
+% --- Executes on button press in readStartValuePushbutton.
+function readStartValuePushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to readStartValuePushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+set(handles.statusEdit,'String','Reading start value...');
+drawnow
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+
+if (s.status == 'open')    
+    fwrite(s, hex2dec('73'));    
+    galvanometerStartValue = fread(s, 2);
+
+    c = [num2str(galvanometerStartValue(1) * 256 + galvanometerStartValue(2))];
+    % need to convert the answer back into String type to display it
+    set(handles.galvanometerStartValueEdit,'String',c);
+    guidata(hObject, handles);
+    fclose(s);
+    
+else    
+    msgBox(['Could not open serial interface ', serialInterface]);    
+end
+
+delete(s);
+clear s;
+
+set(handles.statusEdit,'String','');
+
+function galvanometerIncrementEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to galvanometerIncrementEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of galvanometerIncrementEdit as text
+%        str2double(get(hObject,'String')) returns contents of galvanometerIncrementEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function galvanometerIncrementEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to galvanometerIncrementEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in writeIncrementPushbutton.
+function writeIncrementPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to writeIncrementPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+galvanometerIncrementString = get(handles.galvanometerIncrementEdit,'String');
+
+if (isempty(galvanometerIncrementString))
+   msgbox('Set galvanometer increment first.');
+   return;
+end
+
+galvanometerIncrement = str2num(galvanometerIncrementString);
+
+if (galvanometerIncrement < 0 || galvanometerIncrement > 65535)
+    msgbox('Galvanometer start value is outside valid range, i.e. 0 to 65535');
+    return    
+end
+
+set(handles.statusEdit,'String','Writing increment...');
+drawnow
+
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+
+galvanometerIncrementMostSignificantByte = uint8(floor(galvanometerIncrement / 256));
+
+galvanometerIncrementLeastSignificantByte = rem(galvanometerIncrement, 256);
+
+command = [hex2dec('7A') galvanometerIncrementMostSignificantByte galvanometerIncrementLeastSignificantByte];
+
+if (s.status == 'open')
+    fwrite(s, command);
+    %pause(1);
+    fclose(s);
+else
+    msgBox(['Could not open serial interface ', serialInterface]);
+end
+
+delete(s);
+clear s;
+set(handles.statusEdit,'String','');
+drawnow
+
+
+% --- Executes on button press in readIncrementPushbutton.
+function readIncrementPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to readIncrementPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+set(handles.statusEdit,'String','Reading increment...');
+drawnow
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+
+if (s.status == 'open')
+    fwrite(s, hex2dec('72'));    
+    galvanometerIncrement = fread(s, 2);
+    c = [num2str(galvanometerIncrement(1) * 256 + galvanometerIncrement(2))];
+    % need to convert the answer back into String type to display it
+    set(handles.galvanometerIncrementEdit,'String',c);
+    guidata(hObject, handles);
+    fclose(s);    
+else
+    
+    msgBox(['Could not open serial interface ', serialInterface]);
+    
+end
+
+delete(s);
+clear s;
+set(handles.statusEdit,'String','');
+drawnow
+
+% --- Executes on button press in SaveSettingsToBankPushbutton.
+function SaveSettingsToBankPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to SaveSettingsToBankPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+bankString = inputdlg('Bank number (valid range: 0 to 3). Settings are those currently used by circuit, not necessarily what is displayed here.', 'Save Settings To Bank');
+
+if (isempty(bankString))
+    return
+end
+
+bank = str2num(bankString{1});
+if (bank < 0 || bank > 3)
+    msgbox('Invalid bank number. Valid range is 0 to 3.');
+    return;
+end
+
+SaveSettingsToBank(hObject, eventdata, handles, bank);
+
+function SaveSettingsToBank(hObject, eventdata, handles, bank)
+
+set(handles.statusEdit,'String','Saving settings to bank...');
+drawnow
+command = [hex2dec('78') bank];
+pause(1); % ************ This pause is mandatory or Matlab will freeze. **********************
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+
+if (s.status == 'open')
+    fwrite(s, command);
+    pause(1);
+    fclose(s);
+else
+    msgBox(['Could not open serial interface ', serialInterface]);
+end
+
+delete(s);
+clear s;
+set(handles.statusEdit,'String','');
+drawnow
+
+% --- Executes on button press in LoadSettingsFromBankPushbutton.
+function LoadSettingsFromBankPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to LoadSettingsFromBankPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+bankString = inputdlg('Bank number (valid range: 0 to 3)', 'Load Settings From Bank');
+
+if (isempty(bankString))
+    return
+end
+
+bank = str2num(bankString{1});
+if (bank < 0 || bank > 3)
+    msgbox('Invalid bank number. Valid range is 0 to 3.');
+    return;
+end
+set(handles.statusEdit,'String','Loading settings from bank...');
+drawnow
+command = [hex2dec('77') bank];
+pause(1); % ************ This pause is mandatory or Matlab will freeze. **********************
+serialInterfaceIndex = get(handles.serialInterfacePopupmenu,'Value')
+serialInterfaceStrings = get(handles.serialInterfacePopupmenu,'String')
+serialInterface = serialInterfaceStrings{serialInterfaceIndex}
+s = serial(serialInterface);
+s.BaudRate = 19200;
+fopen(s);
+
+
+if (s.status == 'open')
+    fwrite(s, command);
+    fclose(s);
+else
+    msgBox(['Could not open serial interface ', serialInterface]);
+end
+delete(s);
+clear s;
+
+readStartValuePushbutton_Callback(hObject, eventdata, handles);
+
+readIncrementPushbutton_Callback(hObject, eventdata, handles);
+
+function lSerial_Port = getAvailableSerialPort()
+% function lSerial_Port = getAvailableSerialPort()
+% Return a Cell Array of serial port names available on your computer
+
+if (ispc())
+    
+    try
+        s=serial('IMPOSSIBLE_NAME_ON_PORT');fopen(s); 
+    catch
+        lErrMsg = lasterr;
+    end
+
+    %Start of the COM available port
+    lIndex1 = findstr(lErrMsg,'COM');
+    %End of COM available port
+    lIndex2 = findstr(lErrMsg,'Use')-3;
+
+    lSerialStr = lErrMsg(lIndex1:lIndex2);
+
+    %Parse the resulting string
+    lIndexDot = findstr(lSerialStr,',');
+
+    % If no Port are available
+    if isempty(lIndex1)
+        lSerial_Port{1}='';
+        return;
+    end
+
+    % If only one Port is available
+    if isempty(lIndexDot)
+        lSerial_Port{1}=lSerialStr;
+        return;
+    end
+
+    lSerial_Port{1} = lSerialStr(1:lIndexDot(1)-1);
+
+    for i=1:numel(lIndexDot)+1
+        % First One
+        if (i==1)
+            lSerial_Port{1,1} = lSerialStr(1:lIndexDot(i)-1);
+        % Last One
+        elseif (i==numel(lIndexDot)+1)
+            lSerial_Port{i,1} = lSerialStr(lIndexDot(i-1)+2:end);       
+        % Others
+        else
+            lSerial_Port{i,1} = lSerialStr(lIndexDot(i-1)+2:lIndexDot(i)-1);
+        end
+    end    
+else
+
+    ttyString = ls('/dev/tty.*');
+    tab = sprintf('\t');
+    newline = sprintf('\n');
+    counter = 1;
+    previousIndex = 1;
+    for i=1:length(ttyString)
+        if ((ttyString(i) == tab) || (ttyString(i) == newline))
+            lSerial_Port{counter,1} = ttyString(1,previousIndex:i - 1);
+            counter = counter + 1;
+            previousIndex = i + 1;
+        end
+    end
+end
+% --- Executes on selection change in serialInterfacePopupmenu.
+function serialInterfacePopupmenu_Callback(hObject, eventdata, handles)
+% hObject    handle to serialInterfacePopupmenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = get(hObject,'String') returns serialInterfacePopupmenu contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from serialInterfacePopupmenu
+
+
+% --- Executes during object creation, after setting all properties.
+function serialInterfacePopupmenu_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to serialInterfacePopupmenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function statusEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to statusEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of statusEdit as text
+%        str2double(get(hObject,'String')) returns contents of statusEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function statusEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to statusEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function versionEdit_Callback(hObject, eventdata, handles)
+% hObject    handle to versionEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of versionEdit as text
+%        str2double(get(hObject,'String')) returns contents of versionEdit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function versionEdit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to versionEdit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in resetBanksToDefaultPushbutton.
+function resetBanksToDefaultPushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to resetBanksToDefaultPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+answer = questdlg('This will program all 4 banks with default values. Are you sure you want to proceed?', ...
+                         'Color Question', ...
+                         'Yes', 'No', 'No')
+switch answer,
+     case 'No',
+        return;
+end % switch
+
+
+
+
+% --- Executes during object creation, after setting all properties.
+function resetBanksToDefaultPushbutton_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to resetBanksToDefaultPushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes on selection change in popupmenu3.
+function popupmenu3_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = get(hObject,'String') returns popupmenu3 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu3
+
+
+standardSettingsIndex = get(handles.serialInterfacePopupmenu,'Value')standardSettingsStrings = get(handles.serialInterfacePopupmenu,'String')
+
+switch(
+32768	0
+23584	16
+23584	32
+27028	8
+
+set(handles.galvanometerStartValueEdit,'String',num2str(32768));
+set(handles.galvanometerIncrementEdit,'String',num2str(0));
+guidata(hObject, handles);
+drawnow
+pause(1);
+writeStartValuePushbutton_Callback(hObject, eventdata, handles);
+pause(1);
+writeIncrementPushbutton_Callback(hObject, eventdata, handles);
+
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+

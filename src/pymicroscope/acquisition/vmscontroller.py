@@ -9,9 +9,12 @@ import time
 # CONTROLLER_SERIAL_PATH = "/dev/cu.USA19QW3d1P1.1"
 CONTROLLER_SERIAL_PATH = "/dev/cu.usbserial-A907SJ89"
 
+VMS_EXPECTED_CPN = 522
+
 
 class VMSController:
-    def __init__(self):
+    def __init__(self, serial_path: str | None = None):
+        self.serial_path = serial_path or CONTROLLER_SERIAL_PATH
         self.default_write_parameters = {
             "WRITE_DAC_START": 19200,
             "WRITE_DAC_INCREMENT": 32,
@@ -114,15 +117,50 @@ class VMSController:
         self.is_accessible = False
         
     def initialize(self):
-        self.port = serial.Serial(
-            CONTROLLER_SERIAL_PATH, baudrate=19200, timeout=3
-        )
+        path = self.serial_path or self._auto_discover()
+        if path is None:
+            raise RuntimeError("No candidate serial port found for VMS circuit")
+
+        self.port = serial.Serial(path, baudrate=19200, timeout=3)
+        self.serial_path = path
 
         version = self.send_command("READ_FIRMWARE_VERSION")
-        if version[0] != 4:
+        if version is None or version[0] != 4:
+            self.port.close()
+            self.port = None
             raise RuntimeError("Unrecognized firmware version on controller")
 
+        cpn = self.send_command("READ_CPN")
+        if cpn is None or cpn[0] != VMS_EXPECTED_CPN:
+            self.port.close()
+            self.port = None
+            raise RuntimeError(
+                f"VMS circuit on {path} reported CPN={cpn} (expected {VMS_EXPECTED_CPN})"
+            )
+
         self.is_accessible = True
+
+    def _auto_discover(self):
+        skip_substrings = ("Bluetooth", "debug-console", "wlan-debug")
+        for info in list_ports.comports():
+            path = info.device
+            if any(s in path for s in skip_substrings):
+                continue
+            if "/cu." not in path and "/tty." not in path and "cu." not in path:
+                continue
+            try:
+                with serial.Serial(path, baudrate=19200, timeout=1) as s:
+                    s.write(struct.pack(">b", 0x6D))  # READ_CPN
+                    s.flush()
+                    raw = s.read(2)
+                    if len(raw) != 2:
+                        continue
+                    cpn = struct.unpack(">h", raw)[0]
+                    if cpn == VMS_EXPECTED_CPN:
+                        return path
+            except (serial.SerialException, OSError):
+                continue
+        return None
 
     def shutdown(self):
         if self.port is not None:
@@ -172,12 +210,40 @@ class VMSController:
             minimum = command_dict["minimum"]
             maximum = command_dict["maximum"]
 
-            if minimum < values < maximum:
+            if minimum <= values <= maximum:
                 is_valid[parameter_name] = None  # OK
             else:
                 is_valid[parameter_name] = (minimum, maximum)  # Erreur
 
         return is_valid
+
+    def apply_settings(self, settings: dict):
+        """Atomically write a coherent set of VMS parameters.
+
+        Validates against parameters_are_valid first; raises ValueError if any
+        value is out of range. Only writes the WRITE_* keys present in settings.
+        """
+        write_keys = {
+            "WRITE_DAC_START",
+            "WRITE_DAC_INCREMENT",
+            "WRITE_NUMBER_OF_LINES_FOR_VSYNC",
+            "WRITE_NUMBER_OF_LINES_PER_FRAME",
+        }
+        to_write = {k: v for k, v in settings.items() if k in write_keys}
+        validation = self.parameters_are_valid(to_write)
+        bad = {k: v for k, v in validation.items() if v is not None}
+        if bad:
+            raise ValueError(f"Out-of-range VMS settings: {bad}")
+
+        # Order: line counts before dac so geometry is consistent
+        for key in (
+            "WRITE_NUMBER_OF_LINES_PER_FRAME",
+            "WRITE_NUMBER_OF_LINES_FOR_VSYNC",
+            "WRITE_DAC_START",
+            "WRITE_DAC_INCREMENT",
+        ):
+            if key in to_write:
+                self.send_command(key, to_write[key])
 
     @property
     def lines_per_frame(self):
@@ -211,30 +277,6 @@ class VMSController:
     def dac_increment(self, value):
         self.send_command("WRITE_DAC_INCREMENT", value)
 
-    @property
-    def tmr1_reload_value(self):
-        return self.default_other_parameters["TMR1_Reload_Value"]
-    
-    @property
-    def polygone_rev_per_min(self):
-        tmr1_reload_value = self.default_other_parameters["TMR1_Reload_Value"]
-        polygon_clock_frequency = 5000000 / (65535 - tmr1_reload_value)
-        return round(polygon_clock_frequency / 2 * 60)
-    
-    @property
-    def hsync_frequency(self):
-        polygon_revolutions_per_minute = self.polygone_rev_per_min
-        number_of_faces_of_polygon = self.default_other_parameters["Number_Of_Faces_Of_Polygon"]
-        return round(polygon_revolutions_per_minute / 60 * number_of_faces_of_polygon)
-    
-    @property
-    def vsync_frequency(self):
-        hsync_frequency = self.hsync_frequency
-        number_of_lines_per_frame = self.lines_per_frame
-        return round(hsync_frequency / number_of_lines_per_frame)
-    
-    @property
-    def pixel_frequency(self):
-        pixels_per_line = self.default_other_parameters["PixelsPerLine"]
-        hsync_frequency = self.hsync_frequency
-        return round(pixels_per_line * hsync_frequency)
+    # TMR1 / polygon-clock derived rates live on PolygonController; the
+    # synchronisation maths (hsync / vsync / pixel frequency) is computed
+    # in the diagnostic GUI from the polygon RPM and the active line counts.

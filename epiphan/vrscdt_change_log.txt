@@ -1,0 +1,292 @@
+% vrscdt version 1.3.3 Video Rate Synchronization Circuit Diagnostic Tool
+% (The previous line is a machine-parsable line. Do not modify format.)
+%
+% vrscdt(1) will skip the new version checking. This may be useful if
+% internet is down to avoid hanging some versions of Matlab with no timeout
+% in urlread.
+%
+% Change log:
+%
+% 0.0.1
+%
+% -First release
+%
+% 0.0.2
+%
+% -Added button to get access to user manual on the web.
+% -Added support for automatic new version checking on the web.
+% -Added support for saving/loading settings to/from a file on demand and
+% at program startup.
+%
+% 0.0.3
+%
+% -Moved base URL for latest version of script and fig files to Google Docs
+% instead of Google Sites.
+%
+% 0.0.4
+% 
+% -Minor GUI (.fig) modifications.
+%
+%
+% 0.0.5
+%
+% -Modularized further code.
+% -Added support for changing number of lines for VSync, which is a new
+% primitive in firmware version 3.5.0.
+% -Added temporary GUI for getting CPN, CID and SN.
+%
+% 0.0.6
+%
+% -Added GUI for reading and writing the number of lines per frame.
+%
+% 0.0.7
+%
+% -Added support for reading CPN, CID and SN.
+% -Added support for checking new firmware, change log display and starting
+% browser to get new .hex file.
+%
+% 0.0.8
+%
+% -Fixed "Reading increment..." not cleared after completion in status
+% area.
+% -Added separate serial interface for polygon clock control.
+% -Reworked GUI. Now the two separate circuits can be queried specifically.
+% -Fixed bug TMR1 reload value was actually written to number lines per
+% frame.
+% -Added support for new primitives.
+%
+% 0.0.9
+%
+% -When computing the rates, the user will now be systematically prompted
+% to confirm the iPhoton number of pixels per line.
+% -Added circuits emulation for debugging.
+% -Look up online user manual button is now circuit specific.
+% -Corrected a slew of incorrect error messages.
+% -Adjusted GUI and made it resizable.
+%
+% 0.0.10
+%
+% -Added TMR1 preset values to get 100 %, 50 % and 25 % of maximum
+% polygon speed.
+%
+% 0.0.11
+%
+% -Added GUI button to look up user manual of this tool.
+% -CPNified this software (CPN620).
+%
+% 0.0.12
+%
+% -Fixed minor missing ; after some lines of code.
+% -Added tooltip and adopted naming of iPhoton for Total number of pixel
+% per line GUI element.
+%
+% 0.0.13
+% 
+% -Added full support for emulation of CPN522.
+% -Emulated firmware version is now 255.255.255 to prevent suggesting
+% firmware update.
+% -Added sanity check and warning for the respective CPN of each circuit.
+%
+% 0.0.14
+% 
+% -Not all settings were saved and restore using the configuration file.
+% Fixed.
+% -Changed URL to check for internet connection to www.google.com for
+% increased reliability.
+% 
+% 0.0.15
+% 
+% -Improved various tool tips.
+% -Fixed bugs in emulation where values were not properly made into a
+% 16-bit number.
+% -Settings are now saved and loaded to/from a user specified file.
+%
+% 0.0.16
+% 
+% -Added button to submit feedback using a browser (issue(s) / comment(s),
+% tool version, debug log, etc.).
+%
+% 0.0.17
+%
+% -Fixed Mac specific incompatibility of feedback URL format.
+%
+% 0.0.18
+%
+% -Fixed Mac specific incompatibility of feedback URL format properly this
+% time.
+% -Change log is now displayed both in the command window and in the
+% editor.
+% 
+% 0.0.19
+% 
+% -Added prompt to quit MATLAB after getting newer version so that files
+% can be overwritten.
+%
+% 0.0.20
+% 
+% -If no configuration file is used on start-up, both circuits are in
+% emulation now.
+%
+% 0.0.21
+% 
+% -Added more debug info in feedback form (OS, computername, serial
+% interfaces, user name, etc.
+%
+% 0.0.22
+%
+% -Added more debug info.
+% -Made GUI names complete and populated tooltips.
+%
+% 0.0.23
+% 
+% -Added even more debug info. Now all the GUI state is sent as debug info.
+%
+% 1.0.0
+% 
+% -Now logging basic serial activity with globalSendSerialPrimitiveAndWaitForBytesLog
+% and sending it in feedback form.
+%
+% 1.0.1
+%
+% -Added version of MATLAB in debug info submitted.
+%
+% 1.0.2
+% 
+% -Made sure that URL used to submit feedback is not longer than 2000
+% characters to be compatible will all browsers.
+% -globalSendSerialPrimitiveAndWaitForBytesLog is now
+% globalSendSerialPrimitiveAndWaitForBytesReverseLog so that we do not lose
+% the most relevant debug information in case the feedback URL has to be
+% truncated.
+% -Added verbose debug checkbox in GUI.
+%
+% 1.0.3
+%
+% -Reverted to using system browser to send feedback because the internal
+% browser does not work in all cases/versions.
+%
+% 1.1.0
+% 
+% -Added time program was started to debug log.
+% -The serial log is now logging all bytes sent.
+% -The serial log is now more compact because only the index of the serial
+% interface is logged for each primitive sent.
+% -Added support for the case where polygon speed is fixed.
+%
+% 1.2.0
+% 
+% -Added interactive configuration both suggested on startup and on demand
+% with GUI button.
+% -Added button for on demand check for new version.
+% -Disabled annoying confirmation of iPhoton total pixel per line.
+% -Interactive configuration is now suggested when no configuration file is
+% loaded at startup.
+% -Window is no longer resizable.
+% -Fixed various bugs in emulation.
+%
+% 1.2.1
+% 
+% -Fixed MATLAB warning about LISTDLG call instead of listdlg.
+% -Code reformatting.
+% -Split reading firmware version and checking for new version in 2
+% buttons.
+% -Fixed bug in interactive configuration process about polygon speed control
+% where code was never called to set and optionnaly test serial interface.
+%
+% 1.2.2
+% 
+% -Give choice to quit MATLAB just after fetching new version with web
+% browser dialog is dismissed.
+% -Added pathname of the files to update with the new version files.
+%
+% 1.2.3
+% 
+% -Changed background color of Interactive Configuration button to green so
+% to draw attention to it.
+% -Fixed another LISTDLG. See above.
+%
+% 1.2.4
+%
+% -Fixed a cpn variable that was not changed to CPN.
+%
+% 1.2.5
+%
+% -Feedback form is now opened in web browser when about to upgrade tool.
+% -Added warning that testing communication in emulation mode is trivial.
+% 
+% 1.2.6
+%
+% -Corrected bug in interactive configuration mode where communication
+% test with the polygon speed control circuit may be actually the VRSC
+% based on the selection circuit GUI element.% 
+%
+% 1.2.7
+%
+% -Code reformatting.
+% -Added more error recovery when circuit is not responding to serial
+% primtives sent.
+% -Improved version checking.
+% -Disabled code to save change log to a file and open it in editor.
+%
+% 1.2.8
+%
+% -Corrrected bug where equal versions lead to the wrong message.
+%
+% 1.2.9
+% 
+% -Can now scroll up the change log (added a "Press enter to continue" ).
+%
+% 1.2.10
+%
+% -Added number of pixels in iPhoton range validation.
+% -Added various range validations.
+% -Modified GUI layout and tab order.
+% -Improved interactive configuration flow and information provided to
+% user.
+% -Added checkbox to write settings upon loading settings from file.
+%
+% 1.2.11
+%
+% -Fixed small bug in CheckForNewVersion where return values were not
+% assigned when Internet was down.
+%
+% 1.3.0
+%
+% -Updates are now fetch as a zip file (more practical but was forced to
+% do this to sidestep a weird bug in Google docs that made urlread fail.
+%
+% 1.3.1
+%
+% -Improved interactive configuration mode.
+% -Corrected minor bug in interace testing of the interactive configuration.
+%
+% 1.3.2
+%
+% -Added bank related interactive configuration step.
+% -Added stop polygon capability.
+% -Attempt to fix no feedback form shown in Mac OS X when upgrading
+%  possibly because of timing.
+% -Disabled "Standard settings"  popup menu in GUI until these are validated.
+%
+% 1.3.3
+%
+% -Fixed minor message formatting bug in one of the steps of the interactive configuration.
+% -State of switches is now reported as text, i.e. right and left; up and down.
+%
+% *************************************************************************
+% *************************************************************************
+% $ (This is a machine-parsable line to tell the end of the change log. Do
+% not use a $ on a previous line.)
+% *************************************************************************
+% *************************************************************************
+%
+%
+% TODO:
+%
+% -Full sanity check when loading saved variables in file.
+%
+% Nice to have:
+%
+% -Modularize code.
+% -Full system emulator (good for unit testing but also good as a tutorial
+% platform).

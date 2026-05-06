@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>snapperSixColorModeSyncChannelThreshold</key>
+	<integer>50</integer>
+	<key>snapperSixColorModeSyncChannel</key>
+	<integer>3</integer>
+	<key>snapperSixColorModeSyncChannelSource</key>
+	<integer>1</integer>
+	<key>snapperSixColorModeEnable</key>
+	<false/>
+	<key>blackLevel</key>
+	<integer>0</integer>
+	<key>clampLevel</key>
+	<integer>1</integer>
+	<key>clampPixel</key>
+	<integer>30</integer>
+	<key>clkType</key>
+	<integer>1</integer>
+	<key>internalOscillatorGain</key>
+	<integer>5</integer>
+	<key>outputPixelClocktoPCLK</key>
+	<false/>
+	<key>phaseDetectorGain</key>
+	<integer>7</integer>
+	<key>pixelsHeight</key>
+	<integer>500</integer>
+	<key>pixelsWidth</key>
+	<integer>500</integer>
+	<key>samplesPerPixel</key>
+	<integer>1</integer>
+	<key>startX</key>
+	<integer>450</integer>
+	<key>startY</key>
+	<integer>25</integer>
+	<key>totalPixelsPerLine</key>
+	<integer>1750</integer>
+	<key>whiteLevel</key>
+	<integer>255</integer>
+	<key>channel</key>
+	<integer>1</integer>
+	<key>redChannelADC</key>
+	<integer>0</integer>
+	<key>greenChannelADC</key>
+	<integer>0</integer>
+	<key>blueChannelADC</key>
+	<integer>0</integer>
+	<key>clockSource</key>
+	<integer>0</integer>
+	<key>averageStream</key>
+	<string>raw</string>
+	<key>streamLiveStream</key>
+	<string>raw</string>
+	<key>alignmentToolStream</key>
+	<string>raw</string>
+	<key>generateTriggerPulse</key>
+	<false/>
+</dict>
+</plist>
