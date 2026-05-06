@@ -84,6 +84,16 @@ V2U_GRABFRAME_SCALE_SPLINE = 0x000C0000
 V2U_GRABFRAME_SCALE_HW = 0x000D0000
 V2U_GRABFRAME_SCALE_MAX_MODE = V2U_GRABFRAME_SCALE_HW
 
+# Video mode type flags (v2u_defs.h)
+VIDEOMODE_TYPE_VALID = 0x01
+VIDEOMODE_TYPE_ENABLED = 0x02
+VIDEOMODE_TYPE_SUPPORTED = 0x04
+VIDEOMODE_TYPE_DUALLINK = 0x08
+VIDEOMODE_TYPE_DIGITAL = 0x10
+VIDEOMODE_TYPE_INTERLACED = 0x20
+VIDEOMODE_TYPE_HSYNCPOSITIVE = 0x40
+VIDEOMODE_TYPE_VSYNCPOSITIVE = 0x80
+
 # Pixel formats
 V2U_GRABFRAME_FORMAT_MASK = 0x0000FFFF
 V2U_GRABFRAME_FORMAT_RGB_MASK = 0x0000001F
@@ -171,6 +181,19 @@ class V2UStrUcs2(Structure):
 class V2U_VideoMode(Structure):
     _pack_ = 1
     _fields_ = [("width", c_int32), ("height", c_int32), ("vfreq", c_int32)]
+
+
+class V2U_GrabFrame2(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("pixbuf", c_void_p),
+        ("pixbuflen", c_uint32),
+        ("palette", c_uint32),
+        ("crop", V2URect),
+        ("mode", V2U_VideoMode),
+        ("imagelen", c_uint32),
+        ("retcode", c_int32),
+    ]
 
 
 class V2U_GrabParameters(Structure):
@@ -440,9 +463,9 @@ class EpiphanLibraryWrapper:
 
             # Frame
             cls.lib.FrmGrab_Frame.argtypes = [FrmGrabberPtr, c_uint32, c_void_p]
-            cls.lib.FrmGrab_Frame.restype = c_void_p
+            cls.lib.FrmGrab_Frame.restype = POINTER(V2U_GrabFrame2)
 
-            cls.lib.FrmGrab_Release.argtypes = [FrmGrabberPtr, c_void_p]
+            cls.lib.FrmGrab_Release.argtypes = [FrmGrabberPtr, POINTER(V2U_GrabFrame2)]
             cls.lib.FrmGrab_Release.restype = None
 
             # Memory cleanup
@@ -470,6 +493,21 @@ class EpiphanLibraryWrapper:
             cls.lib.FrmGrab_Deinit()
 
 
+class CapturedFrame:
+    def __init__(self, data: bytes, width: int, height: int,
+                 palette: int, vfreq: int, retcode: int):
+        self.data = data
+        self.width = width
+        self.height = height
+        self.palette = palette
+        self.vfreq = vfreq
+        self.retcode = retcode
+
+    def __repr__(self):
+        return (f"CapturedFrame({self.width}x{self.height}, "
+                f"palette=0x{self.palette:x}, {len(self.data)} bytes)")
+
+
 class EpiphanFrameGrabber:
     def __init__(self):
         EpiphanLibraryWrapper.setup_library()
@@ -478,10 +516,7 @@ class EpiphanFrameGrabber:
     def initialize_device(self):
         self.device = EpiphanLibraryWrapper.lib.FrmGrabLocal_Open()
         if not self.device:
-            raise RuntimeError("No frame grabber found at index", device_index)
-
-    def shutdown_device(self):
-        EpiphanLibraryWrapper.lib.FrmGrab_Close(self.device)
+            raise RuntimeError("No frame grabber found")
 
     def get_serial_number(self) -> str:
         sn = EpiphanLibraryWrapper.lib.FrmGrab_GetSN(self.device)
@@ -531,7 +566,7 @@ class EpiphanFrameGrabber:
 
     def grab_frame(
         self, format=V2U_GRABFRAME_FORMAT_RGB24, crop: V2URect | None = None
-    ):
+    ) -> CapturedFrame | None:
         crop_ptr = byref(crop) if crop else None
         frame_ptr = EpiphanLibraryWrapper.lib.FrmGrab_Frame(
             self.device, format, crop_ptr
@@ -539,82 +574,27 @@ class EpiphanFrameGrabber:
         if not frame_ptr:
             return None
         try:
-            # You could decode the frame contents here if needed
-            return frame_ptr
+            f = frame_ptr.contents
+            length = int(f.imagelen)
+            if length and f.pixbuf:
+                data = ctypes.string_at(f.pixbuf, length)
+            else:
+                data = b""
+            return CapturedFrame(
+                data=data,
+                width=int(f.crop.width),
+                height=int(f.crop.height),
+                palette=int(f.palette),
+                vfreq=int(f.mode.vfreq),
+                retcode=int(f.retcode),
+            )
         finally:
             EpiphanLibraryWrapper.lib.FrmGrab_Release(self.device, frame_ptr)
 
-    def frame_grabber_set_video_mode(self) -> str | None:
-        """
-        Sets the VGA video mode from configuration. Returns None on success,
-        or a string describing the error on failure.
-        """
+    def __enter__(self):
+        if self.device is None:
+            self.initialize_device()
+        return self
 
-        if not self.device:
-            return "No frame grabbers found"
-
-        p = V2U_Property()
-        p.key = V2UKey_VGAMode
-        mode = p.value.vgamode.vesa_mode
-
-        modes_ptr = self.lib.FrmGrab_GetVGAModes(self.device)
-        if not modes_ptr:
-            return "Error getting VGA modes"
-
-        try:
-            modes = modes_ptr.contents
-            std_modes = cast(modes.stdModes, POINTER(V2UVideoModeDescr))
-
-            for i in range(modes.numStdModes):
-                std_mode = std_modes[i]
-                if std_mode.Type & VIDEOMODE_TYPE_ENABLED:
-                    p.value.vgamode.idx = i + V2U_CUSTOM_VIDEOMODE_COUNT
-
-                    mode.VerFrequency = std_mode.VerFrequency
-                    mode.HorAddrTime = std_mode.HorAddrTime
-                    mode.HorFrontPorch = std_mode.HorFrontPorch
-                    mode.HorSyncTime = std_mode.HorSyncTime
-                    mode.HorBackPorch = std_mode.HorBackPorch
-                    mode.VerAddrTime = std_mode.VerAddrTime
-                    mode.VerFrontPorch = std_mode.VerFrontPorch
-                    mode.VerSyncTime = std_mode.VerSyncTime
-                    mode.VerBackPorch = std_mode.VerBackPorch
-
-                    # Disable mode
-                    mode.Type = std_mode.Type & ~VIDEOMODE_TYPE_ENABLED
-
-                    if not self.lib.FrmGrab_SetProperty(self.device, byref(p)):
-                        return f"Failed to set VGA standard mode {p.value.vgamode.idx}"
-
-        finally:
-            self.lib.FrmGrab_Free(modes_ptr)
-
-        # Now set the custom VGA mode
-        p.value.vgamode.idx = 0
-        vga_mode = self.get_selected_vga_mode()  # Should return a dict
-
-        mode.HorAddrTime = int(vga_mode["hRes"])
-        mode.HorFrontPorch = int(vga_mode["hFrontPorch"])
-        mode.HorSyncTime = int(vga_mode["hSync"])
-        mode.HorBackPorch = int(vga_mode["hBackPorch"])
-        mode.VerAddrTime = int(vga_mode["vRes"])
-        mode.VerFrontPorch = int(vga_mode["vFrontPorch"])
-        mode.VerSyncTime = int(vga_mode["vSync"])
-        mode.VerBackPorch = int(vga_mode["vBackPorch"])
-        mode.VerFrequency = int(vga_mode["vFreq"])
-
-        mode.Type = VIDEOMODE_TYPE_VALID | VIDEOMODE_TYPE_ENABLED
-        if vga_mode.get("hPositiveSync"):
-            mode.Type |= VIDEOMODE_TYPE_HSYNCPOSITIVE
-        if vga_mode.get("vPositiveSync"):
-            mode.Type |= VIDEOMODE_TYPE_VSYNCPOSITIVE
-
-        if not self.lib.FrmGrab_SetProperty(self.device, byref(p)):
-            return "Set VGA mode failed"
-
-        # Confirm mode change
-        tmp_vm = V2U_VideoMode()
-        if self.lib.FrmGrab_DetectVideoMode(self.device, byref(tmp_vm)) != V2U_TRUE:
-            return "No video mode detected"
-
-        return None  # Success
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
