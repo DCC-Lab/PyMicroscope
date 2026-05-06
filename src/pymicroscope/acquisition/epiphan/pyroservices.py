@@ -16,31 +16,20 @@ import threading
 import numpy as np
 from Pyro5.api import expose
 
-from pymicroscope.acquisition.epiphan.epiphanlibwrapper import (
-    EpiphanFrameGrabber,
-    V2U_GRABFRAME_FORMAT_RGB24,
-)
-
-
-def _grab_rgb_array(grabber: EpiphanFrameGrabber) -> np.ndarray | None:
-    """Single-frame grab decoded into a numpy uint8 array of shape (H, W, 3)."""
-    if grabber.device is None:
-        return None
-    frame = grabber.grab_frame(format=V2U_GRABFRAME_FORMAT_RGB24)
-    return frame.to_numpy() if frame is not None else None
+from pymicroscope.acquisition.epiphan.epiphanimageprovider import EpiphanImageProvider
 
 
 # ---- Pyro service wrappers -------------------------------------------------
 
 @expose
 class EpiphanPyroService:
-    """Single-process image source. Owns the only ``EpiphanFrameGrabber`` -
+    """Single-process image source. Wraps an ``EpiphanImageProvider`` -
     the device cannot be opened twice, so all consumers (local GUI + remote
     Pyro proxies) call through this object.
     """
 
-    def __init__(self, grabber: EpiphanFrameGrabber):
-        self._grabber = grabber
+    def __init__(self, provider: EpiphanImageProvider):
+        self._provider = provider
         self._lock = threading.Lock()
         self._streaming = False
         self._latest: np.ndarray | None = None
@@ -48,13 +37,13 @@ class EpiphanPyroService:
     def start_streaming(self):
         with self._lock:
             if not self._streaming:
-                self._grabber.start_streaming()
+                self._provider.start()
                 self._streaming = True
 
     def stop_streaming(self):
         with self._lock:
             if self._streaming:
-                self._grabber.stop_streaming()
+                self._provider.stop()
                 self._streaming = False
 
     def is_streaming(self) -> bool:
@@ -63,7 +52,7 @@ class EpiphanPyroService:
     def grab(self):
         """Grab one frame and return ``(bytes, shape, dtype)`` for Pyro."""
         with self._lock:
-            arr = _grab_rgb_array(self._grabber)
+            arr = self._provider.capture_image()
         if arr is None:
             return None
         self._latest = arr
@@ -79,17 +68,18 @@ class EpiphanPyroService:
     def grab_array(self) -> np.ndarray | None:
         """In-process callers (the local Tk GUI) bypass Pyro serialisation."""
         with self._lock:
-            arr = _grab_rgb_array(self._grabber)
+            arr = self._provider.capture_image()
         if arr is not None:
             self._latest = arr
         return arr
 
     def device_info(self) -> dict:
         try:
+            fg = self._provider.fg
             return {
-                "serial_number": self._grabber.get_serial_number(),
-                "product_name": self._grabber.get_product_name(),
-                "location": self._grabber.get_location(),
+                "serial_number": fg.get_serial_number(),
+                "product_name": fg.get_product_name(),
+                "location": fg.get_location(),
             }
         except Exception as err:
             return {"error": str(err)}

@@ -1,4 +1,11 @@
-from mytk import Dialog, Label, Entry
+try:
+    from mytk import Dialog, Label, Entry
+    _MYTK_AVAILABLE = True
+except ImportError:
+    Dialog = None
+    Label = None
+    Entry = None
+    _MYTK_AVAILABLE = False
 from typing import Protocol, Optional, Any, Callable
 from multiprocessing import Manager
 from dataclasses import dataclass
@@ -41,7 +48,10 @@ class Configurable:
             self.configuration.update(configuration)
 
 
-class ConfigurationDialog(Dialog, Configurable):
+_dialog_bases = (Dialog, Configurable) if _MYTK_AVAILABLE else (Configurable,)
+
+
+class ConfigurationDialog(*_dialog_bases):
     def __init__(self, populate_body_fct=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.populate_body_fct = populate_body_fct
