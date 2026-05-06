@@ -28,7 +28,7 @@ from Pyro5.errors import NamingError
 
 from pymicroscope.utils.pyroprocess import PyroProcess
 from pymicroscope.acquisition.vmscontroller import VMSController
-from pymicroscope.acquisition.epiphan.epiphanlibwrapper import EpiphanFrameGrabber
+from pymicroscope.acquisition.epiphan.epiphanimageprovider import EpiphanImageProvider
 from pymicroscope.acquisition.epiphan.polygoncontroller import PolygonController
 from pymicroscope.acquisition.epiphan.pyroservices import (
     EpiphanPyroService,
@@ -59,7 +59,7 @@ class HardwareManager:
         self.daemon = daemon
         self.ns = ns
 
-        self.grabber: EpiphanFrameGrabber | None = None
+        self.image_provider: EpiphanImageProvider | None = None
         self.vms: VMSController | None = None
         self.polygon: PolygonController | None = None
 
@@ -98,9 +98,9 @@ class HardwareManager:
                 self.image_service.stop_streaming()
             except Exception:
                 pass
-        if self.grabber is not None:
+        if self.image_provider is not None:
             try:
-                self.grabber.close()
+                self.image_provider.cleanup()
             except Exception:
                 pass
         if self.vms is not None:
@@ -120,13 +120,13 @@ class HardwareManager:
         if self.image_service is not None:
             return "ok"
         try:
-            grabber = EpiphanFrameGrabber()
-            grabber.initialize_device()
+            provider = EpiphanImageProvider()
+            provider.setup()
         except Exception as err:
             log.warning("Epiphan failed to initialise: %s", err)
             return f"error: {err}"
-        self.grabber = grabber
-        self.image_service = EpiphanPyroService(grabber)
+        self.image_provider = provider
+        self.image_service = EpiphanPyroService(provider)
         self._register(IMAGE_PYRO_NAME, self.image_service)
         log.info("Epiphan ready.")
         return "ok"
