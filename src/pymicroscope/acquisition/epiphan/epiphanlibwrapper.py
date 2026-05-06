@@ -507,6 +507,30 @@ class CapturedFrame:
         return (f"CapturedFrame({self.width}x{self.height}, "
                 f"palette=0x{self.palette:x}, {len(self.data)} bytes)")
 
+    def to_numpy(self):
+        """Return the pixel buffer as a numpy uint8 array.
+
+        RGB24 -> shape (H, W, 3) ; Y8 -> shape (H, W) ; other formats
+        return a flat 1D array (caller knows the layout). Returns None if
+        the frame has no usable pixel data.
+        """
+        import numpy as np
+        if not self.data or self.width <= 0 or self.height <= 0:
+            return None
+        arr = np.frombuffer(self.data, dtype=np.uint8)
+        fmt = self.palette & V2U_GRABFRAME_FORMAT_MASK
+        if fmt == V2U_GRABFRAME_FORMAT_RGB24:
+            n = self.height * self.width * 3
+            if arr.size < n:
+                return None
+            return arr[:n].reshape(self.height, self.width, 3).copy()
+        if fmt == V2U_GRABFRAME_FORMAT_Y8:
+            n = self.height * self.width
+            if arr.size < n:
+                return None
+            return arr[:n].reshape(self.height, self.width).copy()
+        return arr.copy()
+
 
 class EpiphanFrameGrabber:
     def __init__(self):

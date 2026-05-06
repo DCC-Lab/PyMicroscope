@@ -22,7 +22,7 @@ class EpiphanImageProvider(ImageProvider):
         self.fg.initialize_device()
 
     def cleanup(self):
-        self.fg.shutdown_device()
+        self.fg.close()
         del self.fg
 
     def start(self):
@@ -31,8 +31,9 @@ class EpiphanImageProvider(ImageProvider):
     def stop(self):
         self.fg.stop_streaming()
 
-    def capture_image(self) -> np.ndarray:
-        return self.fg.grab_frame()
+    def capture_image(self) -> np.ndarray | None:
+        frame = self.fg.grab_frame()
+        return frame.to_numpy() if frame is not None else None
 
 
 if __name__ == "__main__":

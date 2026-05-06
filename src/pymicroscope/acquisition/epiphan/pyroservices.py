@@ -12,67 +12,22 @@ serpent serializer can ferry them across the wire without extra deps.
 from __future__ import annotations
 
 import threading
-from ctypes import (
-    POINTER,
-    Structure,
-    c_int32,
-    c_uint8,
-    c_uint32,
-    c_void_p,
-    cast,
-    string_at,
-)
 
 import numpy as np
 from Pyro5.api import expose
 
 from pymicroscope.acquisition.epiphan.epiphanlibwrapper import (
     EpiphanFrameGrabber,
-    EpiphanLibraryWrapper,
-    V2URect,
-    V2U_VideoMode,
     V2U_GRABFRAME_FORMAT_RGB24,
 )
-
-
-# ---- V2U_GrabFrame2 ctypes mirror (from v2u_defs.h) -----------------------
-
-class V2U_GrabFrame2(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("pixbuf", c_void_p),
-        ("pixbuflen", c_uint32),
-        ("palette", c_uint32),
-        ("crop", V2URect),
-        ("mode", V2U_VideoMode),
-        ("imagelen", c_uint32),
-        ("retcode", c_int32),
-    ]
 
 
 def _grab_rgb_array(grabber: EpiphanFrameGrabber) -> np.ndarray | None:
     """Single-frame grab decoded into a numpy uint8 array of shape (H, W, 3)."""
     if grabber.device is None:
         return None
-    lib = EpiphanLibraryWrapper.lib
-    raw_ptr = lib.FrmGrab_Frame(grabber.device, V2U_GRABFRAME_FORMAT_RGB24, None)
-    if not raw_ptr:
-        return None
-    try:
-        frame = cast(raw_ptr, POINTER(V2U_GrabFrame2)).contents
-        h = frame.mode.height
-        w = frame.mode.width
-        if h <= 0 or w <= 0 or frame.pixbuf is None or frame.imagelen == 0:
-            return None
-        # Copy out before Release frees the buffer
-        raw = string_at(frame.pixbuf, frame.imagelen)
-        arr = np.frombuffer(raw, dtype=np.uint8)
-        # RGB24 = 3 bytes/pixel, top-down by default
-        if arr.size < h * w * 3:
-            return None
-        return arr[: h * w * 3].reshape(h, w, 3).copy()
-    finally:
-        lib.FrmGrab_Release(grabber.device, raw_ptr)
+    frame = grabber.grab_frame(format=V2U_GRABFRAME_FORMAT_RGB24)
+    return frame.to_numpy() if frame is not None else None
 
 
 # ---- Pyro service wrappers -------------------------------------------------

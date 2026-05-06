@@ -100,7 +100,7 @@ class HardwareManager:
                 pass
         if self.grabber is not None:
             try:
-                self.grabber.shutdown_device()
+                self.grabber.close()
             except Exception:
                 pass
         if self.vms is not None:

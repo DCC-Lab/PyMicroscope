@@ -119,6 +119,30 @@ class EpiphanFrameGrabberTestCase(envtest.CoreTestCase):
         self.assertIsInstance(result, CapturedFrame)
         self.assertGreaterEqual(len(result.data), result.width * result.height)
 
+    def test155_to_numpy_rgb24(self) -> None:
+        if not self._has_active_source():
+            self.skipTest("No video source connected")
+        import numpy as np
+        frame = self.fg.grab_frame(format=V2U_GRABFRAME_FORMAT_RGB24)
+        arr = frame.to_numpy()
+        self.assertIsInstance(arr, np.ndarray)
+        self.assertEqual(arr.dtype, np.uint8)
+        self.assertEqual(arr.ndim, 3)
+        self.assertEqual(arr.shape[2], 3)
+        self.assertEqual(arr.shape[0], frame.height)
+        self.assertEqual(arr.shape[1], frame.width)
+
+    def test165_to_numpy_y8(self) -> None:
+        if not self._has_active_source():
+            self.skipTest("No video source connected")
+        import numpy as np
+        frame = self.fg.grab_frame(format=V2U_GRABFRAME_FORMAT_Y8)
+        arr = frame.to_numpy()
+        self.assertIsInstance(arr, np.ndarray)
+        self.assertEqual(arr.dtype, np.uint8)
+        self.assertEqual(arr.ndim, 2)
+        self.assertEqual(arr.shape, (frame.height, frame.width))
+
     def test170_grab_frame_with_crop(self) -> None:
         if not self._has_active_source():
             self.skipTest("No video source connected")
