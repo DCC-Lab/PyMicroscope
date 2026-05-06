@@ -18,14 +18,17 @@ from pymicroscope.utils.configurable import (
 from PIL import Image as PILImage
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
-from pymicroscope.base.position_and_mapcontroller import MapController
+from pymicroscope.base.mapcontroller import MapController
 from pymicroscope.experiment.actions import *
 from pymicroscope.experiment.experiments import Experiment, ExperimentStep
 from pymicroscope.app_notifications import MicroscopeAppNotification
 from pymicroscope.base.save_history import SaveHistory
 from pymicroscope.utils.thread_utils import is_main_thread
+from pymicroscope.plugins.delay_line import DelaysController
 
+from hardwarelibrary.physicaldevice import PhysicalDevice
 from hardwarelibrary.motion import SutterDevice
+from pymicroscope.hardware.kinesisdevice import KinesisDevice
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -56,6 +59,17 @@ class MicroscopeApp(App):
         self.is_camera_running = False
 
         self.sample_position_device = SutterDevice(serialNumber="debug")
+        self.delay_device:LinearMotionDevice = KinesisDevice(serialNumber="83849018")
+
+        try:
+            self.delay_device.initializeDevice()
+            self.delay_position = self.delay_device.position()
+            self.delay_device_is_ready = True
+        except PhysicalDevice.UnableToInitialize as e:
+            self.delay_position = None
+            self.delay_device_is_ready = False
+            
+        self.delay_controller = DelaysController()
 
         self.map_controller = MapController(self.sample_position_device)
 
@@ -161,6 +175,7 @@ class MicroscopeApp(App):
         self.build_position_interface()
         self.build_start_stop_interface()
         self.build_cameras_menu()
+        self.build_delay_interface()
 
     def build_imageview_interface(self):
         assert is_main_thread()
@@ -373,7 +388,7 @@ class MicroscopeApp(App):
     def build_position_interface(self):
         # assert is_main_thread()
 
-        self.position = Box(label="Position", width=500, height=250)
+        self.position = Box(label="Position", width=500, height=310)
         self.position.grid_into(
             self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
         )
@@ -416,10 +431,54 @@ class MicroscopeApp(App):
             padx=10,
             sticky="w",
         )
+        Label("Image Pixel Dimension:").grid_into(
+            self.position,
+            row=3,
+            column=0,
+            columnspan=2,
+            pady=10,
+            padx=10,
+            sticky="w",
+        )
+        Label("x dimension:").grid_into(
+            self.position,
+            row=3,
+            column=2,
+            pady=10,
+            padx=10,
+            sticky="e",
+        )
+        self.x_pixel_entry = IntEntry(
+            value=0, width=4
+        )
+        self.x_pixel_entry.grid_into(
+            self.position, row=3, column=3, pady=2, padx=2, sticky="nsw"
+        )
+        self.map_controller.bind_properties(
+            "x_dimension", self.x_pixel_entry, "value_variable"
+        )
+
+        Label("y dimension:").grid_into(
+            self.position,
+            row=3,
+            column=4,
+            pady=10,
+            padx=10,
+            sticky="e",
+        )
+        self.y_pixel_entry = IntEntry(
+            value=0, width=4
+        )
+        self.y_pixel_entry.grid_into(
+            self.position, row=3, column=5, pady=2, padx=2, sticky="nsw"
+        )
+        self.map_controller.bind_properties(
+            "y_dimension", self.y_pixel_entry, "value_variable"
+        )
 
         Label("Facteur :").grid_into(
             self.position,
-            row=3,
+            row=4,
             column=0,
             columnspan=2,
             pady=2,
@@ -431,7 +490,7 @@ class MicroscopeApp(App):
             value=float(self.map_controller.microstep_pixel), width=5
         )
         self.microstep_pixel_entry.grid_into(
-            self.position, row=3, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "microstep_pixel", self.microstep_pixel_entry, "value_variable"
@@ -439,7 +498,7 @@ class MicroscopeApp(App):
 
         Label("um/px").grid_into(
             self.position,
-            row=3,
+            row=4,
             column=3,
             pady=2,
             padx=0,
@@ -448,7 +507,7 @@ class MicroscopeApp(App):
 
         Label("Number of z images :").grid_into(
             self.position,
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             pady=2,
@@ -459,7 +518,7 @@ class MicroscopeApp(App):
             value=self.map_controller.z_image_number, width=5
         )
         self.z_image_number_entry.grid_into(
-            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
+            self.position, row=5, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_image_number", self.z_image_number_entry, "value_variable"
@@ -467,8 +526,8 @@ class MicroscopeApp(App):
 
         Label("z step :").grid_into(
             self.position,
-            row=4,
-            column=4,
+            row=5,
+            column=3,
             pady=2,
             padx=2,
             sticky="nse",
@@ -478,7 +537,7 @@ class MicroscopeApp(App):
             value=self.map_controller.z_range, width=5
         )
         self.z_range_entry.grid_into(
-            self.position, row=4, column=5, pady=2, padx=2, sticky="ns"
+            self.position, row=5, column=4, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_range", self.z_range_entry, "value_variable"
@@ -486,8 +545,8 @@ class MicroscopeApp(App):
 
         Label("um").grid_into(
             self.position,
-            row=4,
-            column=6,
+            row=5,
+            column=5,
             pady=2,
             padx=0,
             sticky="nsw",
@@ -499,7 +558,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_left_button.grid_into(
             self.position,
-            row=5,
+            row=6,
             column=0,
             columnspan=2,
             pady=3,
@@ -513,7 +572,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_upper_right_button.grid_into(
             self.position,
-            row=5,
+            row=6,
             column=2,
             columnspan=2,
             pady=3,
@@ -527,7 +586,7 @@ class MicroscopeApp(App):
         )  # want that when the button is push, the first value is memorised and we see the position at the button place
         self.apply_lower_right_button.grid_into(
             self.position,
-            row=6,
+            row=7,
             column=2,
             columnspan=2,
             pady=2,
@@ -541,7 +600,7 @@ class MicroscopeApp(App):
         )
         self.apply_lower_left_button.grid_into(
             self.position,
-            row=6,
+            row=7,
             column=0,
             columnspan=2,
             pady=2,
@@ -555,12 +614,12 @@ class MicroscopeApp(App):
         )
         self.start_map_aquisition.grid_into(
             self.position,
-            row=5,
-            column=5,
+            row=6,
+            column=4,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="nse",
+            sticky="ns",
         )
         self.bind_properties(
             "can_start_map", self.start_map_aquisition, "is_enabled"
@@ -572,16 +631,151 @@ class MicroscopeApp(App):
         )
         self.clear_map_aquisition.grid_into(
             self.position,
-            row=6,
-            column=5,
+            row=7,
+            column=4,
             columnspan=2,
             pady=2,
             padx=2,
-            sticky="nse",
+            sticky="ns",
         )
         self.bind_properties(
             "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
+
+    def build_delay_interface(self):
+
+        self.delay_controls = Box(
+            label="Delay", width=370, height=250
+        )
+
+        self.delay_controls.grid_into(
+            self.window, column=3, row=0, pady=10, padx=10, sticky="nse"
+        )
+        self.delay_controls.widget.grid_propagate(False)
+
+        Label("Position in encoder steps").grid_into(
+            self.delay_controls, row=1, column=0, columnspan=2, pady=4, padx=4, sticky="w"
+        )
+        Label(self.delay_position).grid_into(
+            self.delay_controls, row=1, column=1, columnspan=2, pady=4, padx=4, sticky="e"
+        )
+        Label("Tunable Wavelenght").grid_into(
+            self.delay_controls, row=2, column=0, pady=4, padx=4, sticky="w"
+        )
+        self.wavelenght_entry = IntEntry(
+            value=0, width=5
+        )
+        self.wavelenght_entry.grid_into(
+            self.delay_controls, row=2, column=1, pady=4, padx=4, sticky="e"
+        )
+        Label("nm").grid_into(
+            self.delay_controls, row=2, column=2, pady=4, padx=4, sticky="w"
+        )
+        Label("Delay/Wavelenght relation:").grid_into(
+            self.delay_controls, row=3, column=0, columnspan=2, pady=4, padx=4, sticky="w"
+        )
+        self.a_equation_entry = IntEntry(
+            value=self.delay_controller.a_value, width=5
+        )
+        self.a_equation_entry.grid_into(
+            self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="e"
+        )
+        self.delay_controller.bind_properties(
+            "a_value", self.a_equation_entry, "value_variable"
+        )
+
+        Label("x  +").grid_into(
+            self.delay_controls, row=3, column=2, pady=4, padx=4, sticky="w"
+        )
+        self.b_equation_entry = IntEntry(
+            value=self.delay_controller.b_value, width=3
+        )
+        self.b_equation_entry.grid_into(
+            self.delay_controls, row=3, column=3, pady=4, padx=4, sticky="w"
+        )
+        self.delay_controller.bind_properties(
+            "b_value", self.b_equation_entry, "value_variable"
+        )
+        
+        self.start_ajustement_placement = Button(
+            "Start wavelength Placement",
+            user_event_callback=self.user_clicked_ajustement_placement,
+        )
+        self.start_ajustement_placement.grid_into(
+            self.delay_controls,
+            row=4,
+            column=0,
+            columnspan=3,
+            pady=4,
+            padx=4,
+            sticky="ns",
+        )
+
+        self.bind_properties(
+            "has_delay_device", self.start_ajustement_placement, "is_enabled"
+        )
+        
+        self.start_move_left = Button(
+            "Left",
+            user_event_callback=self.user_clicked_left_direction,
+        )
+        self.start_move_left.grid_into(
+            self.delay_controls,
+            row=5,
+            column=0,
+            pady=4,
+            padx=4,
+            sticky="ns",
+        )
+        self.bind_properties(
+            "has_delay_device", self.start_move_left, "is_enabled"
+        )
+
+        self.start_move_right = Button(
+            "Right",
+            user_event_callback=self.user_clicked_right_direction,
+        )
+        self.start_move_right.grid_into(
+            self.delay_controls,
+            row=5,
+            column=1,
+            pady=4,
+            padx=4,
+            sticky="nsw",
+        )
+
+        self.bind_properties(
+            "has_delay_device", self.start_move_right, "is_enabled"
+        )
+
+        self.start_homing = Button(
+            "Homing Placement",
+            user_event_callback=self.user_clicked_homing,
+        )
+        self.start_homing.grid_into(
+            self.delay_controls,
+            row=6,
+            column=0,
+            pady=4,
+            padx=4,
+            sticky="nsw",
+        )
+        self.bind_properties(
+            "has_delay_device", self.start_homing, "is_enabled"
+        )
+
+    def user_clicked_ajustement_placement(self, even, button):
+        delay_position = self.delay_controller.linear_relation_delays_and_wavelength(self.wavelenght_entry.value) #modifier l'équation de la relation en fct de la nouvelle implémentation
+        ActionMove(position=(delay_position,), linear_motion_device=self.delay_device).perform()
+
+    def user_clicked_homing(self, even, button):
+        ActionHome(linear_motion_device=self.delay_device).do_perform()
+
+    def user_clicked_left_direction(self, even, button):
+        ActionMoveBy(d_position=(5,), linear_motion_device=self.delay_device).do_perform()
+
+    def user_clicked_right_direction(self, even, button):
+        ActionMoveBy(d_position=(-5,), linear_motion_device=self.delay_device).do_perform()
 
     def user_clicked_saving_position(self, even, button):
         corner_label = button.label
@@ -589,13 +783,13 @@ class MicroscopeApp(App):
             corner_label
         ] = self.sample_position_device.positionInMicrons()
 
-        if all(x is not None for x in self.map_controller.parameters.values()):
+        if self.map_controller.corners_are_set:
             self.can_start_map = True
 
     def user_clicked_clear(self, even, button):
-        value_to_clear = self.map_controller.parameters
-
-        ActionClear(value_to_clear)
+        for corner in self.map_controller.parameters:
+            self.map_controller.parameters[corner] = None
+            
         self.can_start_map = None
 
     def user_clicked_map_aquisition_image(self, event, button):
@@ -624,6 +818,7 @@ class MicroscopeApp(App):
             exp.add_step(experiment_step=exp_step)
 
         exp.perform_in_background_thread()
+
 
     def user_clicked_configure_button(self, event, button):
         restart_after = False
@@ -749,6 +944,12 @@ class MicroscopeApp(App):
         
         self.after(20, self.microscope_run_loop)
 
+    def delay_return_home(self):
+        if self.delay_device.position() != 0:
+            ActionHome(linear_motion_device=self.delay_device).perform()
+        else:
+            pass
+
     def about(self):
         Dialog.showinfo(
             title="About Microscope",
@@ -763,6 +964,7 @@ class MicroscopeApp(App):
     def quit(self):
         try:
             self.release_provider()
+            self.delay_return_home()
         except Exception as err:
             pass
 

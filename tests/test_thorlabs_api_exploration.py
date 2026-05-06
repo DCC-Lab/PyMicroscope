@@ -1,20 +1,24 @@
 import unittest
-from mytk import *
-import pylablib
-import Thorpy
-from pylablib.devices.Thorlabs import kinesis
-from thorlabs_apt_device import APTDevice
-from thorlabs_apt_device.devices import TDC001
-from thorlabs_apt_device.enums import EndPoint, LEDMode
-import numpy as np
-import serial
-from serial.tools import list_ports
-from hardwarelibrary.communication.usbport import USBPort
 
+try:
+    import pylablib
+    import Thorpy
+    from pylablib.devices.Thorlabs import kinesis
+    from thorlabs_apt_device import APTDevice
+    from thorlabs_apt_device.devices import TDC001
+    from thorlabs_apt_device.enums import EndPoint, LEDMode
+    import numpy as np
+    import serial
+    from serial.tools import list_ports
+    from hardwarelibrary.communication.usbport import USBPort
+    HAS_THORLABS = True
+except ImportError:
+    HAS_THORLABS = False
 
 
 CONTROLLER_SERIAL_PATH = "/dev/cu.wlan-debug"
 
+@unittest.skipUnless(HAS_THORLABS, "Thorlabs dependencies not installed")
 class TestDelais(unittest.TestCase):
     def setUp(self):
         self.init_thorlabs = APTDevice()
@@ -77,10 +81,7 @@ class TestDelais(unittest.TestCase):
         self.init_thorlabs._write(LEDMode.MOVING)
 
     def test005_thorpy_methode(self):
-        
-        
-    
-    
+        pass
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ class EpiphanWrapperTestCase(envtest.CoreTestCase):
 
     def test020_can_open_grabber(self) -> None:
         self.assertIsNotNone(
-            EpiphanLibraryWrapper.lib.FrmGrab_Open("local".encode("utf-8"))
+            EpiphanLibraryWrapper.lib.FrmGrab_Open("local:".encode("utf-8"))
         )
 
     def test030_FrameGrabber(self):
