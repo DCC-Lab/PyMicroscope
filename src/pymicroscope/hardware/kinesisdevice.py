@@ -1,16 +1,6 @@
-from hardwarelibrary.physicaldevice import *
-from hardwarelibrary.motion.linearmotiondevice import *
-from hardwarelibrary.communication.communicationport import *
-from hardwarelibrary.communication.usbport import USBPort
-from hardwarelibrary.communication.serialport import SerialPort
-from hardwarelibrary.communication.commands import DataCommand
-from hardwarelibrary.communication.debugport import DebugPort
+from hardwarelibrary.physicaldevice import PhysicalDevice
+from hardwarelibrary.motion.linearmotiondevice import LinearMotionDevice
 
-import time
-from struct import *
-
-from pyftdi.ftdi import Ftdi #FIXME: should not be here.
-from mytk import *
 from pylablib.devices.Thorlabs import kinesis
 
 class KinesisDevice(LinearMotionDevice):
@@ -30,7 +20,7 @@ class KinesisDevice(LinearMotionDevice):
     def __del__(self):
         try:
             self.thorlabs_device.close()
-        except:
+        except Exception:
             return
 
     def doInitializeDevice(self):
@@ -40,14 +30,11 @@ class KinesisDevice(LinearMotionDevice):
         if self.serialNumber not in available_serial_numbers:
             raise RuntimeError("Kinesis Device with serial number {0} not found.".format(self.serialNumber))
 
-        '''Connect the right Kinesis Motor, open the port, set the channel and the reference position'''
+        # Connect the right Kinesis Motor, open the port, set the channel and the reference position
         self.thorlabs_device = kinesis.KinesisMotor(conn=self.serialNumber)
-        if self.thorlabs_device is None:
-            raise PhysicalDevice.UnableToInitialize("Cannot allocate port {0}".format(self.thorlabs_device))
-        else:
-            self.thorlabs_device.open()
-            self.thorlabs_device.set_supported_channels(channels= self.channel)
-            self.thorlabs_device.set_position_reference() #set the initilal point
+        self.thorlabs_device.open()
+        self.thorlabs_device.set_supported_channels(channels=self.channel)
+        self.thorlabs_device.set_position_reference()  # set the initial point
 
     def doShutdownDevice(self):
         self.thorlabs_device.close()
@@ -62,21 +49,11 @@ class KinesisDevice(LinearMotionDevice):
 
     def doMoveTo(self, position):
         self.thorlabs_device.move_to(position=position[0])
-        if self.thorlabs_device.is_moving() is False:
-            raise Exception("unable to move the device.")
-        else:
-            self.thorlabs_device.wait_move()
+        self.thorlabs_device.wait_move()
 
     def doMoveBy(self, displacement):
         self.thorlabs_device.move_by(distance=displacement[0])
-        if self.thorlabs_device.is_moving() is False:
-                raise Exception("unable to move the device.")
-        else:
-            self.thorlabs_device.wait_move()
+        self.thorlabs_device.wait_move()
 
     def doHome(self):
-        self.thorlabs_device.move_to(position=0)
-        if self.thorlabs_device.is_moving() is False:
-            raise Exception("unable to move the device to home.")
-        else:
-            self.thorlabs_device.wait_for_stop()
+        self.thorlabs_device.home(sync=True, force=True)

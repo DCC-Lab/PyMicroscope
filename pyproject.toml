@@ -31,7 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 opencv = ["opencv-python"]
-hardware = ["hardwarelibrary"]
+hardware = ["hardwarelibrary", "pylablib"]
 all = ["pymicroscope[opencv,hardware]"]
 dev = [
     "pymicroscope[all]",
