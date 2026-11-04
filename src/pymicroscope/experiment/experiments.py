@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any
 from threading import Thread
 from pymicroscope.experiment.actions import Action, ActionFunctionCall
-from mytk.notificationcenter import NotificationCenter
+from notificationcenter import NotificationCenter
 
 
 class ExperimentNotification(Enum):
