@@ -1,6 +1,5 @@
 from mytk import *
-from mytk import __version__ as mytk_version
-from mytk.notificationcenter import NotificationCenter, Notification
+from notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
 import numpy as np
@@ -9,7 +8,6 @@ from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
 from pathlib import Path
 from threading import Thread
-from packaging import version
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -33,9 +31,6 @@ from pymicroscope.hardware.kinesisdevice import KinesisDevice
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        if version.parse(mytk_version) < version.parse("0.9.12"): 
-            self.main_queue:TQueue = TQueue()
 
         self.image_queue:MPQueue = MPQueue()
         self.preview_queue:TQueue = TQueue(maxsize=1)
@@ -293,11 +288,6 @@ class MicroscopeApp(App):
         )
         self.bind_properties("images_template", entry, "value_variable")
 
-        self.number_of_images_average = IntEntry(value=30, width=5)
-        self.number_of_images_average.grid_into(
-            self.save_controls, row=2, column=2, pady=10, padx=10, sticky="w"
-        )
-
     def handle_notification(self, notification: Notification):
         if notification.name == MicroscopeAppNotification.did_start_capture:
             self.is_camera_running = True
@@ -486,14 +476,16 @@ class MicroscopeApp(App):
             sticky="nse",
         )
 
-        self.microstep_pixel_entry = IntEntry(
-            value=float(self.map_controller.microstep_pixel), width=5
+        self.microstep_pixel_entry = FormattedEntry(
+            value=float(self.map_controller.microstep_pixel),
+            character_width=7,
+            format_string="{0:.5f}",
         )
         self.microstep_pixel_entry.grid_into(
             self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
         )
         self.map_controller.bind_properties(
-            "microstep_pixel", self.microstep_pixel_entry, "value_variable"
+            "microstep_pixel", self.microstep_pixel_entry, "value"
         )
 
         Label("um/px").grid_into(
@@ -674,14 +666,16 @@ class MicroscopeApp(App):
         Label("Delay/Wavelenght relation:").grid_into(
             self.delay_controls, row=3, column=0, columnspan=2, pady=4, padx=4, sticky="w"
         )
-        self.a_equation_entry = IntEntry(
-            value=self.delay_controller.a_value, width=5
+        self.a_equation_entry = FormattedEntry(
+            value=self.delay_controller.a_value,
+            character_width=6,
+            format_string="{0:.3f}",
         )
         self.a_equation_entry.grid_into(
             self.delay_controls, row=3, column=1, pady=4, padx=4, sticky="e"
         )
         self.delay_controller.bind_properties(
-            "a_value", self.a_equation_entry, "value_variable"
+            "a_value", self.a_equation_entry, "value"
         )
 
         Label("x  +").grid_into(
@@ -712,7 +706,7 @@ class MicroscopeApp(App):
         )
 
         self.bind_properties(
-            "has_delay_device", self.start_ajustement_placement, "is_enabled"
+            "delay_device_is_ready", self.start_ajustement_placement, "is_enabled"
         )
         
         self.start_move_left = Button(
@@ -728,7 +722,7 @@ class MicroscopeApp(App):
             sticky="ns",
         )
         self.bind_properties(
-            "has_delay_device", self.start_move_left, "is_enabled"
+            "delay_device_is_ready", self.start_move_left, "is_enabled"
         )
 
         self.start_move_right = Button(
@@ -745,7 +739,7 @@ class MicroscopeApp(App):
         )
 
         self.bind_properties(
-            "has_delay_device", self.start_move_right, "is_enabled"
+            "delay_device_is_ready", self.start_move_right, "is_enabled"
         )
 
         self.start_homing = Button(
@@ -761,7 +755,7 @@ class MicroscopeApp(App):
             sticky="nsw",
         )
         self.bind_properties(
-            "has_delay_device", self.start_homing, "is_enabled"
+            "delay_device_is_ready", self.start_homing, "is_enabled"
         )
 
     def user_clicked_ajustement_placement(self, even, button):
@@ -789,8 +783,8 @@ class MicroscopeApp(App):
     def user_clicked_clear(self, even, button):
         for corner in self.map_controller.parameters:
             self.map_controller.parameters[corner] = None
-            
-        self.can_start_map = None
+
+        self.can_start_map = False
 
     def user_clicked_map_aquisition_image(self, event, button):
         self.save_map_experience()
@@ -936,9 +930,6 @@ class MicroscopeApp(App):
 
                         
     def microscope_run_loop(self):
-        if version.parse(mytk_version) < version.parse("0.9.12"): 
-            self.check_main_queue()
-            
         self.retrieve_new_image()
         self.update_preview()
         
@@ -971,25 +962,6 @@ class MicroscopeApp(App):
         self.cleanup()
         super().quit()
 
-if version.parse(mytk_version) < version.parse("0.9.12"): 
-
-    def schedule_on_main_thread(self, fct, args):
-        self.main_queue.put( (fct, args) )
-
-    def check_main_queue(self):
-        while not self.main_queue.empty():
-            try:
-                f, args = self.main_queue.get_nowait()
-                f(*args)
-            except Exception as e:
-                print("Unable to call scheduled function {fct} :", e)
-
-    setattr(MicroscopeApp, "schedule_on_main_thread", schedule_on_main_thread)
-    setattr(MicroscopeApp, "check_main_queue", check_main_queue)
-
-    
-            
-    
 
 if __name__ == "__main__":
     app = MicroscopeApp()
