@@ -86,4 +86,11 @@ class OpenCVImageProvider(ImageProvider):
             if time.time() - start_time > timeout:
                 raise TimeoutError("Camera not ready after waiting {} seconds".format(timeout))
             time.sleep(0.1)  # avoid tight loop
+
+        # Adopt the camera's native resolution so capture_image() never
+        # stretches frames to a mismatched aspect ratio (e.g. the default
+        # 640x480 against a 16:9 FaceTime camera).
+        self.set_height(frame.shape[0])
+        self.set_width(frame.shape[1])
+
         super().run()
