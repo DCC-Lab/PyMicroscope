@@ -27,6 +27,7 @@ dependencies = [
     "numpy",
     "Pillow",
     "mytk",
+    "packaging",
 ]
 
 [project.optional-dependencies]

@@ -30,22 +30,53 @@ class Configurable:
 
     def __init__(self, properties_description:list[ConfigurableProperty] = None, configuration = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if properties_description is None:
+            properties_description = []
         self.properties_description = properties_description
-        self.properties_description_dict = { pd.name:pd  for pd in properties_description} 
-        
+        self.properties_description_dict = { pd.name:pd  for pd in properties_description}
+
         self.configuration = Manager().dict()
-        
+
         self.configuration.update({ p.name:p.default_value for p in properties_description })
-        
+
         if configuration is not None:
             self.configuration.update(configuration)
 
 
 class ConfigurationDialog(Dialog, Configurable):
-    def __init__(self, populate_body_fct=None, *args, **kwargs):
+    def __init__(
+        self,
+        populate_body_fct=None,
+        properties_description=None,
+        configuration=None,
+        *args,
+        **kwargs,
+    ):
+        # mytk's Bindable/EventCapable/DragAndDropCapable all call
+        # super().__init__() with no arguments somewhere in Dialog's cooperative
+        # multiple-inheritance chain, silently dropping any kwargs meant for
+        # Configurable.__init__ further down the MRO (confirmed against mytk
+        # 1.9.0: properties_description/configuration never arrived there).
+        # So take them directly here and inline Configurable.__init__'s setup,
+        # instead of relying on it ever being reached with these values.
+        # Remove this workaround if a future mytk fixes the kwarg forwarding.
         super().__init__(*args, **kwargs)
         self.populate_body_fct = populate_body_fct
         self.configuration_widgets = {}
+
+        if properties_description is None:
+            properties_description = []
+        self.properties_description = properties_description
+        self.properties_description_dict = {
+            pd.name: pd for pd in properties_description
+        }
+
+        self.configuration = Manager().dict()
+        self.configuration.update(
+            {p.name: p.default_value for p in properties_description}
+        )
+        if configuration is not None:
+            self.configuration.update(configuration)
     
     def populate_widget_body(self):
         if self.populate_body_fct is None:

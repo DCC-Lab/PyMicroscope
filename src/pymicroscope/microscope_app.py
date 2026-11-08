@@ -1,4 +1,8 @@
+import sys
+
+import mytk
 from mytk import *
+from packaging.version import Version
 from notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
@@ -8,6 +12,28 @@ from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
 from pathlib import Path
 from threading import Thread
+
+# mytk has no app-level default padx/pady for grid_into (verified absent as of
+# mytk 1.9.0): every call must repeat its own padding. MicroscopeApp.grid_into_with_defaults
+# below is a *temporary* local shim for that, to be deleted and replaced by mytk's
+# own mechanism once/if it gains one - see https://github.com/DCC-Lab/myTk.
+# This constant marks the newest mytk version known to still lack it; bump it only
+# after confirming (not assuming) a newer mytk still lacks the feature.
+_MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING = "1.9.0"
+_mytk_version = Version(mytk.__version__)
+NEEDS_PADDING_SHIM = _mytk_version <= Version(
+    _MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING
+)
+
+if not NEEDS_PADDING_SHIM:
+    print(
+        f"[PyMicroscope] WARNING: mytk {mytk.__version__} is newer than "
+        f"{_MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING}; skipping the local "
+        "grid_into_with_defaults() padding shim in microscope_app.py. Check "
+        "whether mytk now provides app-level default padx/pady for grid_into "
+        "natively, and delete the shim (and this check) if so.",
+        file=sys.stderr,
+    )
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -169,11 +195,17 @@ class MicroscopeApp(App):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        self.build_position_interface()
-        self.build_map_interface()
+
+        self.right_column = View()
+        self.right_column.grid_into(
+            self.window, column=1, row=0, rowspan=5, pady=30, padx=20, sticky="nw"
+        )
+
         self.build_start_stop_interface()
+        self.build_position_interface()
+        # self.build_map_interface()  # temporarily removed from the main window
         self.build_cameras_menu()
-        self.build_delay_interface()
+        # self.build_delay_interface()  # temporarily removed from the main window
 
         self.constrain_window_size()
 
@@ -234,14 +266,11 @@ class MicroscopeApp(App):
     def build_start_stop_interface(self):
         assert is_main_thread()
 
-        self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
-        )
+        self.save_controls = Box(label="Image Acquisition")
 
         self.save_controls.grid_into(
-            self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
+            self.right_column, column=0, row=0, sticky="new"
         )
-        self.save_controls.widget.grid_propagate(False)
 
         self.camera_popup = PopupMenu(
             list(self.cameras.keys()), user_callback=self.user_changed_camera
@@ -404,29 +433,35 @@ class MicroscopeApp(App):
     def user_changed_camera(self, popup, index):
         self.change_provider()
 
-    def freeze_box_width(self, box, width):
-        """Fix a Box's width while letting its height track its content."""
-        box.widget.update_idletasks()
-        box.widget.configure(width=width, height=box.widget.winfo_reqheight())
-        box.widget.grid_propagate(False)
+    DEFAULT_PADX = 4
+    DEFAULT_PADY = 4
+
+    def grid_into_with_defaults(self, widget, parent, **kwargs):
+        """Like widget.grid_into(parent, **kwargs), but falls back to this
+        app's default padx/pady when the caller doesn't specify them.
+
+        Temporary shim - see NEEDS_PADDING_SHIM at the top of this module.
+        """
+        if NEEDS_PADDING_SHIM:
+            kwargs.setdefault("padx", self.DEFAULT_PADX)
+            kwargs.setdefault("pady", self.DEFAULT_PADY)
+        widget.grid_into(parent, **kwargs)
 
     def build_position_interface(self):
         self.position = Box()
         self.position.grid_into(
-            self.window, column=1, row=2, pady=(10, 2), padx=10, sticky="nw"
+            self.right_column, column=0, row=1, sticky="new"
         )
         self.position.widget.configure(padding=(8, 6))
 
-        Label("Position: (0, 0, 0)").grid_into(
-            self.position, row=0, column=0, pady=4, padx=4, sticky="w"
+        self.grid_into_with_defaults(
+            Label("Position: (0, 0, 0)"), self.position, row=0, column=0, sticky="w"
         )
-
-        self.freeze_box_width(self.position, 500)
 
     def build_map_interface(self):
         self.map_controls = Box(label="Map")
         self.map_controls.grid_into(
-            self.window, column=1, row=3, pady=(2, 10), padx=10, sticky="nw"
+            self.right_column, column=0, row=2, sticky="new"
         )
         self.map_controls.widget.configure(padding=(8, 6))
 
@@ -643,8 +678,6 @@ class MicroscopeApp(App):
             "can_start_map", self.clear_map_aquisition, "is_enabled"
         )
 
-        self.freeze_box_width(self.map_controls, 500)
-
     def build_delay_interface(self):
 
         self.delay_controls = Box(
@@ -826,11 +859,12 @@ class MicroscopeApp(App):
 
 
     def user_clicked_configure_button(self, event, button):
-        restart_after = False
+        if self.provider is None:
+            self.change_provider()
 
-        if self.provider._is_running.value:
+        was_running = self.provider._is_running.value
+        if was_running:
             self.stop_capture()
-            restart_after = True
 
         properties_description = self.provider.properties_description
         configuration = self.provider.configuration
@@ -842,8 +876,11 @@ class MicroscopeApp(App):
         )
         reply = diag.run()
 
-        if restart_after:
-            self.start_capture(diag.configuration)
+        if reply == ConfigurationDialog.Replies.Ok:
+            self.provider.set_configuration(diag.configuration)
+
+        if was_running:
+            self.start_capture()
 
     def change_provider(self, configuration={}):
         self.release_provider()
