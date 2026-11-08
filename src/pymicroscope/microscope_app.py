@@ -1,4 +1,8 @@
+import sys
+
+import mytk
 from mytk import *
+from packaging.version import Version
 from notificationcenter import NotificationCenter, Notification
 import signal
 from contextlib import suppress
@@ -8,6 +12,28 @@ from multiprocessing import Queue as MPQueue
 from tkinter import filedialog
 from pathlib import Path
 from threading import Thread
+
+# mytk has no app-level default padx/pady for grid_into (verified absent as of
+# mytk 1.9.0): every call must repeat its own padding. MicroscopeApp.grid_into_with_defaults
+# below is a *temporary* local shim for that, to be deleted and replaced by mytk's
+# own mechanism once/if it gains one - see https://github.com/DCC-Lab/myTk.
+# This constant marks the newest mytk version known to still lack it; bump it only
+# after confirming (not assuming) a newer mytk still lacks the feature.
+_MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING = "1.9.0"
+_mytk_version = Version(mytk.__version__)
+NEEDS_PADDING_SHIM = _mytk_version <= Version(
+    _MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING
+)
+
+if not NEEDS_PADDING_SHIM:
+    print(
+        f"[PyMicroscope] WARNING: mytk {mytk.__version__} is newer than "
+        f"{_MYTK_LAST_VERSION_WITHOUT_DEFAULT_PADDING}; skipping the local "
+        "grid_into_with_defaults() padding shim in microscope_app.py. Check "
+        "whether mytk now provides app-level default padx/pady for grid_into "
+        "natively, and delete the shim (and this check) if so.",
+        file=sys.stderr,
+    )
 
 from pymicroscope.utils.configurable import (
     ConfigurationDialog,
@@ -27,6 +53,8 @@ from pymicroscope.plugins.delay_line import DelaysController
 from hardwarelibrary.physicaldevice import PhysicalDevice
 from hardwarelibrary.motion import SutterDevice
 from pymicroscope.hardware.kinesisdevice import KinesisDevice
+
+
 
 class MicroscopeApp(App):
     def __init__(self, *args, **kwargs):
@@ -167,10 +195,41 @@ class MicroscopeApp(App):
         self.window.widget.title("PyMicroscope")
 
         self.build_imageview_interface()
-        self.build_position_interface()
+
+        self.right_column = View()
+        self.right_column.grid_into(
+            self.window, column=1, row=0, rowspan=5, pady=30, padx=20, sticky="nw"
+        )
+
         self.build_start_stop_interface()
+        self.build_position_interface()
+        # self.build_map_interface()  # temporarily removed from the main window
         self.build_cameras_menu()
-        self.build_delay_interface()
+        # self.build_delay_interface()  # temporarily removed from the main window
+
+        self.constrain_window_size()
+
+    def constrain_window_size(self):
+        """Cap the window's width so it never exceeds MAX_WINDOW_WIDTH, letting
+        the camera preview (the only resizable column) shrink to absorb the
+        difference while keeping its aspect ratio."""
+        MAX_WINDOW_WIDTH = 1300
+        MIN_WINDOW_WIDTH = 1060
+
+        window = self.window.widget
+        window.update_idletasks()
+        natural_width = window.winfo_reqwidth()
+        natural_height = window.winfo_reqheight()
+
+        target_width = min(natural_width, MAX_WINDOW_WIDTH)
+        window.grid_propagate(False)
+        window.geometry(f"{target_width}x{natural_height}")
+        window.resizable(True, False)
+        window.minsize(MIN_WINDOW_WIDTH, natural_height)
+        window.maxsize(target_width, natural_height)
+
+        window.update_idletasks()
+        self.image.is_rescalable = True
 
     def build_imageview_interface(self):
         assert is_main_thread()
@@ -188,6 +247,8 @@ class MicroscopeApp(App):
             padx=20,
             sticky="nw",
         )
+        self.window.widget.columnconfigure(0, weight=1)
+        self.window.widget.rowconfigure(0, weight=1)
 
     def build_cameras_menu(self):
         Thread(target=self.background_get_providers).start()
@@ -205,14 +266,11 @@ class MicroscopeApp(App):
     def build_start_stop_interface(self):
         assert is_main_thread()
 
-        self.save_controls = Box(
-            label="Image Acquisition", width=500, height=150
-        )
+        self.save_controls = Box(label="Image Acquisition")
 
         self.save_controls.grid_into(
-            self.window, column=1, row=0, pady=10, padx=10, sticky="nse"
+            self.right_column, column=0, row=0, sticky="new"
         )
-        self.save_controls.widget.grid_propagate(False)
 
         self.camera_popup = PopupMenu(
             list(self.cameras.keys()), user_callback=self.user_changed_camera
@@ -375,105 +433,91 @@ class MicroscopeApp(App):
     def user_changed_camera(self, popup, index):
         self.change_provider()
 
+    DEFAULT_PADX = 4
+    DEFAULT_PADY = 4
+
+    def grid_into_with_defaults(self, widget, parent, **kwargs):
+        """Like widget.grid_into(parent, **kwargs), but falls back to this
+        app's default padx/pady when the caller doesn't specify them.
+
+        Temporary shim - see NEEDS_PADDING_SHIM at the top of this module.
+        """
+        if NEEDS_PADDING_SHIM:
+            kwargs.setdefault("padx", self.DEFAULT_PADX)
+            kwargs.setdefault("pady", self.DEFAULT_PADY)
+        widget.grid_into(parent, **kwargs)
+
     def build_position_interface(self):
-        # assert is_main_thread()
-
-        self.position = Box(label="Position", width=500, height=310)
+        self.position = Box()
         self.position.grid_into(
-            self.window, column=1, row=2, pady=10, padx=10, sticky="nse"
+            self.right_column, column=0, row=1, sticky="new"
         )
-        self.position.widget.grid_propagate(False)
+        self.position.widget.configure(padding=(8, 6))
 
-        Label("instrument position").grid_into(
-            self.position,
+        self.grid_into_with_defaults(
+            Label("Position: (0, 0, 0)"), self.position, row=0, column=0, sticky="w"
+        )
+
+    def build_map_interface(self):
+        self.map_controls = Box(label="Map")
+        self.map_controls.grid_into(
+            self.right_column, column=0, row=2, sticky="new"
+        )
+        self.map_controls.widget.configure(padding=(8, 6))
+
+        Label("Image Pixel Dimension:").grid_into(
+            self.map_controls,
             row=0,
             column=0,
             columnspan=2,
-            pady=8,
-            padx=10,
+            pady=4,
+            padx=4,
             sticky="w",
         )
-        Label("x :").grid_into(
-            self.position, row=1, column=0, pady=10, padx=10, sticky="e"
-        )
-        Label("0").grid_into(
-            self.position, row=1, column=1, pady=10, padx=10, sticky="w"
-        )
-        Label("y :").grid_into(
-            self.position, row=1, column=2, pady=10, padx=10, sticky="e"
-        )
-        Label("0").grid_into(
-            self.position, row=1, column=3, pady=10, padx=10, sticky="w"
-        )
-        Label("z :").grid_into(
-            self.position, row=1, column=4, pady=10, padx=10, sticky="e"
-        )
-        Label("0").grid_into(
-            self.position, row=1, column=5, pady=10, padx=10, sticky="w"
-        )
-
-        Label("Initial configuration").grid_into(
-            self.position,
-            row=2,
-            column=0,
-            columnspan=2,
-            pady=10,
-            padx=10,
-            sticky="w",
-        )
-        Label("Image Pixel Dimension:").grid_into(
-            self.position,
-            row=3,
-            column=0,
-            columnspan=2,
-            pady=10,
-            padx=10,
-            sticky="w",
-        )
-        Label("x dimension:").grid_into(
-            self.position,
-            row=3,
+        Label("X Dimension:").grid_into(
+            self.map_controls,
+            row=0,
             column=2,
-            pady=10,
-            padx=10,
+            pady=4,
+            padx=4,
             sticky="e",
         )
         self.x_pixel_entry = IntEntry(
             value=0, width=4
         )
         self.x_pixel_entry.grid_into(
-            self.position, row=3, column=3, pady=2, padx=2, sticky="nsw"
+            self.map_controls, row=0, column=3, pady=4, padx=4, sticky="nsw"
         )
         self.map_controller.bind_properties(
             "x_dimension", self.x_pixel_entry, "value_variable"
         )
 
-        Label("y dimension:").grid_into(
-            self.position,
-            row=3,
+        Label("Y Dimension:").grid_into(
+            self.map_controls,
+            row=0,
             column=4,
-            pady=10,
-            padx=10,
+            pady=4,
+            padx=4,
             sticky="e",
         )
         self.y_pixel_entry = IntEntry(
             value=0, width=4
         )
         self.y_pixel_entry.grid_into(
-            self.position, row=3, column=5, pady=2, padx=2, sticky="nsw"
+            self.map_controls, row=0, column=5, pady=4, padx=4, sticky="nsw"
         )
         self.map_controller.bind_properties(
             "y_dimension", self.y_pixel_entry, "value_variable"
         )
 
-        Label("Facteur :").grid_into(
-            self.position,
-            row=4,
+        Label("Facteur:").grid_into(
+            self.map_controls,
+            row=1,
             column=0,
             columnspan=2,
-            pady=2,
-            padx=2,
-            sticky="nse",
+            pady=4,
+            padx=4,
+            sticky="e",
         )
 
         self.microstep_pixel_entry = FormattedEntry(
@@ -482,121 +526,121 @@ class MicroscopeApp(App):
             format_string="{0:.5f}",
         )
         self.microstep_pixel_entry.grid_into(
-            self.position, row=4, column=2, pady=2, padx=2, sticky="ns"
+            self.map_controls, row=1, column=2, pady=4, padx=4, sticky="ns"
         )
         self.map_controller.bind_properties(
             "microstep_pixel", self.microstep_pixel_entry, "value"
         )
 
         Label("um/px").grid_into(
-            self.position,
-            row=4,
+            self.map_controls,
+            row=1,
             column=3,
-            pady=2,
-            padx=0,
+            pady=4,
+            padx=4,
             sticky="nsw",
         )
 
-        Label("Number of z images :").grid_into(
-            self.position,
-            row=5,
+        Label("Number of Z Images:").grid_into(
+            self.map_controls,
+            row=2,
             column=0,
             columnspan=2,
-            pady=2,
-            padx=2,
-            sticky="nse",
+            pady=4,
+            padx=4,
+            sticky="e",
         )
         self.z_image_number_entry = IntEntry(
             value=self.map_controller.z_image_number, width=5
         )
         self.z_image_number_entry.grid_into(
-            self.position, row=5, column=2, pady=2, padx=2, sticky="ns"
+            self.map_controls, row=2, column=2, pady=4, padx=4, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_image_number", self.z_image_number_entry, "value_variable"
         )
 
-        Label("z step :").grid_into(
-            self.position,
-            row=5,
+        Label("Z Step:").grid_into(
+            self.map_controls,
+            row=2,
             column=3,
-            pady=2,
-            padx=2,
-            sticky="nse",
+            pady=4,
+            padx=4,
+            sticky="e",
         )
 
         self.z_range_entry = IntEntry(
             value=self.map_controller.z_range, width=5
         )
         self.z_range_entry.grid_into(
-            self.position, row=5, column=4, pady=2, padx=2, sticky="ns"
+            self.map_controls, row=2, column=4, pady=4, padx=4, sticky="ns"
         )
         self.map_controller.bind_properties(
             "z_range", self.z_range_entry, "value_variable"
         )
 
         Label("um").grid_into(
-            self.position,
-            row=5,
+            self.map_controls,
+            row=2,
             column=5,
-            pady=2,
-            padx=0,
+            pady=4,
+            padx=4,
             sticky="nsw",
         )
 
         self.apply_upper_left_button = Button(
-            "Upper left corner",
+            "Upper Left Corner",
             user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.apply_upper_left_button.grid_into(
-            self.position,
-            row=6,
+            self.map_controls,
+            row=3,
             column=0,
             columnspan=2,
-            pady=3,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="w",
         )
 
         self.apply_upper_right_button = Button(
-            "Upper right corner",
+            "Upper Right Corner",
             user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.apply_upper_right_button.grid_into(
-            self.position,
-            row=6,
+            self.map_controls,
+            row=3,
             column=2,
             columnspan=2,
-            pady=3,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="w",
         )
 
         self.apply_lower_right_button = Button(
-            "Lower right corner",
+            "Lower Right Corner",
             user_event_callback=self.user_clicked_saving_position,
-        )  # want that when the button is push, the first value is memorised and we see the position at the button place
+        )
         self.apply_lower_right_button.grid_into(
-            self.position,
-            row=7,
+            self.map_controls,
+            row=4,
             column=2,
             columnspan=2,
-            pady=2,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="w",
         )
 
         self.apply_lower_left_button = Button(
-            "Lower left corner",
+            "Lower Left Corner",
             user_event_callback=self.user_clicked_saving_position,
         )
         self.apply_lower_left_button.grid_into(
-            self.position,
-            row=7,
+            self.map_controls,
+            row=4,
             column=0,
             columnspan=2,
-            pady=2,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="w",
         )
 
@@ -605,12 +649,12 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_map_aquisition_image,
         )
         self.start_map_aquisition.grid_into(
-            self.position,
-            row=6,
+            self.map_controls,
+            row=3,
             column=4,
             columnspan=2,
-            pady=2,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="ns",
         )
         self.bind_properties(
@@ -622,12 +666,12 @@ class MicroscopeApp(App):
             user_event_callback=self.user_clicked_clear,
         )
         self.clear_map_aquisition.grid_into(
-            self.position,
-            row=7,
+            self.map_controls,
+            row=4,
             column=4,
             columnspan=2,
-            pady=2,
-            padx=2,
+            pady=4,
+            padx=4,
             sticky="ns",
         )
         self.bind_properties(
@@ -815,11 +859,12 @@ class MicroscopeApp(App):
 
 
     def user_clicked_configure_button(self, event, button):
-        restart_after = False
+        if self.provider is None:
+            self.change_provider()
 
-        if self.provider._is_running.value:
+        was_running = self.provider._is_running.value
+        if was_running:
             self.stop_capture()
-            restart_after = True
 
         properties_description = self.provider.properties_description
         configuration = self.provider.configuration
@@ -831,8 +876,11 @@ class MicroscopeApp(App):
         )
         reply = diag.run()
 
-        if restart_after:
-            self.start_capture(diag.configuration)
+        if reply == ConfigurationDialog.Replies.Ok:
+            self.provider.set_configuration(diag.configuration)
+
+        if was_running:
+            self.start_capture()
 
     def change_provider(self, configuration={}):
         self.release_provider()
@@ -924,7 +972,8 @@ class MicroscopeApp(App):
         try:
             img_array = self.preview_queue.get_nowait()
             pil_image = PILImage.fromarray(img_array, mode="RGB")
-            self.image.update_display(pil_image)
+            self.image.pil_image = pil_image
+            self.image.resize_image_to_fit_widget()
         except Empty:
             pass
 

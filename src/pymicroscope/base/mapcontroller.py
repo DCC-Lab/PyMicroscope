@@ -30,10 +30,10 @@ class MapController(Bindable):
         self.overlap_fraction = 0.1
 
         self.parameters: dict[str, Optional[Tuple[float, float, float]]] = {
-            "Upper left corner": None,
-            "Upper right corner": None,
-            "Lower left corner": None,
-            "Lower right corner": None,
+            "Upper Left Corner": None,
+            "Upper Right Corner": None,
+            "Lower Left Corner": None,
+            "Lower Right Corner": None,
         }
 
     @property
@@ -68,9 +68,9 @@ class MapController(Bindable):
         z_image_dimension = self.z_range * self.microstep_pixel
 
         if self.corners_are_set:
-            upper_left = self.parameters["Upper left corner"]
-            upper_right = self.parameters["Upper right corner"]
-            lower_right = self.parameters["Lower right corner"]
+            upper_left = self.parameters["Upper Left Corner"]
+            upper_right = self.parameters["Upper Right Corner"]
+            lower_right = self.parameters["Lower Right Corner"]
 
             x_span = upper_right[0] - upper_left[0]
             y_span = upper_right[1] - lower_right[1]

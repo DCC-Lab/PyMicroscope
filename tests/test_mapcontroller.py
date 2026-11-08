@@ -43,15 +43,15 @@ class MapControllerTestCase(envtest.CoreTestCase):
             self.assertIsNone(corner)
 
     def test030_corners_are_set_when_all_defined(self):
-        self.controller.parameters["Upper left corner"] = (0, 0, 0)
-        self.controller.parameters["Upper right corner"] = (100, 0, 0)
-        self.controller.parameters["Lower left corner"] = (0, 100, 0)
-        self.controller.parameters["Lower right corner"] = (100, 100, 0)
+        self.controller.parameters["Upper Left Corner"] = (0, 0, 0)
+        self.controller.parameters["Upper Right Corner"] = (100, 0, 0)
+        self.controller.parameters["Lower Left Corner"] = (0, 100, 0)
+        self.controller.parameters["Lower Right Corner"] = (100, 100, 0)
         self.assertTrue(self.controller.corners_are_set)
 
     def test040_corners_not_set_if_partial(self):
-        self.controller.parameters["Upper left corner"] = (0, 0, 0)
-        self.controller.parameters["Upper right corner"] = (100, 0, 0)
+        self.controller.parameters["Upper Left Corner"] = (0, 0, 0)
+        self.controller.parameters["Upper Right Corner"] = (100, 0, 0)
         self.assertFalse(self.controller.corners_are_set)
 
     def test050_single_position_without_corners(self):
@@ -60,10 +60,10 @@ class MapControllerTestCase(envtest.CoreTestCase):
         self.assertEqual(positions[0], (0, 0, 0))
 
     def test060_grid_positions_with_corners(self):
-        self.controller.parameters["Upper left corner"] = (0.0, 200.0, 0.0)
-        self.controller.parameters["Upper right corner"] = (500.0, 200.0, 0.0)
-        self.controller.parameters["Lower left corner"] = (0.0, 0.0, 0.0)
-        self.controller.parameters["Lower right corner"] = (500.0, 0.0, 0.0)
+        self.controller.parameters["Upper Left Corner"] = (0.0, 200.0, 0.0)
+        self.controller.parameters["Upper Right Corner"] = (500.0, 200.0, 0.0)
+        self.controller.parameters["Lower Left Corner"] = (0.0, 0.0, 0.0)
+        self.controller.parameters["Lower Right Corner"] = (500.0, 0.0, 0.0)
 
         positions = self.controller.create_positions_for_map()
         self.assertTrue(len(positions) > 1)
@@ -84,10 +84,10 @@ class MapControllerTestCase(envtest.CoreTestCase):
         self.assertTrue(z_values[2] > z_values[1])
 
     def test080_overlap_fraction_affects_spacing(self):
-        self.controller.parameters["Upper left corner"] = (0.0, 100.0, 0.0)
-        self.controller.parameters["Upper right corner"] = (500.0, 100.0, 0.0)
-        self.controller.parameters["Lower left corner"] = (0.0, 0.0, 0.0)
-        self.controller.parameters["Lower right corner"] = (500.0, 0.0, 0.0)
+        self.controller.parameters["Upper Left Corner"] = (0.0, 100.0, 0.0)
+        self.controller.parameters["Upper Right Corner"] = (500.0, 100.0, 0.0)
+        self.controller.parameters["Lower Left Corner"] = (0.0, 0.0, 0.0)
+        self.controller.parameters["Lower Right Corner"] = (500.0, 0.0, 0.0)
 
         self.controller.overlap_fraction = 0.1
         positions_10pct = self.controller.create_positions_for_map()
@@ -110,10 +110,10 @@ class MapControllerTestCase(envtest.CoreTestCase):
 
     def test110_positions_start_at_origin(self):
         """First position in any grid should be at the origin."""
-        self.controller.parameters["Upper left corner"] = (0.0, 100.0, 0.0)
-        self.controller.parameters["Upper right corner"] = (500.0, 100.0, 0.0)
-        self.controller.parameters["Lower left corner"] = (0.0, 0.0, 0.0)
-        self.controller.parameters["Lower right corner"] = (500.0, 0.0, 0.0)
+        self.controller.parameters["Upper Left Corner"] = (0.0, 100.0, 0.0)
+        self.controller.parameters["Upper Right Corner"] = (500.0, 100.0, 0.0)
+        self.controller.parameters["Lower Left Corner"] = (0.0, 0.0, 0.0)
+        self.controller.parameters["Lower Right Corner"] = (500.0, 0.0, 0.0)
 
         positions = self.controller.create_positions_for_map()
         self.assertEqual(positions[0], (0, 0, 0))
