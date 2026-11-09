@@ -1,200 +1,100 @@
+import time
+import multiprocessing as mp
+from multiprocessing.managers import DictProxy
+
 import envtest
-from typing import Optional, Tuple, Any
 
-from pymicroscope.utils.configurable import Configurable, ConfigurableProperty, ConfigurationDialog
-from mytk import Dialog, Label, Entry
+from pymicroscope.utils.configurable import (
+    ProcessSafeConfigurable,
+    ProcessSafeConfigurableNumericProperty,
+)
 
-class TestObject(Configurable):
-    pass
 
-class ConfigurableTestCase(envtest.CoreTestCase):
-    def test000_configurable_property(self) -> None:
-        """
-        Verify that the abstract ImageProvider cannot be instantiated directly.
-        """
+class SimpleConfigurable(ProcessSafeConfigurable):
+    width = ProcessSafeConfigurableNumericProperty(default_value=640, value_type=int)
+    height = ProcessSafeConfigurableNumericProperty(
+        default_value=480, min_value=1, max_value=2000, value_type=int
+    )
 
-        prop = ConfigurableProperty(
-            name="Exposure Time",
-            default_value=100,
-            min_value=0,
-            max_value=1000,
-            validate_fct=lambda x: x >= 0,
-            format_string="{:.1f} ms",
-            multiplier=1000
-        )
-        
-        self.assertIsNotNone(prop)
 
-    def test010_configurable_property_with_defaults(self) -> None:
+class Worker(mp.Process, ProcessSafeConfigurable):
+    """Mimics ImageProvider: a long-running Process whose configuration
+    must stay mutable from the parent after the child has already started.
+    """
 
-        prop = ConfigurableProperty(
-            name="Exposure Time",
-            default_value=100,
-        )
-        
-        self.assertIsNotNone(prop)
-        self.assertTrue(prop.is_in_valid_range(100))
-        self.assertTrue(prop.is_in_valid_range(10000))
-        self.assertTrue(prop.is_in_valid_range(-10000))
-                         
-    def test020_configurable_property_validated(self) -> None:
+    width = ProcessSafeConfigurableNumericProperty(default_value=640, value_type=int)
 
-        prop = ConfigurableProperty(
-            name="Exposure Time",
-            default_value=100,
-            min_value=0,
-            max_value=1000,            
-        )
-        
-        self.assertIsNotNone(prop)
-        self.assertTrue(prop.is_in_valid_range(100))
-        self.assertFalse(prop.is_in_valid_range(10000))
+    def __init__(self, result_queue):
+        mp.Process.__init__(self)
+        ProcessSafeConfigurable.__init__(self)
+        self.result_queue = result_queue
 
-    def test030_configurable_object(self) -> None:
+    def run(self):
+        for _ in range(10):
+            self.result_queue.put(self.width)
+            time.sleep(0.05)
 
-        prop1 = ConfigurableProperty(
-            name="exposure_time",
-            default_value=100,
-            min_value=0,
-            max_value=1000,            
-        )
 
-        prop2 = ConfigurableProperty(
-            name="gain",
-            default_value=100,
-            min_value=0,
-            max_value=1000,            
-        )
-        
-        obj = TestObject([prop1, prop2])
-        self.assertIsNotNone(obj)
-        
-        print(obj.configuration)
+class ProcessSafeConfigurableTestCase(envtest.CoreTestCase):
+    def test000_defaults_populate_configuration(self) -> None:
+        obj = SimpleConfigurable()
+        self.assertEqual(obj.width, 640)
+        self.assertEqual(obj.height, 480)
+        self.assertEqual(obj.configuration["width"], 640)
+        self.assertEqual(obj.configuration["height"], 480)
 
-    def test040_configurable_object_dialog(self) -> None:
+    def test010_set_via_attribute_updates_configuration_dict(self) -> None:
+        obj = SimpleConfigurable()
+        obj.width = 222
+        self.assertEqual(obj.width, 222)
+        self.assertEqual(obj.configuration["width"], 222)
 
-        prop1 = ConfigurableProperty(
-            name="exposure_time",
-            displayed_name="Exposure time",
-            default_value=100,
-            min_value=0,
-            max_value=1000,            
-        )
+    def test020_sanitize_clamps_out_of_range_values(self) -> None:
+        """mytk's ConfigurableNumericProperty.sanitize() still runs: our
+        descriptor only changes where the value is stored, not validation."""
+        obj = SimpleConfigurable()
+        obj.height = 999999
+        self.assertEqual(obj.height, 2000)
 
-        prop2 = ConfigurableProperty(
-            name="gain",
-            displayed_name="Gain",
-            default_value=3.14,
-            min_value=0,
-            max_value=1000,            
-        )
-        
-        diag = ConfigurationDialog(title="Configuration", properties_description=[prop1, prop2], configuration={})
-        reply = diag.run()
-        print(diag.configuration)
+    def test030_update_values_applies_multiple_properties(self) -> None:
+        obj = SimpleConfigurable()
+        obj.update_values({"width": 111, "height": 222})
+        self.assertEqual(obj.width, 111)
+        self.assertEqual(obj.height, 222)
 
-    def test050_configurable_with_initial_configuration(self) -> None:
-        """Verify that initial configuration overrides default values."""
-        prop = ConfigurableProperty(name="gain", default_value=1)
-        obj = TestObject([prop], configuration={"gain": 42})
-        self.assertEqual(obj.configuration["gain"], 42)
+    def test040_set_configuration_is_an_alias_for_update_values(self) -> None:
+        obj = SimpleConfigurable()
+        obj.set_configuration({"width": 333})
+        self.assertEqual(obj.width, 333)
 
-    def test060_configurable_property_defaults(self) -> None:
-        """Verify default field values on ConfigurableProperty."""
-        prop = ConfigurableProperty(name="x")
-        self.assertIsNone(prop.default_value)
-        self.assertIsNone(prop.displayed_name)
-        self.assertEqual(prop.min_value, float("-inf"))
-        self.assertEqual(prop.max_value, float("+inf"))
-        self.assertIsNone(prop.validate_fct)
-        self.assertIsNone(prop.format_string)
-        self.assertEqual(prop.multiplier, 1)
-        self.assertEqual(prop.value_type, int)
+    def test050_configuration_is_backed_by_a_manager_dict(self) -> None:
+        """The whole point of this module: configuration must be a real
+        multiprocessing proxy, not a plain per-instance dict."""
+        obj = SimpleConfigurable()
+        self.assertIsInstance(obj.configuration, DictProxy)
 
-    def test070_int_property_list(self) -> None:
-        """Verify int_property_list creates properties from key names."""
-        props = ConfigurableProperty.int_property_list(["width", "height", "depth"])
-        self.assertEqual(len(props), 3)
-        self.assertEqual(props[0].name, "width")
-        self.assertEqual(props[1].name, "height")
-        self.assertEqual(props[2].name, "depth")
-        for p in props:
-            self.assertEqual(p.value_type, int)
-            self.assertIsNone(p.default_value)
+    def test060_cross_process_update_is_visible_to_a_running_child(self) -> None:
+        """A value set from the parent AFTER the child process has started
+        must be visible to that child on its next read. Verified to fail
+        with mytk's own Configurable (plain __dict__ storage) before this
+        module existed."""
+        q = mp.Queue()
+        w = Worker(q)
+        w.start()
+        try:
+            time.sleep(0.15)
+            w.width = 222
+            time.sleep(0.3)
+        finally:
+            w.terminate()
+            w.join()
 
-    def test080_configurable_property_validate_fct(self) -> None:
-        """Verify custom validation function works."""
-        prop = ConfigurableProperty(
-            name="even_number",
-            default_value=2,
-            validate_fct=lambda x: x % 2 == 0,
-        )
-        self.assertTrue(prop.validate_fct(2))
-        self.assertTrue(prop.validate_fct(100))
-        self.assertFalse(prop.validate_fct(3))
+        seen = []
+        while not q.empty():
+            seen.append(q.get())
 
-    def test090_configurable_property_format_string(self) -> None:
-        """Verify format_string can be used for display."""
-        prop = ConfigurableProperty(
-            name="exposure",
-            default_value=100,
-            format_string="{:.1f} ms",
-        )
-        self.assertEqual(prop.format_string.format(prop.default_value), "100.0 ms")
-
-    def test100_configurable_property_multiplier(self) -> None:
-        """Verify multiplier field is stored correctly."""
-        prop = ConfigurableProperty(
-            name="voltage",
-            default_value=5,
-            multiplier=1000,
-        )
-        self.assertEqual(prop.multiplier, 1000)
-        self.assertEqual(prop.default_value * prop.multiplier, 5000)
-
-    def test110_configurable_property_value_type(self) -> None:
-        """Verify value_type can be set to float."""
-        prop = ConfigurableProperty(
-            name="temperature",
-            default_value=36.6,
-            value_type=float,
-        )
-        self.assertEqual(prop.value_type, float)
-        self.assertIsInstance(prop.value_type(prop.default_value), float)
-
-    def test120_configurable_properties_description_dict(self) -> None:
-        """Verify properties_description_dict maps names to properties."""
-        prop1 = ConfigurableProperty(name="a", default_value=1)
-        prop2 = ConfigurableProperty(name="b", default_value=2)
-        obj = TestObject([prop1, prop2])
-        self.assertIn("a", obj.properties_description_dict)
-        self.assertIn("b", obj.properties_description_dict)
-        self.assertEqual(obj.properties_description_dict["a"].default_value, 1)
-
-    def test130_configurable_shared_memory_dict(self) -> None:
-        """Verify configuration uses Manager dict (supports multiprocessing)."""
-        prop = ConfigurableProperty(name="x", default_value=10)
-        obj = TestObject([prop])
-        self.assertEqual(obj.configuration["x"], 10)
-        obj.configuration["x"] = 99
-        self.assertEqual(obj.configuration["x"], 99)
-
-    def test140_is_in_valid_range_boundary(self) -> None:
-        """Verify boundary values are valid (inclusive range)."""
-        prop = ConfigurableProperty(name="x", min_value=0, max_value=100)
-        self.assertTrue(prop.is_in_valid_range(0))
-        self.assertTrue(prop.is_in_valid_range(100))
-        self.assertFalse(prop.is_in_valid_range(-1))
-        self.assertFalse(prop.is_in_valid_range(101))
-
-    def test150_configurable_displayed_name(self) -> None:
-        """Verify displayed_name is stored and accessible."""
-        prop = ConfigurableProperty(
-            name="frame_rate",
-            displayed_name="Frame Rate (Hz)",
-            default_value=30,
-        )
-        self.assertEqual(prop.displayed_name, "Frame Rate (Hz)")
+        self.assertIn(640, seen, "child never saw the initial default")
+        self.assertIn(222, seen, "child never saw the parent's update")
 
 
 if __name__ == "__main__":

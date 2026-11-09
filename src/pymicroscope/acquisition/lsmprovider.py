@@ -1,12 +1,13 @@
 import numpy as np
 from typing import Any, Optional
 
-from pymicroscope.acquisition.imageprovider import ImageProvider, Controllable, Configurable
-    
-class ScanGeneratorService(Configurable):
+from pymicroscope.acquisition.imageprovider import ImageProvider, Controllable
+from pymicroscope.utils.configurable import ProcessSafeConfigurable
+
+class ScanGeneratorService(ProcessSafeConfigurable):
     pass
 
-class ImageAcquisitionService(Configurable):
+class ImageAcquisitionService(ProcessSafeConfigurable):
     pass
 
 class LSMImageProvider(ImageProvider):

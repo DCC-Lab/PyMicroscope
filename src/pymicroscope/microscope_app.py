@@ -35,10 +35,6 @@ if not NEEDS_PADDING_SHIM:
         file=sys.stderr,
     )
 
-from pymicroscope.utils.configurable import (
-    ConfigurationDialog,
-)
-
 from PIL import Image as PILImage
 from pymicroscope.acquisition.imageprovider import DebugImageProvider, ImageProvider
 from pymicroscope.acquisition.cameraprovider import OpenCVImageProvider
@@ -866,18 +862,7 @@ class MicroscopeApp(App):
         if was_running:
             self.stop_capture()
 
-        properties_description = self.provider.properties_description
-        configuration = self.provider.configuration
-
-        diag = ConfigurationDialog(
-            title="Configuration",
-            properties_description=properties_description,
-            configuration=configuration,
-        )
-        reply = diag.run()
-
-        if reply == ConfigurationDialog.Replies.Ok:
-            self.provider.set_configuration(diag.configuration)
+        self.provider.show_config_dialog(title="Configuration")
 
         if was_running:
             self.start_capture()
@@ -892,9 +877,9 @@ class MicroscopeApp(App):
         args = self.cameras[selected_camera_name]["args"]
         kwargs = self.cameras[selected_camera_name]["kwargs"]
             
-        self.provider = CameraType(
-            queue=self.image_queue, configuration=configuration, *args, **kwargs
-        )
+        self.provider = CameraType(queue=self.image_queue, *args, **kwargs)
+        if configuration:
+            self.provider.update_values(configuration)
         self.provider.start_synchronously()
 
     def release_provider(self):
