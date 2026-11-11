@@ -8,7 +8,10 @@ from dataclasses import dataclass
 
 from mytk import Dialog
 from pymicroscope.utils.terminable import run_loop, TerminableProcess
-from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
+from pymicroscope.utils.configurable import (
+    ProcessSafeConfigurable,
+    ProcessSafeConfigurableNumericProperty,
+)
 from pymicroscope.acquisition.vmsconfigdialog import VMSConfigDialog
 
 class Controllable:
@@ -28,12 +31,17 @@ class Controllable:
         pass
     
         
-class ImageProvider(TerminableProcess, Configurable):
+class ImageProvider(TerminableProcess, ProcessSafeConfigurable):
     """
     Abstract base class defining the interface for image providers.
 
     Provides a configurable image capture process with client support.
     """
+
+    width = ProcessSafeConfigurableNumericProperty(default_value=640, value_type=int)
+    height = ProcessSafeConfigurableNumericProperty(default_value=480, value_type=int)
+    frame_rate = ProcessSafeConfigurableNumericProperty(default_value=30, value_type=int)
+    channels = ProcessSafeConfigurableNumericProperty(default_value=3, value_type=int)
 
     def __init__(
         self, queue:Optional[Queue] = None, *args: Any, **kwargs: Any
@@ -43,42 +51,21 @@ class ImageProvider(TerminableProcess, Configurable):
 
         Note: Process() is not cooperative and the MRO is incorrect.
         I need to call the __init__() manuallty and remove the spurios arguments
-        
+
         Args:
             client: Object implementing ImageProviderClient.
             properties: Dictionary of configuration settings.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        
-        prop_width = ConfigurableProperty(
-            name="width",
-            default_value=640,
-        )
-        prop_height = ConfigurableProperty(
-            name="height",
-            default_value=480,
-        )
+        ProcessSafeConfigurable.__init__(self)
 
-        prop_frame_rate = ConfigurableProperty(
-            name="frame_rate",
-            default_value=30,
-        )
-
-        properties_description = kwargs.pop("properties_description", [])
-        properties_description.extend([prop_width, prop_height,prop_frame_rate])
-        
-        configuration = {"frame_rate":30, "channels":3, "size":(480, 640)}
-        configuration.update(kwargs.pop("configuration", {}))
-        
-        Configurable.__init__(self, properties_description=properties_description, configuration=configuration)
-        
         TerminableProcess.__init__(self, *args, **kwargs)
 
         self._is_running = Value('b', False)
         self._last_image = None
         self.image_queue = queue
-    
+
     @property
     def is_running(self):
         with self._is_running.get_lock():
@@ -91,38 +78,20 @@ class ImageProvider(TerminableProcess, Configurable):
                 self._is_running.value = True
             else:
                 self._is_running.value = False
-    
-    @property
-    def width(self) -> int:
-        return self.configuration["width"]
 
     def set_width(self, value: int) -> None:
-        self.configuration["width"] = value
-
-    @property
-    def height(self) -> int:
-        return self.configuration["height"]
+        self.width = value
 
     def set_height(self, value: int) -> None:
-        self.configuration["height"] = value
-
-    @property
-    def frame_rate(self) -> float:
-        """Return the frame rate in Hz."""
-        return self.configuration["frame_rate"]
+        self.height = value
 
     def set_frame_rate(self, value: float) -> None:
         """Set the frame rate in Hz."""
-        self.configuration["frame_rate"] = value
-
-    @property
-    def channels(self) -> int:
-        """Return the number of image channels (e.g., 3 for RGB)."""
-        return self.configuration["channels"]
+        self.frame_rate = value
 
     def set_channels(self, value: int) -> None:
         """Set the number of image channels."""
-        self.configuration["channels"] = value
+        self.channels = value
 
     def capture_image(self) -> np.ndarray:
         """
@@ -136,22 +105,13 @@ class ImageProvider(TerminableProcess, Configurable):
         """Mark the beginning of an image capture session."""
         with self._is_running.get_lock():
             self._is_running.value = 1
-        
-        self.configuration.update(configuration)
+
+        self.update_values(configuration)
 
     def stop_capture(self) -> None:
         """Stop the image capture session."""
         with self._is_running.get_lock():
             self._is_running.value = 0
-
-    def set_configuration(self, properties: dict[str, Any]) -> None:
-        """
-        Update provider configuration.
-
-        Args:
-            properties: Dictionary of property updates.
-        """
-        self.configuration.update(properties)
 
     def get_configuration(self) -> dict[str, Any]:
         """
@@ -160,7 +120,7 @@ class ImageProvider(TerminableProcess, Configurable):
         Returns:
             Dictionary of configuration values.
         """
-        return self.configuration
+        return self.values
 
     def run(self) -> None:
         """
@@ -280,7 +240,7 @@ class DebugImageProvider(ImageProvider):
     
 if __name__ == "__main__":
     print(ImageProvider.__mro__)
-    ImageProvider(properties_description=[])
+    ImageProvider()
     # import logging
 
     # # provider = DebugImageProvider(

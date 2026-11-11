@@ -4,7 +4,7 @@ from typing import Any, Optional
 import time
 
 from pymicroscope.acquisition.imageprovider import ImageProvider
-from pymicroscope.utils.configurable import Configurable, ConfigurableProperty
+from pymicroscope.utils.configurable import ProcessSafeConfigurableNumericProperty
 
 
 class OpenCVImageProvider(ImageProvider):
@@ -12,26 +12,18 @@ class OpenCVImageProvider(ImageProvider):
     Image provider using OpenCV to capture frames from a camera.
     """
 
+    camera_index = ProcessSafeConfigurableNumericProperty(default_value=0, value_type=int)
+
     _available_devices = None
-    
+
     def __init__(
         self,
         camera_index: int = 0,
         *args: Any,
         **kwargs: Any,
     ) -> None:
-
-        prop_index = ConfigurableProperty("camera_index",0)
-        
-        properties_description = kwargs.get('properties_description',[])
-        properties_description.append(prop_index)
-        kwargs['properties_description'] = properties_description
-        
-        configuration = kwargs.get('configuration',{})
-        configuration.update({"camera_index":camera_index})
-        kwargs['configuration'] = configuration
-
         super().__init__(*args, **kwargs)
+        self.camera_index = camera_index
     
         
     @classmethod
@@ -73,7 +65,7 @@ class OpenCVImageProvider(ImageProvider):
         return frame
     
     def run(self):
-        self.cap = cv2.VideoCapture(self.configuration['camera_index'])
+        self.cap = cv2.VideoCapture(self.camera_index)
 
         # Wait until camera is ready
         timeout = 5  # seconds
@@ -86,4 +78,11 @@ class OpenCVImageProvider(ImageProvider):
             if time.time() - start_time > timeout:
                 raise TimeoutError("Camera not ready after waiting {} seconds".format(timeout))
             time.sleep(0.1)  # avoid tight loop
+
+        # Adopt the camera's native resolution so capture_image() never
+        # stretches frames to a mismatched aspect ratio (e.g. the default
+        # 640x480 against a 16:9 FaceTime camera).
+        self.set_height(frame.shape[0])
+        self.set_width(frame.shape[1])
+
         super().run()

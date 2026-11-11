@@ -34,7 +34,7 @@ class VMSController:
             "READ_CPN": {
                 "command_code": 0x6D,
                 "command_bytes_format": ">b",
-                "response_bytes_format": ">h",
+                "response_bytes_format": ">H",
             },
             "READ_SN": {
                 "command_code": 0x6B,
@@ -59,26 +59,26 @@ class VMSController:
             "READ_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x74,
                 "command_bytes_format": ">b",
-                "response_bytes_format": ">h",
+                "response_bytes_format": ">H",
             },
             "READ_DAC_START": {
                 "command_code": 0x73,
                 "command_bytes_format": ">b",
-                "response_bytes_format": ">h",
+                "response_bytes_format": ">H",
             },
             "READ_DAC_INCREMENT": {
                 "command_code": 0x72,
                 "command_bytes_format": ">b",
-                "response_bytes_format": ">h",
+                "response_bytes_format": ">H",
             },
             "READ_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6E,
                 "command_bytes_format": ">b",
-                "response_bytes_format": ">h",
+                "response_bytes_format": ">H",
             },
             "WRITE_DAC_START": {
                 "command_code": 0x7B,
-                "command_bytes_format": ">bh",
+                "command_bytes_format": ">bH",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_START"],
                 "minimum": 0,
@@ -86,7 +86,7 @@ class VMSController:
             },
             "WRITE_DAC_INCREMENT": {
                 "command_code": 0x7A,
-                "command_bytes_format": ">bh",
+                "command_bytes_format": ">bH",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_DAC_INCREMENT"],
                 "minimum": 0,
@@ -94,7 +94,7 @@ class VMSController:
             },
             "WRITE_NUMBER_OF_LINES_FOR_VSYNC": {
                 "command_code": 0x6F,
-                "command_bytes_format": ">bh",
+                "command_bytes_format": ">bH",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_FOR_VSYNC"],
                 "minimum": 1,
@@ -102,7 +102,7 @@ class VMSController:
             },
             "WRITE_NUMBER_OF_LINES_PER_FRAME": {
                 "command_code": 0x7C,
-                "command_bytes_format": ">bh",
+                "command_bytes_format": ">bH",
                 "response_bytes_format": "",
                 "parameter": self.default_write_parameters["WRITE_NUMBER_OF_LINES_PER_FRAME"],
                 "minimum": 36,
@@ -136,7 +136,8 @@ class VMSController:
         serial_number = self.send_command("READ_SN")
         build_time = self.send_command("READ_BUILD_TIME")
         build_date = self.send_command("READ_BUILD_DATE")
-        return f"VMS Controller: CID: {cid[0]}, CPN: {cpn[0]}, Serial #: {serial_number},\nFireware version: {fw[0]}.{fw[1]}.{fw[2]} [Build: {b''.join(build_date).decode()}, {b''.join(build_time).decode()}]\n"
+        serial_number_str = "".join(str(b) for b in serial_number)
+        return f"VMS Controller: CID: {cid[0]}, CPN: {cpn[0]}, Serial #: {serial_number_str},\nFirmware version: {fw[0]}.{fw[1]}.{fw[2]} [Build: {b''.join(build_date).decode()}, {b''.join(build_time).decode()}]\n"
 
     def send_command(self, command_name, parameter=None):
         command_dict = self.commands[command_name]
@@ -157,6 +158,11 @@ class VMSController:
         unpacked_response = None
         if bytes_returned != 0:
             response_bytes = self.port.read(bytes_returned)
+            if len(response_bytes) != bytes_returned:
+                raise RuntimeError(
+                    f"{command_name}: expected {bytes_returned} bytes, got "
+                    f"{len(response_bytes)} (serial timeout or disconnected controller)"
+                )
             unpacked_response = struct.unpack(
                 response_bytes_format, response_bytes
             )

@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import Any
 import platform
 from enum import Enum
-from mytk.notificationcenter import NotificationCenter
-import os
 from contextlib import suppress
 from multiprocessing import Queue
 import numpy as np
@@ -17,7 +15,7 @@ from hardwarelibrary.motion import LinearMotionDevice
 from PIL import Image as PILImage
 from datetime import datetime
 from threading import Thread
-from mytk.notificationcenter import NotificationCenter
+from notificationcenter import NotificationCenter
 from pymicroscope.app_notifications import MicroscopeAppNotification
 
 
